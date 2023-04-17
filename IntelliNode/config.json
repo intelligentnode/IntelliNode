@@ -1,0 +1,27 @@
+{
+  "url": {
+    "openai": {
+      "base": "https://api.openai.com",
+      "completions": "/v1/completions",
+      "chatgpt": "/v1/chat/completions",
+      "imagegenerate": "/v1/images/generations",
+      "testkey": ""
+    },
+    "cohere": {
+      "base": "https://api.cohere.ai",
+      "completions": "/generate",
+      "version": "2022-12-06",
+      "testkey": ""
+    },
+    "google": {
+      "base": "https://{1}.googleapis.com/v1/",
+      "speech": {
+        "prefix": "texttospeech",
+        "synthesize": {
+          "postfix": "text:synthesize"
+        }
+      },
+      "testkey": ""
+    }
+  }
+}
