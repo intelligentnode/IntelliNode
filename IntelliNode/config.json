@@ -4,14 +4,12 @@
       "base": "https://api.openai.com",
       "completions": "/v1/completions",
       "chatgpt": "/v1/chat/completions",
-      "imagegenerate": "/v1/images/generations",
-      "testkey": ""
+      "imagegenerate": "/v1/images/generations"
     },
     "cohere": {
       "base": "https://api.cohere.ai",
       "completions": "/generate",
-      "version": "2022-12-06",
-      "testkey": ""
+      "version": "2022-12-06"
     },
     "google": {
       "base": "https://{1}.googleapis.com/v1/",
@@ -20,8 +18,7 @@
         "synthesize": {
           "postfix": "text:synthesize"
         }
-      },
-      "testkey": ""
+      }
     }
   }
 }

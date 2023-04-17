@@ -1,0 +1,7 @@
+## Test Openai functions ##
+
+1- create a .env file with openAI keys:
+OPENAI_API_KEY=<your key>
+
+2- run openAI wrapper unit test case:
+node test/OpenAIWrapper.test.js

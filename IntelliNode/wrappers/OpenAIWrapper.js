@@ -1,5 +1,5 @@
 const axios = require('axios');
-const config = require('../utils/Config2');
+const config = require('../utils/Config2').getInstance();
 const connHelper = require('../utils/ConnHelper');
 
 class OpenAIWrapper {
