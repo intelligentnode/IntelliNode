@@ -1,4 +1,7 @@
 
+<p align="center">
+<img src="images/intelligent_node_header.png" width="500em">
+</p>
 
 <p align="center">
 
