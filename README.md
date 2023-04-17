@@ -16,7 +16,7 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models
 - **The controller layer** offers a unified input to any model by handling the model differences.
-- **The function layer** provides abstract application layers that can extend the app's use cases.
+- **The function layer** provides abstract functionality that can extend the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
 # Roadmap
 Call for contributors:
