@@ -11,7 +11,12 @@
 </p>
 
 # Intelligent Node
-IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT and DALL·E, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
+IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
+
+# Pillars
+- **The wrapper layer** provides low-level access to the latest AI models
+- **The controller layer** offers a unified input to any model by handling the model differences.
+- **The function layer** provides abstract application layers that can extend the app's use cases.
 
 # Roadmap
 Call for contributors:
@@ -23,6 +28,7 @@ Call for contributors:
 - [ ] Add support to Google speech models.
 - [ ] Add support to Amazon language models.
 - [ ] Add support to Midjourney image generation.
+- [ ] Add support to Stable diffusion.
 - [ ] Add support to WuDao 2.0 model.
 
 # License
