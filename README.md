@@ -21,6 +21,12 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
+# First setup
+```
+cd IntelliNode
+npm install
+```
+
 # Roadmap
 Call for contributors:
 - [x] Add support to OpenAI Completion.
