@@ -5,3 +5,7 @@ OPENAI_API_KEY=<your key>
 
 2- run openAI wrapper unit test case:
 node test/OpenAIWrapper.test.js
+
+
+2- run cohere wrapper unit test case:
+node test/CohereAIWrapper.test.js
