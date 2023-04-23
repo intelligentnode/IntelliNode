@@ -1,7 +1,10 @@
-## Test Openai functions ##
+## Test wrapper functions ##
 
-1- create a .env file with openAI keys:
-OPENAI_API_KEY=<your key>
+1- create a .env file in the root directory with keys:
+OPENAI_API_KEY=<key_value>
+COHERE_API_KEY=<key_value>
+GOOGLE_API_KEY=<key_value>
+
 
 2- run openAI wrapper unit test case:
 node test/OpenAIWrapper.test.js
@@ -13,3 +16,8 @@ node test/CohereAIWrapper.test.js
 
 4- run Google wrapper unit test case:
 node test/GoogleAIWrapper.test.js
+
+
+## Input objects ##
+1- Language model input test case:
+node test/LanguageModelInput.test.js
