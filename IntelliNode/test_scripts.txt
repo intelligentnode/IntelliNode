@@ -7,5 +7,9 @@ OPENAI_API_KEY=<your key>
 node test/OpenAIWrapper.test.js
 
 
-2- run cohere wrapper unit test case:
+3- run cohere wrapper unit test case:
 node test/CohereAIWrapper.test.js
+
+
+4- run Google wrapper unit test case:
+node test/GoogleAIWrapper.test.js
