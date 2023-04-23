@@ -6,18 +6,25 @@ COHERE_API_KEY=<key_value>
 GOOGLE_API_KEY=<key_value>
 
 
-2- run openAI wrapper unit test case:
+2- run openAI wrapper unit test cases:
 node test/OpenAIWrapper.test.js
 
 
-3- run cohere wrapper unit test case:
+3- run cohere wrapper unit test cases:
 node test/CohereAIWrapper.test.js
 
 
-4- run Google wrapper unit test case:
+4- run Google wrapper unit test cases:
 node test/GoogleAIWrapper.test.js
 
 
 ## Input objects ##
-1- Language model input test case:
+
+1- Language model input test cases:
 node test/LanguageModelInput.test.js
+
+
+
+## Remote models ##
+1- run the remoate language models test cases:
+node test/RemoteLanguageModel.test.js
