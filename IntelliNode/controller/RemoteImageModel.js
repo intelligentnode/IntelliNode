@@ -63,7 +63,17 @@ class RemoteImageModel {
     if (this.keyType === SupportedImageModels.OPENAI) {
       const results = await this.openaiWrapper.generateImages(inputs);
       
-      return results.data.map((data) => data.url);
+      /*console.log('results: ', results)*/
+
+      return results.data.map((data) => {
+        if (data.url) {
+          return data.url;
+        } else if (data.b64_json) {
+          return data.b64_json;
+        } else {
+          throw new Error('Unexpected image data format');
+        }
+      });
 
     } else if (this.keyType === SupportedImageModels.STABILITY) {
       
