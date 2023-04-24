@@ -3,10 +3,7 @@
   "version": "0.0.1",
   "description": "Access various AI models, such as ChatGPT, Diffusion, Cohere, and others, using just a few Javascript lines.",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
+  "keywords": ["AI", "ChatGPT", "Diffusion", "Cohere", "language models", "image generation", "audio"],
   "author": "Ahmad Albarqawi",
   "license": "Apache-2.0",
   "dependencies": {
