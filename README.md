@@ -82,7 +82,7 @@ provider=SupportedImageModels.STABILITY;
 ### Chatbot (chatGPT)
 imports:
 ```js
-const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
+const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
 call:
 ```js
