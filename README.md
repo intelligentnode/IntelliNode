@@ -20,11 +20,14 @@
 </p>
 
 # Intelligent Node (IntelliNode)
-IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
+IntelliNode is a javascript library that integrates cutting-edge AI models into your projects. With its intuitive functions, you can easily send input to models like ChatGPT, WaveNet, and Stable diffusion and receive generated text, speech, or images. What sets IntelliNode apart is its lightning-fast access to the latest deep learning models, allowing you to integrate them into your projects with just a few lines of code. 
 
 # Access the module
 ## Install
-`npm i intellinode`
+One command and get access to latest models:
+```
+npm i intellinode
+```
 
 ## Examples
 ### Language models
@@ -91,7 +94,7 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const responses = await chatbot.chat(input);
 ```
 
-For more example cehck [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
+For more example check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
 
 # The code repository setup
 ## First setup
