@@ -36,3 +36,7 @@ node test/RemoteImageModel.test.js
 
 3- run the remote speech models test cases:
 node test/RemoteSpeechModel.test.js
+
+
+4- run the chatBot test cases:
+node test/Chatbot.test.js
