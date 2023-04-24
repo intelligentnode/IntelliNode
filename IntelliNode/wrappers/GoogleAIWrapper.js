@@ -36,7 +36,7 @@ class GoogleAIWrapper {
 
   async generateSpeech(params) {
     const url = this.API_SPEECH_URL + config.getProperty('url.google.speech.synthesize.postfix');
-    console.log('the full url: ' + url);
+    
     const json = this.getSynthesizeInput(params);
 
     try {
