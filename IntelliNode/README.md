@@ -8,11 +8,13 @@ cd IntelliNode
 npm install
 ```
 
-2. Create a .env file with the access keys:
+2. Create a .env file with the access keys:<br>
+```
 OPENAI_API_KEY=<key_value>
 COHERE_API_KEY=<key_value>
 GOOGLE_API_KEY=<key_value>
 STABILITY_API_KEY=<key_value>
+```
 
 # Test cases
 1. run the remote language models test cases:
