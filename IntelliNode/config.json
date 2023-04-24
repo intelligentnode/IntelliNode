@@ -19,6 +19,11 @@
           "postfix": "text:synthesize"
         }
       }
+    },
+    "stability": {
+      "base": "https://api.stability.ai",
+      "text_to_image": "/v1/generation/stable-diffusion-v1-5/text-to-image",
+      "upscale": "/v1/generation/esrgan-v1-x2plus/image-to-image/upscale"
     }
   }
 }
