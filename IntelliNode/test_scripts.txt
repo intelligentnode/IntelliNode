@@ -26,9 +26,13 @@ node test/LanguageModelInput.test.js
 
 
 ## Remote models ##
-1- run the remoate language models test cases:
+1- run the remote language models test cases:
 node test/RemoteLanguageModel.test.js
 
 
-1- run the remoate image models test cases:
+2- run the remote image models test cases:
 node test/RemoteImageModel.test.js
+
+
+3- run the remote speech models test cases:
+node test/RemoteSpeechModel.test.js
