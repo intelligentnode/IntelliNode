@@ -6,6 +6,34 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
+# Examples
+## Language models
+1. imports:
+```js
+const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
+```
+2. call openai model:
+```js
+const langModel = new RemoteLanguageModel('openai-key', 'openai');
+model_name = 'text-davinci-003'
+
+const results = await langModel.generateText(new LanguageModelInput({
+  prompt: 'Write a product description for any device input adapter.',
+  model: model_name,
+  temperature: 0.7
+}));
+
+console.log('Generated text:', results[0]);
+```
+3. change to call cohere models:
+
+```js
+const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
+model_name = 'command-xlarge-20221108'
+// ... same code
+```
+
+
 # License
 Apache License
 
