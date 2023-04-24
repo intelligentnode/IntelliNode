@@ -1,37 +1,10 @@
 # Intelligent Node
+IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
-
-# First setup
-1. Initiate the project:
-```
-cd IntelliNode
-npm install
-```
-
-2. Create a .env file with the access keys:<br>
-```
-OPENAI_API_KEY=<key_value>
-COHERE_API_KEY=<key_value>
-GOOGLE_API_KEY=<key_value>
-STABILITY_API_KEY=<key_value>
-```
-
-# Test cases
-1. run the remote language models test cases:
-`node test/RemoteLanguageModel.test.js`
-
-
-2. run the remote image models test cases:
-`node test/RemoteImageModel.test.js`
-
-
-3. run the remote speech models test cases:
-`node test/RemoteSpeechModel.test.js`
-
-
-4. run the chatBot test cases:
-`node test/Chatbot.test.js`
-
+# Pillars
+- **The wrapper layer** provides low-level access to the latest AI models
+- **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
+- **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
 # License
 Apache License

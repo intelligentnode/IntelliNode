@@ -10,6 +10,11 @@ const Text2SpeechInput = require('./model/input/Text2SpeechInput');
 const CohereAIWrapper = require('./wrappers/CohereAIWrapper');
 const GoogleAIWrapper = require('./wrappers/GoogleAIWrapper');
 const OpenAIWrapper = require('./wrappers/OpenAIWrapper');
+const StabilityAIWrapper = require('./wrappers/StabilityAIWrapper');
+// utils
+const AudioHelper = require('./utils/AudioHelper');
+const Config2 = require('./utils/Config2');
+const ConnHelper = require('./utils/ConnHelper');
 
 module.exports = {
   RemoteLanguageModel,
@@ -24,4 +29,8 @@ module.exports = {
   CohereAIWrapper,
   GoogleAIWrapper,
   OpenAIWrapper,
+  StabilityAIWrapper,
+  AudioHelper,
+  Config2,
+  ConnHelper
 };
