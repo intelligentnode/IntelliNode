@@ -5,9 +5,15 @@
 
 <p align="center">
 
+<a href="https://www.npmjs.com/package/intellinode" alt="npm version">
+    <img src="https://img.shields.io/npm/v/intellinode?style=flat-square" />
+</a>
+
 <a href="https://opensource.org/licenses/Apache-2.0" alt="licenses tag">
     <img src="https://img.shields.io/github/license/Barqawiz/IntelliJava?style=flat-square" />
 </a>
+
+
 
 <img src="https://img.shields.io/badge/builder-intelliCode-green?style=flat-square" />
 
@@ -69,6 +75,8 @@ const images = await imgModel.generateImages(new ImageModelInput({
 provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
+
+For more example cehck [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
 
 # The code repository setup
 ## First setup
