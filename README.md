@@ -23,15 +23,16 @@
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Access the module
+## Install
 `npm i intellinode`
 
-# Examples
-## Language models
-1. imports:
+## Examples
+### Language models
+imports:
 ```js
 const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
 ```
-2. call openai model:
+call openai model:
 ```js
 const langModel = new RemoteLanguageModel('openai-key', 'openai');
 model_name = 'text-davinci-003'
@@ -44,7 +45,7 @@ const results = await langModel.generateText(new LanguageModelInput({
 
 console.log('Generated text:', results[0]);
 ```
-3. change to call cohere models:
+change to call cohere models:
 
 ```js
 const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
@@ -52,14 +53,14 @@ model_name = 'command-xlarge-20221108'
 // ... same code
 ```
 
-## Image models
+### Image models
 
-1. imports:
+imports:
 ```js
 const { RemoteImageModel, SupportedImageModels, ImageModelInput } = require('intellinode');
 ```
 
-2. call DALL·E:
+call DALL·E:
 ```js
 provider=SupportedImageModels.OPENAI;
 
@@ -70,7 +71,7 @@ const images = await imgModel.generateImages(new ImageModelInput({
 }));
 ```
 
-3. change to call Stable Diffusion:
+change to call Stable Diffusion:
 ```js
 provider=SupportedImageModels.STABILITY;
 // ... same code
@@ -112,6 +113,8 @@ STABILITY_API_KEY=<key_value>
 `node test/Chatbot.test.js`
 
 # Pillars
+The module foundation:
+
 - **The wrapper layer** provides low-level access to the latest AI models
 - **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
