@@ -128,3 +128,4 @@ dist
 
 #custom
 temp/
+*/.idea/
