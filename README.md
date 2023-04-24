@@ -76,6 +76,20 @@ change to call Stable Diffusion:
 provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
+### Chatbot (chatGPT)
+imports:
+```js
+const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
+```
+call:
+```js
+// set the system model and the user message.
+const input = new ChatGPTInput('You are a helpful assistant.');
+input.addUserMessage('What is the distance between the Earth and the Moon?');
+
+// get the responses from the chatbot
+const responses = await chatbot.chat(input);
+```
 
 For more example cehck [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
 
