@@ -18,7 +18,7 @@ const langModel = new RemoteLanguageModel('openai-key', 'openai');
 model_name = 'text-davinci-003'
 
 const results = await langModel.generateText(new LanguageModelInput({
-  prompt: 'Write a product description for any device input adapter.',
+  prompt: 'Write a product description for smart plug that works with voice assistant.',
   model: model_name,
   temperature: 0.7
 }));
@@ -64,7 +64,7 @@ const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
 ```
 2. call:
 ```js
-// set the system model and the user message.
+// set the system mode and the user message.
 const input = new ChatGPTInput('You are a helpful assistant.');
 input.addUserMessage('What is the distance between the Earth and the Moon?');
 
