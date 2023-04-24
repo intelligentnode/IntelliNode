@@ -20,6 +20,6 @@
   },
   "homepage": "https://github.com/Barqawiz/IntelliNode#readme",
   "dependencies": {
-    "intellinode": "^0.0.1"
+    "intellinode": "^0.0.3"
   }
 }

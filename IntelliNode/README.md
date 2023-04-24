@@ -57,6 +57,20 @@ provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
 
+## Chatbot
+1. imports:
+```js
+const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
+```
+2. call:
+```js
+// set the system model and the user message.
+const input = new ChatGPTInput('You are a helpful assistant.');
+input.addUserMessage('What is the distance between the Earth and the Moon?');
+
+// get the responses from the chatbot
+const responses = await chatbot.chat(input);
+```
 
 # License
 Apache License
