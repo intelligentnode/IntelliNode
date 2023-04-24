@@ -23,6 +23,7 @@ const MyKeys = {
   google: process.env.GOOGLE_API_KEY,
 };
 
+const audioHelper = new AudioHelper();
 
 
 async function main() {
@@ -44,7 +45,6 @@ async function main() {
 
   // 4- Generate audio
   const decodedAudio = await generateSpeech(textProductDesc, MyKeys.google, 'google');
-  const audioHelper = new AudioHelper();
   audioHelper.saveAudio(decodedAudio, './temp', 'product_description.mp3');
   console.log('Audio generated');
 }
@@ -83,7 +83,7 @@ async function generateSpeech(textProductDesc, apiKey, modelBackend) {
   const speechModel = new RemoteSpeechModel(apiKey);
   const input = new Text2SpeechInput({ text: textProductDesc, language: 'en-gb' });
   const audioContent = await speechModel.generateSpeech(input);
-  const audioHelper = new AudioHelper();
+  
   return audioHelper.decode(audioContent);
 }
 
