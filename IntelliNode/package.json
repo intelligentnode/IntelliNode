@@ -1,6 +1,6 @@
 {
   "name": "intellinode",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Access various AI models, such as ChatGPT, Diffusion, Cohere, and others, using just a few Javascript lines.",
   "main": "index.js",
   "keywords": ["AI", "ChatGPT", "Diffusion", "Cohere", "language models", "image generation", "audio"],
