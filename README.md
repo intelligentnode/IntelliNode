@@ -30,14 +30,14 @@ npm install
 # Roadmap
 Call for contributors:
 - [x] Add support to OpenAI Completion.
-- [ ] Add support to OpenAI DALL·E 2.
+- [x] Add support to OpenAI DALL·E 2.
 - [ ] Add support to other OpenAI functions.
-- [ ] Add support to cohere generate API.
+- [x] Add support to cohere generate API.
 - [ ] Add support to Google language models.
-- [ ] Add support to Google speech models.
+- [x] Add support to Google speech models.
 - [ ] Add support to Amazon language models.
 - [ ] Add support to Midjourney image generation.
-- [ ] Add support to Stable diffusion.
+- [x] Add support to Stable diffusion.
 - [ ] Add support to WuDao 2.0 model.
 
 # License
