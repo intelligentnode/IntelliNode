@@ -13,7 +13,7 @@ async function generateText(apiKey, provider, model, prompt, temperature) {
 
 (async () => {
   // Generate text using OpenAI
-  const openaiKey = '';
+  const openaiKey = 'your-key';
   const openaiModel = 'text-davinci-003';
   const prompt = 'Write a product description for smart plug that works with voice assistant.';
   const temperature = 0.7;
@@ -21,7 +21,7 @@ async function generateText(apiKey, provider, model, prompt, temperature) {
   await generateText(openaiKey, SupportedLangModels.OPENAI, openaiModel, prompt, temperature);
 
   // Generate text using Cohere
-  const cohereKey = '';
+  const cohereKey = 'your-key';
   const cohereModel = 'command-xlarge-20221108';
 
   await generateText(cohereKey, SupportedLangModels.COHERE, cohereModel, prompt, temperature);
