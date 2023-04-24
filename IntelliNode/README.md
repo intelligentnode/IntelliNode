@@ -1,4 +1,4 @@
-# Intelligent Node
+# Intelligent Node (IntelliNode)
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Pillars
@@ -30,6 +30,30 @@ console.log('Generated text:', results[0]);
 ```js
 const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
 model_name = 'command-xlarge-20221108'
+// ... same code
+```
+
+## Image models
+
+1. imports:
+```js
+const { RemoteImageModel, SupportedImageModels, ImageModelInput } = require('intellinode');
+```
+
+2. call DALL·E:
+```js
+provider=SupportedImageModels.OPENAI;
+
+const imgModel = new RemoteImageModel(apiKey, provider);
+const images = await imgModel.generateImages(new ImageModelInput({
+    prompt: 'teddy writing a blog in times square',
+    numberOfImages: 1
+}));
+```
+
+3. change to call Stable Diffusion:
+```js
+provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
 

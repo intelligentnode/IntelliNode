@@ -1,0 +1,25 @@
+{
+  "name": "command_sample",
+  "version": "0.0.1",
+  "description": "access any AI model using IntelliNode.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Barqawiz/IntelliNode.git"
+  },
+  "keywords": [
+    "ai"
+  ],
+  "author": "Ahmad Albarqawi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Barqawiz/IntelliNode/issues"
+  },
+  "homepage": "https://github.com/Barqawiz/IntelliNode#readme",
+  "dependencies": {
+    "intellinode": "^0.0.1"
+  }
+}
