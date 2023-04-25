@@ -138,6 +138,8 @@ The module foundation:
 
 # Roadmap
 Call for contributors:
+[registration form ](https://forms.gle/2JsEHAMaj2eMQHYc9).
+
 - [x] Add support to OpenAI Completion.
 - [x] Add support to OpenAI DALL·E 2.
 - [ ] Add support to other OpenAI functions.
@@ -148,6 +150,8 @@ Call for contributors:
 - [ ] Add support to Midjourney image generation.
 - [x] Add support to Stable diffusion.
 - [ ] Add support to WuDao 2.0 model.
+- [ ] Add more high-level functions like blog generation, semantic search, etc.
+
 
 # License
 Apache License
