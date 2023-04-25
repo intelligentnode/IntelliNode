@@ -14,7 +14,12 @@ async function generateImages(apiKey, provider, imageInput) {
 }
 
 (async () => {
+  
+  // example 1: A cartoon-style Shiba Inu dog with a playful expression, sitting on a golden coin with "Doge" written on it, surrounded by other golden coins.
+  // example 2: A cartoon-style Shiba Inu dog with a playful expression, standing on a patterned background with various dog toys scattered around. The background is filled with colorful paw prints and bones.
+
   prompt = 'A cartoon-style Shiba Inu dog with a playful expression, standing on a patterned background with various dog toys scattered around. The background is filled with colorful paw prints and bones.'
+
   // Generate image using Stability
   const myKey = process.env.OPENAI_API_KEY;
   const imageInput = new ImageModelInput({
