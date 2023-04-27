@@ -23,7 +23,7 @@
 IntelliNode is a javascript library that integrates cutting-edge AI models into your projects. With its intuitive functions, you can easily send input to models like ChatGPT, WaveNet, and Stable diffusion and receive generated text, speech, or images. What sets IntelliNode apart is its lightning-fast access to the latest deep learning models, allowing you to integrate them into your projects with just a few lines of code.
 
 # Access the module
-## Install
+## Install 
 One command and get access to latest models:
 ```
 npm i intellinode
@@ -94,7 +94,8 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const responses = await chatbot.chat(input);
 ```
 
-For more example check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
+For more examples, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
+
 
 # The code repository setup
 ## First setup
@@ -135,6 +136,9 @@ The module foundation:
 - **The wrapper layer** provides low-level access to the latest AI models
 - **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
+
+# :closed_book: Documentation
+- [Tutorial](https://medium.com/@albarqawi/lightning-fast-access-to-the-latest-ai-models-using-node-js-d31ccd1b09b2): generate eCommerce content and images.
 
 # Roadmap
 Call for contributors:
