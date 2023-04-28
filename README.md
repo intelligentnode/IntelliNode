@@ -3,6 +3,7 @@
 <img src="images/intelligent_node_header.png" width="500em">
 </p>
 
+
 <p align="center">
 
 <a href="https://www.npmjs.com/package/intellinode" alt="npm version">
@@ -20,6 +21,9 @@
 </p>
 
 # Intelligent Node (IntelliNode)
+<p align="center">
+<img src="images/multi-model2.png" width="800em">
+</p>
 IntelliNode is a javascript library that integrates cutting-edge AI models into your projects. With its intuitive functions, you can easily send input to models like ChatGPT, WaveNet, and Stable diffusion and receive generated text, speech, or images. What sets IntelliNode apart is its lightning-fast access to the latest deep learning models, allowing you to integrate them into your projects with just a few lines of code.
 
 # Access the module
