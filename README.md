@@ -1,5 +1,9 @@
 
 <p align="center">
+<img src="images/multi-model-small.png" width="80%">
+</p>
+
+<p align="center">
 <img src="images/intelligent_node_header.png" width="500em">
 </p>
 
