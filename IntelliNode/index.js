@@ -2,6 +2,7 @@
 const { RemoteLanguageModel, SupportedLangModels } = require('./controller/RemoteLanguageModel');
 const { RemoteImageModel, SupportedImageModels } = require('./controller/RemoteImageModel');
 const { RemoteSpeechModel, SupportedSpeechModels } = require('./controller/RemoteSpeechModel');
+const { RemoteEmbedModel, SupportedEmbedModels } = require('./controller/RemoteEmbedModel');
 // functions
 const { Chatbot, SupportedChatModels } = require('./function/Chatbot');
 // inputs
@@ -9,6 +10,7 @@ const LanguageModelInput = require('./model/input/LanguageModelInput');
 const ImageModelInput = require('./model/input/ImageModelInput');
 const Text2SpeechInput = require('./model/input/Text2SpeechInput');
 const { ChatGPTInput, ChatGPTMessage } = require("./model/input/ChatModelInput");
+const EmbedInput = require('./model/input/EmbedInput');
 // wrappers
 const CohereAIWrapper = require('./wrappers/CohereAIWrapper');
 const GoogleAIWrapper = require('./wrappers/GoogleAIWrapper');
