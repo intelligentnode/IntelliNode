@@ -4,11 +4,13 @@
       "base": "https://api.openai.com",
       "completions": "/v1/completions",
       "chatgpt": "/v1/chat/completions",
-      "imagegenerate": "/v1/images/generations"
+      "imagegenerate": "/v1/images/generations",
+      "embeddings": "/v1/embeddings"
     },
     "cohere": {
       "base": "https://api.cohere.ai",
       "completions": "/generate",
+      "embed": "/v1/embed",
       "version": "2022-12-06"
     },
     "google": {

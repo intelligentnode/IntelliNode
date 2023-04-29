@@ -29,7 +29,7 @@ console.log('Generated text:', results[0]);
 
 ```js
 const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
-model_name = 'command-xlarge-20221108'
+model_name = 'command'
 // ... same code
 ```
 
@@ -69,7 +69,21 @@ const input = new ChatGPTInput('You are a helpful assistant.');
 input.addUserMessage('What is the distance between the Earth and the Moon?');
 
 // get the responses from the chatbot
-const responses = await chatbot.chat(input);
+const bot = new Chatbot(apiKey);
+const responses = await bot.chat(input);
+```
+## Semantic Search
+1. imports:
+```js
+const { SemanticSearch } = require('intellinode');
+```
+2. call:
+```js
+const search = new SemanticSearch(apiKey);
+// pivotItem is the item to search.
+// searchArray is the array of strings to search through.
+const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
+const filteredArray = search.filterTopMatches(results, searchArray)
 ```
 
 # License

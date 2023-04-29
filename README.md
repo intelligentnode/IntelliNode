@@ -1,6 +1,6 @@
 
 <p align="center">
-<img src="images/multi-model-small.png" width="80%">
+<img src="images/multi-model-small.png" width="88%">
 </p>
 
 <p align="center">
@@ -24,12 +24,13 @@
 
 </p>
 
-# Intelligent Node (IntelliNode)
+# Intelligent Node
 
-IntelliNode is a javascript library that integrates cutting-edge AI models into your projects. With its intuitive functions, you can easily send input to models like ChatGPT, WaveNet, and Stable diffusion and receive generated text, speech, or images. What sets IntelliNode apart is its lightning-fast access to the latest deep learning models, allowing you to integrate them into your projects with just a few lines of code.
+IntelliNode is a javascript library that integrates cutting-edge AI models into your project. With its intuitive functions, you can easily feed data to models like ChatGPT, WaveNet, and Stable diffusion and receive generated text, speech, or images. It also offers high-level functions such as semantic search and chatbot capabilities.
+<br> What sets IntelliNode apart is its lightning-fast access to the latest deep learning models, allowing you to integrate them into your projects with just a few lines of code.
 
 # Access the module
-## Install 
+## Install
 One command and get access to latest models:
 ```
 npm i intellinode
@@ -98,6 +99,19 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 
 // get the responses from the chatbot
 const responses = await chatbot.chat(input);
+```
+### Semantic Search
+imports:
+```js
+const { SemanticSearch } = require('intellinode');
+```
+call:
+```js
+const search = new SemanticSearch(apiKey);
+// pivotItem is the item to search.
+// searchArray is the array of strings to search through.
+const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
+const filteredArray = search.filterTopMatches(results, searchArray)
 ```
 
 For more examples, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
