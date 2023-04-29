@@ -8,7 +8,7 @@ const cohere = new CohereAIWrapper(process.env.COHERE_API_KEY);
 async function testCohereGenerateModel() {
   try {
     const params = {
-      model: 'command-xlarge-20221108',
+      model: 'command',
       prompt: 'Write a blog outline for a blog titled "The Art of Effective Communication"',
       temperature: 0.7,
       max_tokens: 200

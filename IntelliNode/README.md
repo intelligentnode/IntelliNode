@@ -29,7 +29,7 @@ console.log('Generated text:', results[0]);
 
 ```js
 const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
-model_name = 'command-xlarge-20221108'
+model_name = 'command'
 // ... same code
 ```
 

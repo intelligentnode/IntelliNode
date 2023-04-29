@@ -61,7 +61,7 @@ class LanguageModelInput {
       this.maxTokens = 50;
       this.numberOfOutputs = 1;
     } else if (provider === "cohere") {
-      this.model = "command-xlarge-20221108";
+      this.model = "command";
       this.temperature = 0.75;
       this.maxTokens = 20;
       this.numberOfOutputs = 1;
