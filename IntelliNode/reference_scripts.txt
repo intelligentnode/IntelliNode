@@ -41,3 +41,6 @@ node test/RemoteSpeechModel.test.js
 
 4- run the chatBot test cases:
 node test/Chatbot.test.js
+
+# publish command
+# npm publish

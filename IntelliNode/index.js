@@ -5,6 +5,7 @@ const { RemoteSpeechModel, SupportedSpeechModels } = require('./controller/Remot
 const { RemoteEmbedModel, SupportedEmbedModels } = require('./controller/RemoteEmbedModel');
 // functions
 const { Chatbot, SupportedChatModels } = require('./function/Chatbot');
+const { SemanticSearch } = require('./function/SemanticSearch');
 // inputs
 const LanguageModelInput = require('./model/input/LanguageModelInput');
 const ImageModelInput = require('./model/input/ImageModelInput');

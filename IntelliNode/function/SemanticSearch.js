@@ -10,7 +10,7 @@ const EmbedInput = require('../model/input/EmbedInput');
 const MatchHelpers = require('../utils/MatchHelpers');
 
 class SemanticSearch {
-  constructor(keyValue, provider) {
+  constructor(keyValue, provider = SupportedEmbedModels.OPENAI) {
     this.provider = provider;
     this.keyValue = keyValue;
     this.remoteEmbedModel = new RemoteEmbedModel(keyValue, provider);
