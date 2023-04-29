@@ -11,8 +11,9 @@ const MatchHelpers = require('../utils/MatchHelpers');
 
 class SemanticSearch {
   constructor(keyValue, provider = SupportedEmbedModels.OPENAI) {
-    this.provider = provider;
     this.keyValue = keyValue;
+    this.provider = provider;
+
     this.remoteEmbedModel = new RemoteEmbedModel(keyValue, provider);
   }
 
@@ -72,4 +73,4 @@ class SemanticSearch {
   }
 }
 
-module.exports = SemanticSearch;
+module.exports = {SemanticSearch};

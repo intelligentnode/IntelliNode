@@ -1,4 +1,7 @@
 const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
+// below imports to call the keys from .env file
+const dotenv = require('dotenv');
+dotenv.config();
 
 async function callChatbot(apiKey, provider) {
   const chatbot = new Chatbot(apiKey, provider);
@@ -16,5 +19,5 @@ async function callChatbot(apiKey, provider) {
 
 (async () => {
   // Test chatbot using OpenAI
-  await callChatbot('your-openai-key', 'openai');
+  await callChatbot(process.env.OPENAI_API_KEY, 'openai');
 })();

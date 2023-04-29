@@ -75,15 +75,15 @@ const responses = await bot.chat(input);
 ## Semantic Search
 1. imports:
 ```js
-const SemanticSearch = require('intellinode');
+const { SemanticSearch } = require('intellinode');
 ```
 2. call:
 ```js
 const search = new SemanticSearch(apiKey);
 // pivotItem is the item to search.
 // searchArray is the array of strings to search through.
-const results = await openaiSemanticSearch.getTopMatches(pivotItem, searchArray, numberOfMatches);
-const filteredArray = openaiSemanticSearch.filterTopMatches(results, searchArray)
+const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
+const filteredArray = search.filterTopMatches(results, searchArray)
 ```
 
 # License
