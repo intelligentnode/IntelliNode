@@ -10,6 +10,7 @@
     "cohere": {
       "base": "https://api.cohere.ai",
       "completions": "/generate",
+      "embed": "/v1/embed",
       "version": "2022-12-06"
     },
     "google": {
