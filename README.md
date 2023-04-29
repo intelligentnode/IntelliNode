@@ -150,15 +150,16 @@ STABILITY_API_KEY=<key_value>
 4. run the chatBot test cases:
 `node test/Chatbot.test.js`
 
+# :closed_book: Documentation
+- [Tutorial](https://medium.com/@albarqawi/lightning-fast-access-to-the-latest-ai-models-using-node-js-d31ccd1b09b2): generate eCommerce content and images.
+- [Samples with setup documentation](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
+
 # Pillars
 The module foundation:
 
 - **The wrapper layer** provides low-level access to the latest AI models
 - **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
-
-# :closed_book: Documentation
-- [Tutorial](https://medium.com/@albarqawi/lightning-fast-access-to-the-latest-ai-models-using-node-js-d31ccd1b09b2): generate eCommerce content and images.
 
 # Roadmap
 Call for contributors:
