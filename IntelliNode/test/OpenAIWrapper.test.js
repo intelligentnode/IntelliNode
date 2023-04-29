@@ -62,8 +62,25 @@ async function testImageModel() {
   }
 }
 
+async function testEmbeddings() {
+  try {
+    const params = {
+      input: 'IntelliNode provide lightning-fast access to the latest deep learning models',
+      model: 'text-embedding-ada-002',
+    };
+
+    const result = await openAI.getEmbeddings(params);
+    const embeddings = result['data'];
+    console.log('Embeddings Result:\n', embeddings[0]['embedding'].slice(0, 50), '\n');
+    assert(embeddings.length > 0, 'testEmbeddings response length should be greater than 0');
+  } catch (error) {
+    console.error('Embeddings Error:', error);
+  }
+}
+
 (async () => {
   await testLanguageModel();
   await testChatGPT();
   await testImageModel();
+  await testEmbeddings();
 })();

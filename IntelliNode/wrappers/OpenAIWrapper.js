@@ -51,6 +51,16 @@ class OpenAIWrapper {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
+
+   async getEmbeddings(params) {
+    const url = config.getProperty('url.openai.embeddings');
+    try {
+      const response = await this.httpClient.post(url, params);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
 }
 
 module.exports = OpenAIWrapper;
