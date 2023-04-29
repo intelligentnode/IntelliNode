@@ -16,23 +16,34 @@ STABILITY_API_KEY=<key_value>
 
 ## Samples Execution
 
-1. E-commerce sample to generate products descriptions and images:
+1. E-commerce sample to generate products description and images:
 `node ecommerce_tool.js`
 
-2. Language model sample:
+2. Language model:
 `node test_language_models.js`
 
-3. Image model sample:
+3. Image model:
 `node test_image_models.js`
 
 4. Generate shiba images for fun:
 `node shiba_image_generator.js`
 
-5. Speech synthesis sample:
+5. Speech synthesis:
 `node test_speech_models.js`
 
-6. chatbot sample using ChatGPT:
+6. chatbot using ChatGPT:
 `node test_chatbot.js`
 
-6. Semantic search sample:
+7. Semantic search:
 `node test_semantic_search.js`
+
+
+## Access Keys
+Generate the access keys from the following websites; you must generate the keys only for the models you use.
+
+1. openai: https://openai.com
+2. cohere: https://cohere.com
+3. google: https://console.cloud.google.com
+4. stability: https://stability.ai
+
+For example, if you use the language model from openai, no need to generate cohere keys.
