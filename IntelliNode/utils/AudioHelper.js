@@ -34,4 +34,4 @@ class AudioHelper {
   }
 }
 
-module.exports = AudioHelper;
+module.exports = { AudioHelper };

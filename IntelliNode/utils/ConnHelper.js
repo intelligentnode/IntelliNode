@@ -32,4 +32,4 @@ class ConnHelper {
   }
 }
 
-module.exports = ConnHelper;
+module.exports = { ConnHelper };

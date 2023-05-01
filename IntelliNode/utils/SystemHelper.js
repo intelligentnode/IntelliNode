@@ -21,4 +21,4 @@ class SystemHelper {
   }
 }
 
-module.exports = SystemHelper;
+module.exports = { SystemHelper };

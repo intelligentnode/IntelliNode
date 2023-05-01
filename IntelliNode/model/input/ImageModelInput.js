@@ -64,4 +64,4 @@ class ImageModelInput {
   }
 }
 
-module.exports = ImageModelInput;
+module.exports = { ImageModelInput };
