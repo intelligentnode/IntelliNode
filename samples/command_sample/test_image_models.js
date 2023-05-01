@@ -1,4 +1,7 @@
 const { RemoteImageModel, SupportedImageModels, ImageModelInput } = require('intellinode');
+// below imports to call the keys from .env file
+const dotenv = require('dotenv');
+dotenv.config();
 
 async function generateImages(apiKey, provider, imageInput) {
   const imgModel = new RemoteImageModel(apiKey, provider);
@@ -9,7 +12,7 @@ async function generateImages(apiKey, provider, imageInput) {
 
 (async () => {
   // Generate image using OpenAI
-  const openaiKey = 'your-openai-api-key';
+  const openaiKey = process.env.OPENAI_API_KEY;
   const prompt = 'teddy writing a blog in times square';
   const openaiImageInput = new ImageModelInput({
     prompt: prompt,
@@ -19,7 +22,7 @@ async function generateImages(apiKey, provider, imageInput) {
   await generateImages(openaiKey, SupportedImageModels.OPENAI, openaiImageInput);
 
   // Generate image using Stability
-  const stabilityKey = 'your-stability-api-key';
+  const stabilityKey = process.env.STABILITY_API_KEY;
   const stabilityImageInput = new ImageModelInput({
     prompt: prompt,
     numberOfImages: 1,

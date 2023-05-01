@@ -1,6 +1,6 @@
 {
   "name": "intellinode",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Access various AI models, such as ChatGPT, Diffusion, Cohere, Google, and others",
   "main": "index.js",
   "keywords": ["AI", "ChatGPT", "GPT4", "stable diffusion", "language models", "image generation", "speech synthesis", "semantic search"],
