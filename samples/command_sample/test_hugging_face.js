@@ -9,13 +9,13 @@ const huggingWrapper = new HuggingWrapper(process.env.HUGGING_API_KEY);
 async function testSummarizationTask() {
   const inputData = { inputs: 'The tower is 324 metres (1,063 ft) tall, about the same height as an 81-storey building...' };
   // facebook/bart-large-cnn is the model id
-  const result = await huggingWrapper.generateText('facebook/bart-large-cnn', inputData);
+  const result = await huggingWrapper.generateText(modelId='facebook/bart-large-cnn', data=inputData);
   console.log('Summarization Task Result:', result);
 }
 
 async function testImageClassificationTask(imagePath) {
   const imageData = require('fs').readFileSync(imagePath);
-  const result = await huggingWrapper.processImage('google/vit-base-patch16-224', imageData);
+  const result = await huggingWrapper.processImage(modelId='google/vit-base-patch16-224', data=imageData);
   console.log('Image Classification Task Result:', result);
 }
 

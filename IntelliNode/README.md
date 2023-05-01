@@ -99,8 +99,21 @@ const audioContent = await speechModel.generateSpeech(new Text2SpeechInput({
   language: 'en-gb' 
 }));
 ```
+### Hugging Face Inference
+1. imports:
+```js
+const { HuggingWrapper } =  require('intellinode');
+```
+2. call any model id
+```js
+const inference = new HuggingWrapper('HF-key');
+const result = await huggingWrapper.generateText(
+   modelId='facebook/bart-large-cnn', 
+   data={ inputs: 'The tower is 324 metres (1,063 ft) tall, about the same height as an 81-storey building...' });
+```
+The available functions in this version: `generateText, generateImage, processImage`. 
 
-Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more examples.
+Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more code details.
 
 # License
 Apache License
