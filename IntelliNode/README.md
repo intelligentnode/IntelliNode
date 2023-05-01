@@ -7,33 +7,37 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
 # Examples
-## Language models
+## Functions
+### Chatbot
 1. imports:
 ```js
-const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
+const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
 ```
-2. call openai model:
+2. call:
 ```js
-const langModel = new RemoteLanguageModel('openai-key', 'openai');
-model_name = 'text-davinci-003'
+// set the system mode and the user message.
+const input = new ChatGPTInput('You are a helpful assistant.');
+input.addUserMessage('What is the distance between the Earth and the Moon?');
 
-const results = await langModel.generateText(new LanguageModelInput({
-  prompt: 'Write a product description for smart plug that works with voice assistant.',
-  model: model_name,
-  temperature: 0.7
-}));
-
-console.log('Generated text:', results[0]);
+// get the responses from the chatbot
+const bot = new Chatbot(apiKey);
+const responses = await bot.chat(input);
 ```
-3. change to call cohere models:
-
+### Semantic Search
+1. imports:
 ```js
-const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
-model_name = 'command'
-// ... same code
+const { SemanticSearch } = require('intellinode');
 ```
-
-## Image models
+2. call:
+```js
+const search = new SemanticSearch(apiKey);
+// pivotItem is the item to search.
+// searchArray is the array of strings to search through.
+const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
+const filteredArray = search.filterTopMatches(results, searchArray)
+```
+## Models Access
+### Image models
 
 1. imports:
 ```js
@@ -57,33 +61,30 @@ provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
 
-## Chatbot
+### Language models
 1. imports:
 ```js
-const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
+const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
 ```
-2. call:
+2. call openai model:
 ```js
-// set the system mode and the user message.
-const input = new ChatGPTInput('You are a helpful assistant.');
-input.addUserMessage('What is the distance between the Earth and the Moon?');
+const langModel = new RemoteLanguageModel('openai-key', 'openai');
+model_name = 'text-davinci-003'
 
-// get the responses from the chatbot
-const bot = new Chatbot(apiKey);
-const responses = await bot.chat(input);
+const results = await langModel.generateText(new LanguageModelInput({
+  prompt: 'Write a product description for smart plug that works with voice assistant.',
+  model: model_name,
+  temperature: 0.7
+}));
+
+console.log('Generated text:', results[0]);
 ```
-## Semantic Search
-1. imports:
+3. change to call cohere models:
+
 ```js
-const { SemanticSearch } = require('intellinode');
-```
-2. call:
-```js
-const search = new SemanticSearch(apiKey);
-// pivotItem is the item to search.
-// searchArray is the array of strings to search through.
-const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
-const filteredArray = search.filterTopMatches(results, searchArray)
+const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
+model_name = 'command'
+// ... same code
 ```
 
 # License
