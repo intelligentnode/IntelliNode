@@ -31,8 +31,8 @@ const { SemanticSearch } = require('intellinode');
 2. call:
 ```js
 const search = new SemanticSearch(apiKey);
-// pivotItem is the item to search.
-// searchArray is the array of strings to search through.
+// pivotItem: item to search.
+// searchArray: array of strings to search through.
 const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
 const filteredArray = search.filterTopMatches(results, searchArray)
 ```
