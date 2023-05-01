@@ -3,7 +3,7 @@ const { SemanticSearch } = require('intellinode');
 const dotenv = require('dotenv');
 dotenv.config();
 
-async function callSemantic(apiKey, provider) {
+async function callSemanticSearch(apiKey, provider) {
   const pivotItem = 'Hello from OpenAI!';
   const searchArray = ['Greetings from OpenAI!', 'Bonjour de OpenAI!', 'Hola desde OpenAI!'];
   const numberOfMatches = 2;
@@ -17,5 +17,5 @@ async function callSemantic(apiKey, provider) {
 
 (async () => {
   // Test the search using OpenAI
-  await callSemantic(process.env.OPENAI_API_KEY, 'openai');
+  await callSemanticSearch(process.env.OPENAI_API_KEY, 'openai');
 })();

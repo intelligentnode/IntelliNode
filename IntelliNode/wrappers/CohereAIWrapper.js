@@ -23,7 +23,7 @@ class CohereAIWrapper {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.API_KEY}`,
-        //'Cohere-Version': this.COHERE_VERSION,
+        'Cohere-Version': this.COHERE_VERSION,
       },
     });
   }

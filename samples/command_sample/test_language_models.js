@@ -1,4 +1,7 @@
 const { RemoteLanguageModel, SupportedLangModels, LanguageModelInput } = require('intellinode');
+// below imports to call the keys from .env file
+const dotenv = require('dotenv');
+dotenv.config();
 
 async function generateText(apiKey, provider, model, prompt, temperature) {
   const langModel = new RemoteLanguageModel(apiKey, provider);
@@ -13,7 +16,7 @@ async function generateText(apiKey, provider, model, prompt, temperature) {
 
 (async () => {
   // Generate text using OpenAI
-  const openaiKey = 'your-openai-api-key';
+  const openaiKey = process.env.OPENAI_API_KEY;
   const openaiModel = 'text-davinci-003';
   const prompt = 'Write a product description for smart plug that works with voice assistant.';
   const temperature = 0.7;
@@ -21,7 +24,7 @@ async function generateText(apiKey, provider, model, prompt, temperature) {
   await generateText(openaiKey, SupportedLangModels.OPENAI, openaiModel, prompt, temperature);
 
   // Generate text using Cohere
-  const cohereKey = 'your-cohere-api-key';
+  const cohereKey = process.env.COHERE_API_KEY;
   const cohereModel = 'command-xlarge-20221108';
 
   await generateText(cohereKey, SupportedLangModels.COHERE, cohereModel, prompt, temperature);

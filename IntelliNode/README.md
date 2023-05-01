@@ -7,7 +7,61 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
 # Examples
-## Language models
+## Functions
+### Chatbot
+1. imports:
+```js
+const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
+```
+2. call:
+```js
+// set the system mode and the user message.
+const input = new ChatGPTInput('You are a helpful assistant.');
+input.addUserMessage('What is the distance between the Earth and the Moon?');
+
+// get the responses from the chatbot
+const bot = new Chatbot(apiKey);
+const responses = await bot.chat(input);
+```
+### Semantic Search
+1. imports:
+```js
+const { SemanticSearch } = require('intellinode');
+```
+2. call:
+```js
+const search = new SemanticSearch(apiKey);
+// pivotItem: item to search.
+// searchArray: array of strings to search through.
+const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
+const filteredArray = search.filterTopMatches(results, searchArray)
+```
+## Models Access
+### Image models
+
+1. imports:
+```js
+const { RemoteImageModel, SupportedImageModels, ImageModelInput } = require('intellinode');
+```
+
+2. call DALL·E:
+```js
+provider=SupportedImageModels.OPENAI;
+
+const imgModel = new RemoteImageModel(apiKey, provider);
+const images = await imgModel.generateImages(new ImageModelInput({
+    prompt: 'teddy writing a blog in times square',
+    numberOfImages: 1
+}));
+```
+
+3. change to call Stable Diffusion:
+```js
+provider=SupportedImageModels.STABILITY;
+// ... same code
+```
+
+### Language models
 1. imports:
 ```js
 const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
@@ -32,59 +86,21 @@ const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
 model_name = 'command'
 // ... same code
 ```
-
-## Image models
-
+### Speech Synthesis
 1. imports:
 ```js
-const { RemoteImageModel, SupportedImageModels, ImageModelInput } = require('intellinode');
+const { RemoteSpeechModel, Text2SpeechInput } = require('intellinode');
 ```
-
-2. call DALL·E:
+2. call google model:
 ```js
-provider=SupportedImageModels.OPENAI;
-
-const imgModel = new RemoteImageModel(apiKey, provider);
-const images = await imgModel.generateImages(new ImageModelInput({
-    prompt: 'teddy writing a blog in times square',
-    numberOfImages: 1
+const speechModel = new RemoteSpeechModel('google-key', 'google');
+const audioContent = await speechModel.generateSpeech(new Text2SpeechInput({
+  text: text, 
+  language: 'en-gb' 
 }));
 ```
 
-3. change to call Stable Diffusion:
-```js
-provider=SupportedImageModels.STABILITY;
-// ... same code
-```
-
-## Chatbot
-1. imports:
-```js
-const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
-```
-2. call:
-```js
-// set the system mode and the user message.
-const input = new ChatGPTInput('You are a helpful assistant.');
-input.addUserMessage('What is the distance between the Earth and the Moon?');
-
-// get the responses from the chatbot
-const bot = new Chatbot(apiKey);
-const responses = await bot.chat(input);
-```
-## Semantic Search
-1. imports:
-```js
-const { SemanticSearch } = require('intellinode');
-```
-2. call:
-```js
-const search = new SemanticSearch(apiKey);
-// pivotItem is the item to search.
-// searchArray is the array of strings to search through.
-const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
-const filteredArray = search.filterTopMatches(results, searchArray)
-```
+Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more examples.
 
 # License
 Apache License

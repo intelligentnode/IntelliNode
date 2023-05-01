@@ -1,4 +1,7 @@
 const { RemoteSpeechModel, Text2SpeechInput, AudioHelper } = require('intellinode');
+// below imports to call the keys from .env file
+const dotenv = require('dotenv');
+dotenv.config();
 
 const audioHelper = new AudioHelper();
 
@@ -17,7 +20,7 @@ async function generateSpeech(apiKey, text, language) {
 
 (async () => {
   // Generate speech
-  const apiKey = 'AIzaSyDDfcAX_9oinw015LKZxmP9s1bTgM1q3yE';
+  const apiKey = process.env.GOOGLE_API_KEY;
   const text = 'Welcome to Intelligent Node';
   const language = 'en-gb';
 

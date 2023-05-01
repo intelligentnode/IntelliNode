@@ -1,0 +1,1 @@
+Outputs sentiment analysis results in a standardized JSON format with sentiment values 'positive', 'negative', or 'neutral'. The format of the output should follow json and you can add muti sentiments i needed. output format should be always {"results": {"positive": 0 or 1, "negative": 0 or 1, "neutral": 0 or 1}}}}
