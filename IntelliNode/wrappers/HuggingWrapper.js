@@ -34,6 +34,16 @@ class HuggingWrapper {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
+
+  async processImage(modelId, data) {
+    const url = `/${modelId}`;
+    try {
+      const response = await this.httpClient.post(url, data, { responseType: 'arraybuffer' });
+      return JSON.parse(response.data.toString());
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
 }
 
 module.exports = HuggingWrapper;
