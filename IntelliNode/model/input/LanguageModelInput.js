@@ -70,4 +70,4 @@ class LanguageModelInput {
   }
 }
 
-module.exports = { LanguageModelInput };
+module.exports = LanguageModelInput;

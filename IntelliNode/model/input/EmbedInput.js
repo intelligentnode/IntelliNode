@@ -36,4 +36,4 @@ class EmbedInput {
   }
 }
 
-module.exports = { EmbedInput };
+module.exports = EmbedInput;

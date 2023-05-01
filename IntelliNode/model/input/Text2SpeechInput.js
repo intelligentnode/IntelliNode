@@ -46,4 +46,4 @@ Text2SpeechInput.Gender = {
   MALE: "MALE",
 };
 
-module.exports = { Text2SpeechInput };
+module.exports = Text2SpeechInput;

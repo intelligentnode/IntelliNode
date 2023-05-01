@@ -19,4 +19,4 @@ class MatchHelpers {
   }
 }
 
-module.exports = { MatchHelpers };
+module.exports = MatchHelpers;

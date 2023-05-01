@@ -24,7 +24,7 @@ const AudioHelper = require('./utils/AudioHelper');
 const Config2 = require('./utils/Config2');
 const ConnHelper = require('./utils/ConnHelper');
 const MatchHelpers = require('./utils/MatchHelpers');
-const SystemHelper = require('./utils/SystemHelper');
+
 
 module.exports = {
   RemoteLanguageModel,
@@ -49,7 +49,6 @@ module.exports = {
   ChatGPTMessage,
   EmbedInput,
   MatchHelpers,
-  SystemHelper,
   RemoteEmbedModel,
   SupportedEmbedModels,
   SemanticSearch,

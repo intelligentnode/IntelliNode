@@ -26,4 +26,4 @@ class Config2 {
   }
 }
 
-module.exports = { Config2 };
+module.exports = Config2;
