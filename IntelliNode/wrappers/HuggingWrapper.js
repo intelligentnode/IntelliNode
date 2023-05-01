@@ -46,4 +46,4 @@ class HuggingWrapper {
   }
 }
 
-module.exports = { HuggingWrapper };
+module.exports = HuggingWrapper;
