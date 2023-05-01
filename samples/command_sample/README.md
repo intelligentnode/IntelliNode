@@ -12,6 +12,7 @@ OPENAI_API_KEY=<key_value>
 COHERE_API_KEY=<key_value>
 GOOGLE_API_KEY=<key_value>
 STABILITY_API_KEY=<key_value>
+HUGGING_API_KEY=<key_value>
 ```
 
 ## Samples Execution
@@ -36,6 +37,12 @@ STABILITY_API_KEY=<key_value>
 
 7. Semantic search:
 `node test_semantic_search.js`
+
+8. Text analyzer (summary & sentiment analysis):
+`node test_text_analyzer.js`
+
+9. Text huggingface simplified inference access:
+`node test_hugging_face.js`
 
 
 ## Access Keys
