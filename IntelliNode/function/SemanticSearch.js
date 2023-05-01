@@ -73,4 +73,4 @@ class SemanticSearch {
   }
 }
 
-module.exports = {SemanticSearch};
+module.exports = SemanticSearch;
