@@ -20,10 +20,10 @@ HUGGING_API_KEY=<key_value>
 1. E-commerce sample to generate products description and images:
 `node ecommerce_tool.js`
 
-2. Language model:
+2. Language model using openai and cohere:
 `node test_language_models.js`
 
-3. Image model:
+3. Image model using stable diffusion and DALL·E 2:
 `node test_image_models.js`
 
 4. Generate shiba images for fun:
@@ -41,7 +41,7 @@ HUGGING_API_KEY=<key_value>
 8. Text analyzer (summary & sentiment analysis):
 `node test_text_analyzer.js`
 
-9. Text huggingface simplified inference access:
+9. Huggingface simplified inference access:
 `node test_hugging_face.js`
 
 
@@ -52,5 +52,6 @@ Generate the access keys from the following websites; you must generate the keys
 2. cohere: https://cohere.com
 3. google: https://console.cloud.google.com
 4. stability: https://stability.ai
+5. huggingface: https://huggingface.co
 
 For example, if you use the language model from openai, no need to generate cohere keys.
