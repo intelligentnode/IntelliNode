@@ -23,7 +23,7 @@ async function testImageClassificationTask(imagePath) {
   // test text
   await testSummarizationTask();
   
-  // text image
+  // test image
   const args = process.argv.slice(2);
   const imagePath = args[0];
 
