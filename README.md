@@ -174,8 +174,9 @@ Call for contributors:
 - [ ] Add support to Amazon language models.
 - [ ] Add support to Midjourney image generation.
 - [x] Add support to Stable diffusion.
+- [x] Add support to hugging face inference.
 - [ ] Add support to WuDao 2.0 model.
-- [ ] Add more high-level functions like blog generation, semantic search, etc.
+- [x] Add more high-level functions like semantic search, etc.
 
 
 # License
