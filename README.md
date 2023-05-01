@@ -1,6 +1,6 @@
 
 <p align="center">
-<img src="images/multi-model-small.png" width="88%">
+<img src="images/multi-model-small-v2.png" width="88%">
 </p>
 
 <p align="center">
