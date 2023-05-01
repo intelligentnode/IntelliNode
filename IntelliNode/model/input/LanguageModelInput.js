@@ -45,16 +45,25 @@ class LanguageModelInput {
   }
 
   setDefaultValues(provider) {
+    this.setDefaultModels(provider)
     if (provider === "openai") {
-      this.model = "code-davinci-003";
       this.temperature = 0.7;
       this.maxTokens = 50;
       this.numberOfOutputs = 1;
     } else if (provider === "cohere") {
-      this.model = "command";
       this.temperature = 0.75;
       this.maxTokens = 20;
       this.numberOfOutputs = 1;
+    } else {
+      throw new Error("Invalid provider name");
+    }
+  }
+
+  setDefaultModels(provider) {
+    if (provider === "openai") {
+      this.model = "text-davinci-003";
+    } else if (provider === "cohere") {
+      this.model = "command";
     } else {
       throw new Error("Invalid provider name");
     }

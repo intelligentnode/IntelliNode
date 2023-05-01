@@ -19,7 +19,7 @@ class ChatGPTMessage {
 class ChatModelInput {}
 
 class ChatGPTInput extends ChatModelInput {
-  constructor(systemMessage) {
+  constructor(systemMessage, options = {}) {
     super();
     if (systemMessage instanceof ChatGPTMessage && systemMessage.isSystemRole()) {
       this.messages = [systemMessage];
@@ -30,10 +30,10 @@ class ChatGPTInput extends ChatModelInput {
         "The input type should be system to define the chatbot theme or instructions."
       );
     }
-    this.model = "gpt-3.5-turbo";
-    this.temperature = 1;
+    this.model = options.model || "gpt-3.5-turbo";
+    this.temperature = options.temperature || 1;
+    this.maxTokens = options.maxTokens || null;
     this.numberOfOutputs = 1;
-    this.maxTokens = null;
   }
 
   addMessage(message) {
