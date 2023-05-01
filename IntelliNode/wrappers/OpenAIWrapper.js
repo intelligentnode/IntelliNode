@@ -63,4 +63,4 @@ class OpenAIWrapper {
   }
 }
 
-module.exports = OpenAIWrapper;
+module.exports = { OpenAIWrapper };

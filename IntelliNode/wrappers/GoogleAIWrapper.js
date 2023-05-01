@@ -60,4 +60,4 @@ class GoogleAIWrapper {
     return JSON.stringify(modelInput);
   }
 }
-module.exports = GoogleAIWrapper;
+module.exports = { GoogleAIWrapper };

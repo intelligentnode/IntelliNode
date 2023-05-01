@@ -50,4 +50,4 @@ class CohereAIWrapper {
 
 }
 
-module.exports = CohereAIWrapper;
+module.exports = { CohereAIWrapper };

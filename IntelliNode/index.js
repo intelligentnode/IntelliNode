@@ -6,6 +6,7 @@ const { RemoteEmbedModel, SupportedEmbedModels } = require('./controller/RemoteE
 // functions
 const { Chatbot, SupportedChatModels } = require('./function/Chatbot');
 const { SemanticSearch } = require('./function/SemanticSearch');
+const { TextAnalyzer } = require('./function/TextAnalyzer');
 // inputs
 const LanguageModelInput = require('./model/input/LanguageModelInput');
 const ImageModelInput = require('./model/input/ImageModelInput');
@@ -17,6 +18,7 @@ const CohereAIWrapper = require('./wrappers/CohereAIWrapper');
 const GoogleAIWrapper = require('./wrappers/GoogleAIWrapper');
 const OpenAIWrapper = require('./wrappers/OpenAIWrapper');
 const StabilityAIWrapper = require('./wrappers/StabilityAIWrapper');
+const HuggingWrapper = require('./wrappers/HuggingWrapper');
 // utils
 const AudioHelper = require('./utils/AudioHelper');
 const Config2 = require('./utils/Config2');
@@ -49,5 +51,7 @@ module.exports = {
   MatchHelpers,
   RemoteEmbedModel,
   SupportedEmbedModels,
-  SemanticSearch
+  SemanticSearch,
+  HuggingWrapper,
+  TextAnalyzer
 };

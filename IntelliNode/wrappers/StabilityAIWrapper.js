@@ -58,4 +58,4 @@ class StabilityAIWrapper {
   }
 }
 
-module.exports = StabilityAIWrapper;
+module.exports = { StabilityAIWrapper };
