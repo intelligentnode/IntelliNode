@@ -86,6 +86,21 @@ const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
 model_name = 'command'
 // ... same code
 ```
+### Speech Synthesis
+1. imports:
+```js
+const { RemoteSpeechModel, Text2SpeechInput } = require('intellinode');
+```
+2. call google model:
+```js
+const speechModel = new RemoteSpeechModel('google-key', 'google');
+const audioContent = await speechModel.generateSpeech(new Text2SpeechInput({
+  text: text, 
+  language: 'en-gb' 
+}));
+```
+
+Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more examples.
 
 # License
 Apache License
