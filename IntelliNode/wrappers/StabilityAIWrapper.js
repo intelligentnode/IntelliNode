@@ -1,10 +1,3 @@
-/*
-Apache License
-
-Copyright 2023 Github.com/Barqawiz/IntelliNode
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-*/
 const axios = require("axios");
 const FormData = require("form-data");
 const fs = require("fs");
@@ -23,8 +16,8 @@ class StabilityAIWrapper {
     });
   }
 
-  async generateTextToImage(params) {
-    const url = config.getProperty("url.stability.text_to_image");
+  async generateTextToImage(params, engine = "stable-diffusion-xl-beta-v2-2-2") {
+    const url = config.getProperty("url.stability.text_to_image").replace("{1}", engine);
     try {
       const response = await this.httpClient.post(url, params, {
         headers: {
@@ -38,8 +31,8 @@ class StabilityAIWrapper {
     }
   }
 
-  async upscaleImage(imagePath, width) {
-    const url = config.getProperty("url.stability.upscale");
+  async upscaleImage(imagePath, width, engine = "esrgan-v1-x2plus") {
+    const url = config.getProperty("url.stability.upscale").replace("{1}", engine);
     const formData = new FormData();
     formData.append("image", fs.createReadStream(imagePath));
     formData.append("width", width);
