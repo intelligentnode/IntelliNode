@@ -81,33 +81,36 @@ class StabilityAIWrapper {
    * @throws {Error} if there is an error during the request.
    */
   async generateImageToImage(params, engine = "stable-diffusion-xl-beta-v2-2-2") {
-    const url = config
-      .getProperty("url.stability.image_to_image")
-      .replace("{1}", engine);
-    const formData = new FormData();
-    formData.append("text_prompts", JSON.stringify(params.text_prompts));
-    formData.append("init_image", fs.readFileSync(params.imagePath), {
-      filename: params.imagePath.split('/').pop(),
-      contentType: "image/png",
-    });
-    Object.keys(params).forEach((key) => {
-      if (key !== "text_prompts" && key !== "init_image" && key !== "imagePath") {
-        formData.append(key, params[key]);
-      }
-    });
-
-    try {
-      const response = await this.httpClient.post(url, formData, {
-        headers: {
-          ...formData.getHeaders(),
-          Accept: "application/json",
-        },
+      const url = config
+        .getProperty("url.stability.image_to_image")
+        .replace("{1}", engine);
+      const formData = new FormData();
+      params.text_prompts.forEach((prompt, index) => {
+        formData.append(`text_prompts[${index}][text]`, prompt.text);
+        formData.append(`text_prompts[${index}][weight]`, prompt.weight);
       });
-      return response.data;
-    } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      formData.append("init_image", fs.readFileSync(params.imagePath), {
+        filename: params.imagePath.split('/').pop(),
+        contentType: "image/png",
+      });
+      Object.keys(params).forEach((key) => {
+        if (key !== "text_prompts" && key !== "init_image" && key !== "imagePath") {
+          formData.append(key, params[key]);
+        }
+      });
+
+      try {
+        const response = await this.httpClient.post(url, formData, {
+          headers: {
+            ...formData.getHeaders(),
+            Accept: "application/json",
+          },
+        });
+        return response.data;
+      } catch (error) {
+        throw new Error(connHelper.getErrorMessage(error));
+      }
     }
-  }
 }
 
 module.exports = StabilityAIWrapper;
