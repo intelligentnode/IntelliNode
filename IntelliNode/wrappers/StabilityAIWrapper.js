@@ -31,17 +31,47 @@ class StabilityAIWrapper {
     }
   }
 
-  async upscaleImage(imagePath, width, engine = "esrgan-v1-x2plus") {
+  async upscaleImage(imagePath, width, height, engine = "esrgan-v1-x2plus") {
     const url = config.getProperty("url.stability.upscale").replace("{1}", engine);
     const formData = new FormData();
     formData.append("image", fs.createReadStream(imagePath));
     formData.append("width", width);
+    formData.append("height", height);
 
     try {
       const response = await this.httpClient.post(url, formData, {
         headers: {
           ...formData.getHeaders(),
           Accept: "image/png",
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async generateImageToImage(params, engine = "stable-diffusion-xl-beta-v2-2-2") {
+    const url = config
+      .getProperty("url.stability.image_to_image")
+      .replace("{1}", engine);
+    const formData = new FormData();
+    formData.append("text_prompts", JSON.stringify(params.text_prompts));
+    formData.append("init_image", fs.readFileSync(params.imagePath), {
+      filename: params.imagePath.split('/').pop(),
+      contentType: "image/png",
+    });
+    Object.keys(params).forEach((key) => {
+      if (key !== "text_prompts" && key !== "init_image" && key !== "imagePath") {
+        formData.append(key, params[key]);
+      }
+    });
+
+    try {
+      const response = await this.httpClient.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          Accept: "application/json",
         },
       });
       return response.data;
