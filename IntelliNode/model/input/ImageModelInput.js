@@ -14,7 +14,8 @@ class ImageModelInput {
     height = null,
     width = null,
     diffusion_cfgScale = null,
-    diffusion_style_preset = null
+    diffusion_style_preset = null,
+    engine = null
   }) {
     this.prompt = prompt;
     this.numberOfImages = numberOfImages;
@@ -24,6 +25,7 @@ class ImageModelInput {
     this.width = width;
     this.diffusion_cfgScale = diffusion_cfgScale;
     this.diffusion_style_preset = diffusion_style_preset;
+    this.engine = engine;
   }
 
   getOpenAIInputs() {
@@ -44,9 +46,10 @@ class ImageModelInput {
       ...this.height && { height: this.height },
       ...this.width && { width: this.width },
       ...this.diffusion_cfgScale && { cfg_scale: this.diffusion_cfgScale },
-      ...this.diffusion_style_preset && {style_preset: this.diffusion_style_preset}
+      ...this.diffusion_style_preset && {style_preset: this.diffusion_style_preset},
+      ...this.engine && { engine: this.engine }
     };
-    
+
     return inputs;
   }
 
@@ -58,6 +61,7 @@ class ImageModelInput {
       this.numberOfImages = 1;
       this.height = 512;
       this.width = 512;
+      this.engine = 'stable-diffusion-xl-beta-v2-2-2';
     } else {
       throw new Error("Invalid provider name");
     }

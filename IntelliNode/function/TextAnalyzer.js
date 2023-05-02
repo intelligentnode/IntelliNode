@@ -1,3 +1,14 @@
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+*/
 const { RemoteLanguageModel, SupportedLangModels } = require("../controller/RemoteLanguageModel");
 const LanguageModelInput = require("../model/input/LanguageModelInput");
 const SystemHelper = require("../utils/SystemHelper");

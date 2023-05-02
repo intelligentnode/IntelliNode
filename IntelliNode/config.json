@@ -24,8 +24,9 @@
     },
     "stability": {
       "base": "https://api.stability.ai",
-      "text_to_image": "/v1/generation/stable-diffusion-v1-5/text-to-image",
-      "upscale": "/v1/generation/esrgan-v1-x2plus/image-to-image/upscale"
+      "text_to_image": "/v1/generation/{1}/text-to-image",
+      "upscale": "/v1/generation/{1}/image-to-image/upscale",
+      "image_to_image": "/v1/generation/{1}/image-to-image"
     },
     "huggingface": {
       "base": "https://api-inference.huggingface.co/models"
