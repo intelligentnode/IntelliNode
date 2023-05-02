@@ -100,7 +100,7 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 // get the responses from the chatbot
 const responses = await chatbot.chat(input);
 ```
-### Semantic Search
+### Semantic search
 imports:
 ```js
 const { SemanticSearch } = require('intellinode');
@@ -131,6 +131,7 @@ OPENAI_API_KEY=<key_value>
 COHERE_API_KEY=<key_value>
 GOOGLE_API_KEY=<key_value>
 STABILITY_API_KEY=<key_value>
+HUGGING_API_KEY=<key_value>
 ```
 
 ## Test cases
@@ -146,8 +147,10 @@ STABILITY_API_KEY=<key_value>
 3. run the remote speech models test cases:
 `node test/RemoteSpeechModel.test.js`
 
+4. run the embedding test cases:
+`node test/RemoteEmbedModel.test.js`
 
-4. run the chatBot test cases:
+5. run the chatBot test cases:
 `node test/Chatbot.test.js`
 
 # :closed_book: Documentation
