@@ -62,6 +62,24 @@ class StabilityAIWrapper {
     }
   }
 
+  /**
+   * Generates an image based on the provided text prompts and initial image.
+
+   * @param {object} params - The parameters for the image-to-image generation.
+   * @param {Array<{text: string, weight?: number}>} params.text_prompts - an array of text prompts to use for generation.
+   * @param {string} params.imagePath - the path to the initial image file.
+   * @param {string} [params.init_image_mode="IMAGE_STRENGTH"] - whether to use image_strength or step_schedule_* to control how much influence the init_image has on the result.
+   * @param {number} [params.image_strength=0.35] - how much influence the init_image has on the diffusion process. Values close to 1 will yield images very similar to the init_image, while values close to 0 will yield images wildly different than the init_image.
+   * @param {number} [params.cfg_scale=7] - how strictly the diffusion process adheres to the prompt text (higher values keep your image closer to your prompt).
+   * @param {string} [params.sampler] - which sampler to use for the diffusion process. If this value is omitted, an appropriate sampler will be automatically selected.
+   * @param {number} [params.samples=1] - number of images to generate.
+   * @param {number} [params.seed=0] - random noise seed.
+   * @param {number} [params.steps=50] - number of diffusion steps to run.
+   * @param {string} [params.style_preset] - pass in a style preset to guide the image model towards a particular style.
+   * @param {string} [engine="stable-diffusion-xl-beta-v2-2-2"] - the engine to use for image-to-image generation. Defaults to "stable-diffusion-xl-beta-v2-2-2".
+   * @returns {Promise<object>} the generated image data.
+   * @throws {Error} if there is an error during the request.
+   */
   async generateImageToImage(params, engine = "stable-diffusion-xl-beta-v2-2-2") {
     const url = config
       .getProperty("url.stability.image_to_image")
