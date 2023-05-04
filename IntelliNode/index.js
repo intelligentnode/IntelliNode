@@ -56,5 +56,6 @@ module.exports = {
   SemanticSearch,
   SystemHelper,
   TextAnalyzer,
-  HuggingWrapper
+  HuggingWrapper,
+  Gen
 };
