@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content Generation Platform</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css">
+</head>
+<body>
+  <div class="container mt-5">
+    <h1 class="mb-5 text-center">Content Generation Platform</h1>
+
+    <form id="content-form" class="mb-5">
+      <div class="mb-3">
+        <label for="product" class="form-label">Product:</label>
+        <input type="text" class="form-control" id="product" name="product">
+      </div>
+      <button type="submit" class="btn btn-primary">Generate Content</button>
+    </form>
+
+    <div id="loading" class="text-center d-none">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden"></span>
+      </div>
+    </div>
+
+    <div id="results">
+      <h2 id="text-title" class="mb-3 d-none">Generated Text:</h2>
+      <p id="generated-text"></p>
+      <h2 id="image-title" class="mb-3 d-none">Generated Image:</h2>
+      <img id="generated-image" src="" alt="Generated Image" class="img-fluid d-none">
+      <h2 id="audio-title" class="mt-2 mb-3 d-none">Generated Audio:</h2>
+      <audio id="generated-audio" controls src="" class="d-none"></audio>
+    </div>
+
+  <script src="front.js"></script>
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js"></script>
+</body>
+</html>
