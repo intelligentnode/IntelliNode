@@ -55,4 +55,4 @@ class Gen {
   }
 }
 
-module.exports = Gen;
+module.exports = { Gen };
