@@ -7,12 +7,14 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
 # Latest Updates
+- Add Gen function, the fastest way to generate text, speech, or images for business use cases. :bullettrain_side:	
 - Update stable diffusion to use XL model engine.
 - Update openai chatGPT to receive optional parameters.
 - Add support for hugging face inference.
 
 # Examples
 ## Functions
+
 ### Chatbot
 1. imports:
 ```js
@@ -41,6 +43,23 @@ const search = new SemanticSearch(apiKey);
 const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
 const filteredArray = search.filterTopMatches(results, searchArray)
 ```
+### Gen
+1. imports:
+```js
+const { Gen } = require('intellinode');
+```
+2. call:
+```js
+// one line to generate marketing description 
+const marketingDesc = await Gen.get_marketing_desc('gaming chair', openaiApiKey);
+
+// or one line to generate blog post
+const blogPost = await Gen.get_blog_post(prompt, openaiApiKey);
+
+// or generate images from production description
+const image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey, true);
+```
+
 ## Models Access
 ### Image models
 
@@ -116,7 +135,7 @@ const result = await huggingWrapper.generateText(
    modelId='facebook/bart-large-cnn', 
    data={ inputs: 'The tower is 324 metres (1,063 ft) tall, about the same height as an 81-storey building...' });
 ```
-The available functions in this version: `generateText, generateImage, processImage`. 
+The available hugging-face functions: `generateText`, `generateImage`, `processImage`. 
 
 Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more code details.
 

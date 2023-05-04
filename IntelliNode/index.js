@@ -7,6 +7,8 @@ const { RemoteEmbedModel, SupportedEmbedModels } = require('./controller/RemoteE
 const { Chatbot, SupportedChatModels } = require('./function/Chatbot');
 const { SemanticSearch } = require('./function/SemanticSearch');
 const { TextAnalyzer } = require('./function/TextAnalyzer');
+const { Gen } = require('./function/Gen');
+
 // inputs
 const LanguageModelInput = require('./model/input/LanguageModelInput');
 const ImageModelInput = require('./model/input/ImageModelInput');
