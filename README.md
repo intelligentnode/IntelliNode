@@ -38,7 +38,7 @@ npm i intellinode
 
 ## Examples
 ### Language models
-imports:
+import:
 ```js
 const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
 ```
@@ -65,7 +65,7 @@ model_name = 'command-xlarge-20221108'
 
 ### Image models
 
-imports:
+import:
 ```js
 const { RemoteImageModel, SupportedImageModels, ImageModelInput } = require('intellinode');
 ```
@@ -87,7 +87,7 @@ provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
 ### Chatbot (chatGPT)
-imports:
+import:
 ```js
 const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
@@ -101,7 +101,7 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const responses = await chatbot.chat(input);
 ```
 ### Semantic search
-imports:
+import:
 ```js
 const { SemanticSearch } = require('intellinode');
 ```
@@ -109,13 +109,24 @@ call:
 ```js
 const search = new SemanticSearch(apiKey);
 // pivotItem is the item to search.
-// searchArray is the array of strings to search through.
 const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
 const filteredArray = search.filterTopMatches(results, searchArray)
 ```
+### Gen
+`Gen` function quickly generate content that is tailored to your specific business needs.<br>
+import:
+```js
+const { Gen } = require('intellinode');
+```
+call:
+```js
+// one line to generate marketing description 
+const marketingDesc = await Gen.get_marketing_desc('gaming chair', openaiApiKey);
 
+// or generate images from products description
+const image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey, true);
+```
 For more examples, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
-
 
 # The code repository setup
 ## First setup
