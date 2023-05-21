@@ -15,10 +15,20 @@
     },
     "google": {
       "base": "https://{1}.googleapis.com/v1/",
+      "basev2": "https://{1}.googleapis.com/v1beta2/",
       "speech": {
         "prefix": "texttospeech",
         "synthesize": {
           "postfix": "text:synthesize"
+        }
+      },
+      "palm": {
+        "prefix": "generativelanguage",
+        "generateText": {
+          "postfix": "models/MODEL_ID:generateText"
+        },
+        "embedding": {
+          "postfix": "models/MODEL_ID:embedText"
         }
       }
     },
