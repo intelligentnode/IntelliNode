@@ -53,7 +53,7 @@ async function testGenerateEmbed() {
 
 (async () => {
   console.log('## test audio generation ##')
-  await testGenerateSpeech();
+  // await testGenerateSpeech();
   console.log('## test text generation ##')
   await testGenerateText();
   console.log('## test embed generation ##')
