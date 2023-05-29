@@ -39,7 +39,6 @@ const { SemanticSearch } = require('intellinode');
 ```js
 const search = new SemanticSearch(apiKey);
 // pivotItem: item to search.
-// searchArray: array of strings to search through.
 const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
 const filteredArray = search.filterTopMatches(results, searchArray)
 ```
@@ -50,14 +49,16 @@ const { Gen } = require('intellinode');
 ```
 2. call:
 ```js
-// one line to generate marketing description 
-const marketingDesc = await Gen.get_marketing_desc('gaming chair', openaiApiKey);
-
-// or one line to generate blog post
+// one line to generate blog post
 const blogPost = await Gen.get_blog_post(prompt, openaiApiKey);
-
-// or generate images from production description
-const image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey, true);
+```
+```js
+// or generate images from description
+const image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey);
+```
+```js
+// or generate html page code
+await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
 
 ## Models Access

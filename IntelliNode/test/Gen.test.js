@@ -3,7 +3,6 @@ require("dotenv").config();
 const assert = require("assert");
 const fs = require('fs');
 
-
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const stabilityApiKey = process.env.STABILITY_API_KEY;
 const googleApiKey = process.env.GOOGLE_API_KEY;
@@ -51,10 +50,17 @@ async function testGenerateHtmlPage() {
   assert(htmlCode["html"].length > 0, "Test passed");
 }
 
+async function testSaveHTML() {
+  prompt = "a registration page with flat modern theme."
+  status = await Gen.save_html_page(prompt, folder='../temp', file_name='test_register', openaiKeyclea=openaiApiKey);
+  assert.strictEqual(status, true, "Test passed");
+}
+
 (async () => {
   await testGetMarketingDesc();
   await testGetBlogPost();
   await testGenerateImageFromDesc();
   await testGenerateSpeechSynthesis();
   await testGenerateHtmlPage();
+  await testSaveHTML();
 })();

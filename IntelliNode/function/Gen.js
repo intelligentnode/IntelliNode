@@ -8,6 +8,7 @@ const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
 const SystemHelper = require("../utils/SystemHelper");
 const fs = require('fs');
+const path = require('path');
 
 class Gen {
   static async get_marketing_desc(prompt, openaiKey) {
@@ -71,8 +72,10 @@ class Gen {
   }
 
   static async save_html_page(text, folder, file_name, openaiKey) {
-    const htmlCode = await Gen.generate_html_page(text, openaiApiKey);
-    fs.writeFileSync(`${folder}/${file_name}.html`, htmlCode["html"]);
+    const htmlCode = await Gen.generate_html_page(text, openaiKey);
+    const folderPath = path.join(folder, file_name + '.html');
+    fs.writeFileSync(folderPath, htmlCode['html']);
+    return true;
   }
 
 }
