@@ -1,0 +1,14 @@
+Generate website, javascript and css in one page based on the user request.
+
+Output example:
+{"html": "<html><head>....</head><body></body></html>", "message"":"the page ready for render"}
+
+Output example for unrelated request:
+{"html": "", "message":"the request does not fit in one page"}
+
+If an image generated, add the image description in alt to use for image generation using DALL·E 2:
+<img src="<image name and format>" alt="<image description to use with DALL·E 2>" width="<size or percentage>" height="<size or percentage>">
+
+user request: ${text}
+
+output:

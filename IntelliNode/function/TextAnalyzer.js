@@ -24,7 +24,7 @@ class TextAnalyzer {
   }
 
   async summarize(text, options = {}) {
-    const summaryPromptTemplate = this.systemHelper.loadSystem("summary");
+    const summaryPromptTemplate = this.systemHelper.loadPrompt("summary");
     const prompt = summaryPromptTemplate.replace("${text}", text);
     const modelInput = new LanguageModelInput({
       prompt,
@@ -37,7 +37,7 @@ class TextAnalyzer {
   }
 
   async sentimentAnalysis(text, options = {}) {
-    const mode = this.systemHelper.loadSystem("sentiment");
+    const mode = this.systemHelper.loadPrompt("sentiment");
     const prompt = `${mode}\n\nAnalyze the sentiment of the following text: ${text}\n\nSentiment: `;
 
     const modelInput = new LanguageModelInput({

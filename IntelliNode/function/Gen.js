@@ -6,7 +6,8 @@ const ImageModelInput = require("../model/input/ImageModelInput");
 const Text2SpeechInput = require("../model/input/Text2SpeechInput");
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
-
+const SystemHelper = require("../utils/SystemHelper");
+const fs = require('fs');
 
 class Gen {
   static async get_marketing_desc(prompt, openaiKey) {
@@ -53,6 +54,27 @@ class Gen {
     const audioContent = await speechModel.generateSpeech(input);
     return audioContent;
   }
+
+  static async generate_html_page(text, openaiKey) {
+    // load and fill the template
+    const promptTemplate = new SystemHelper().loadPrompt("html_page");
+    const prompt = promptTemplate.replace("${text}", text);
+
+    // prepare the bot
+    const chatbot = new Chatbot(openaiKey);
+    const input = new ChatGPTInput('generate only html, css and javascript based on the user request in the following format {"html": "<code>", "message":"<text>"}',
+                                   { maxTokens: 2000, model: 'gpt-4' });
+    // set the user message with the template
+    input.addUserMessage(prompt);
+    const responses = await chatbot.chat(input);
+    return JSON.parse(responses[0].trim());
+  }
+
+  static async save_html_page(text, folder, file_name, openaiKey) {
+    const htmlCode = await Gen.generate_html_page(text, openaiApiKey);
+    fs.writeFileSync(`${folder}/${file_name}.html`, htmlCode["html"]);
+  }
+
 }
 
 module.exports = { Gen };

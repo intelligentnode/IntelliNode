@@ -1,6 +1,7 @@
-const Gen = require("../function/Gen");
+const { Gen } = require("../function/Gen");
 require("dotenv").config();
 const assert = require("assert");
+const fs = require('fs');
 
 
 const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -35,9 +36,25 @@ async function testGenerateSpeechSynthesis() {
   assert(speech.length > 0, "Test passed");
 }
 
+
+async function testGenerateHtmlPage() {
+  const tempDir = '../temp';
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir);
+  }
+
+  const text = "a registration page with flat modern theme.";
+  const htmlCode = await Gen.generate_html_page(text, openaiApiKey);
+
+  fs.writeFileSync(`${tempDir}/generated_page_test.html`, htmlCode["html"]);
+
+  assert(htmlCode["html"].length > 0, "Test passed");
+}
+
 (async () => {
   await testGetMarketingDesc();
   await testGetBlogPost();
   await testGenerateImageFromDesc();
   await testGenerateSpeechSynthesis();
+  await testGenerateHtmlPage();
 })();
