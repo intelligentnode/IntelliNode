@@ -58,6 +58,7 @@ const image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stability
 ```
 ```js
 // or generate html page code
+text = 'a registration page with flat modern theme.'
 await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
 
