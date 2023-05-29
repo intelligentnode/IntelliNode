@@ -120,11 +120,13 @@ const { Gen } = require('intellinode');
 ```
 call:
 ```js
-// one line to generate marketing description 
-const marketingDesc = await Gen.get_marketing_desc('gaming chair', openaiApiKey);
-
-// or generate images from products description
-const image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey, true);
+// one line to generate blog post
+const blogPost = await Gen.get_blog_post(prompt, openaiApiKey);
+```
+```js
+// or generate html page code
+text = 'a registration page with flat modern theme.'
+await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
 For more examples, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
 
