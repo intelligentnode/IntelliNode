@@ -1,13 +1,10 @@
 # Intelligent Node (IntelliNode)
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
-# Pillars
-- **The wrapper layer** provides low-level access to the latest AI models
-- **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
-- **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
+
 
 # Latest Updates
-- Add Gen function, the fastest way to generate text, speech, or images for business use cases. :bullettrain_side:	
+- Add Gen function, the fastest way to generate text, speech, web pages or images for your business use cases. :bullettrain_side:	
 - Update stable diffusion to use XL model engine.
 - Update openai chatGPT to receive optional parameters.
 - Add support for hugging face inference.
@@ -140,6 +137,11 @@ const result = await huggingWrapper.generateText(
 The available hugging-face functions: `generateText`, `generateImage`, `processImage`. 
 
 Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more code details.
+
+# Pillars
+- **The wrapper layer** provides low-level access to the latest AI models
+- **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
+- **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
 # License
 Apache License

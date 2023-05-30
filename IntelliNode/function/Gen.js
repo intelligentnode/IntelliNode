@@ -56,7 +56,7 @@ class Gen {
     return audioContent;
   }
 
-  static async generate_html_page(text, openaiKey) {
+  static async generate_html_page(text, openaiKey, model_name='gpt-4') {
     // load and fill the template
     const promptTemplate = new SystemHelper().loadPrompt("html_page");
     const prompt = promptTemplate.replace("${text}", text);
@@ -64,15 +64,15 @@ class Gen {
     // prepare the bot
     const chatbot = new Chatbot(openaiKey);
     const input = new ChatGPTInput('generate only html, css and javascript based on the user request in the following format {"html": "<code>", "message":"<text>"}',
-                                   { maxTokens: 2000, model: 'gpt-4' });
+                                   { maxTokens: 2000, model: model_name });
     // set the user message with the template
     input.addUserMessage(prompt);
     const responses = await chatbot.chat(input);
     return JSON.parse(responses[0].trim());
   }
 
-  static async save_html_page(text, folder, file_name, openaiKey) {
-    const htmlCode = await Gen.generate_html_page(text, openaiKey);
+  static async save_html_page(text, folder, file_name, openaiKey, model_name='gpt-4') {
+    const htmlCode = await Gen.generate_html_page(text, openaiKey, model_name=model_name);
     const folderPath = path.join(folder, file_name + '.html');
     fs.writeFileSync(folderPath, htmlCode['html']);
     return true;
