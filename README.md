@@ -113,7 +113,7 @@ const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatch
 const filteredArray = search.filterTopMatches(results, searchArray)
 ```
 ### Gen
-`Gen` function quickly generate content that is tailored to your specific business needs.<br>
+The `Gen` function quickly generate content that is tailored to user's business needs.<br><br>
 import:
 ```js
 const { Gen } = require('intellinode');
