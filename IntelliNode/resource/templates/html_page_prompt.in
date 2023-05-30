@@ -6,7 +6,7 @@ Output example:
 Output example for unrelated request:
 {"html": "", "message":"the request does not fit in one page"}
 
-Ensure the page is compatable with screen sizes and use ready bootstrap component when needed.
+Ensure the page is compatible with screen sizes and use ready bootstrap component when needed.
 
 If an image generated, add the image description in alt to use for image generation using DALL·E 2:
 <img src="<image name and format>" alt="<image description to use with DALL·E 2>" width="<size or percentage>" height="<size or percentage>">
