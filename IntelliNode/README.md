@@ -50,13 +50,16 @@ const { Gen } = require('intellinode');
 const blogPost = await Gen.get_blog_post(prompt, openaiApiKey);
 ```
 ```js
-// or generate images from description
-const image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey);
-```
-```js
 // or generate html page code
 text = 'a registration page with flat modern theme.'
 await Gen.save_html_page(text, folder, file_name, openaiKey);
+```
+```js
+// or convert csv data to charts 
+const csv_str_data = '<your csv as string>'
+const topic = "<the csv topic>";
+
+const htmlCode = await Gen.generate_dashboard(csv_str_data, topic, openaiKey, num_graphs=2);
 ```
 
 ## Models Access

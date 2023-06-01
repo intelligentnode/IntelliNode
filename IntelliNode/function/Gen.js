@@ -78,6 +78,31 @@ class Gen {
     return true;
   }
 
+
+  static async generate_dashboard(csv_str_data, topic, openaiKey, model_name='gpt-4', num_graphs=1) {
+
+    if (num_graphs < 1 || num_graphs > 4) {
+        throw new Error('num_graphs should be between 1 and 4 (inclusive)');
+    }
+
+    // load and fill the template
+    const promptTemplate = new SystemHelper().loadPrompt("graph_dashboard");
+
+    let prompt = promptTemplate.replace("${count}", num_graphs);
+    prompt = prompt.replace("${topic}", topic);
+    prompt = prompt.replace("${text}", csv_str_data);
+
+    // prepare the bot
+    const chatbot = new Chatbot(openaiKey);
+    const input = new ChatGPTInput('generate html graphs from csv data following the Output template as validate json',
+                                   { maxTokens: 2200, model: model_name });
+    // set the user message with the template
+    input.addUserMessage(prompt);
+    const responses = await chatbot.chat(input);
+
+    return JSON.parse(responses[0].trim());
+  }
+
 }
 
 module.exports = { Gen };
