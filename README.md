@@ -170,7 +170,7 @@ HUGGING_API_KEY=<key_value>
 - [Tutorial](https://medium.com/@albarqawi/lightning-fast-access-to-the-latest-ai-models-using-node-js-d31ccd1b09b2): Generate compelling eCommerce content and images.
 - [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Explore a code sample with detailed setup documentation to get started with Intellinode.
 - [Tutorial](https://hackernoon.com/how-to-build-a-jasper-like-content-generation-platform-using-nodejs): Build your content generation platform using Intellinode.
--  [Showcase video](https://vimeo.com/832854355?share=copy): Experience the potential of Intellinode in action.
+-  [Showcase](https://show.intellinode.ai/): Experience the potential of Intellinode in action, and use your keys to generate content and html pages.
 
 # Pillars
 The module foundation:
