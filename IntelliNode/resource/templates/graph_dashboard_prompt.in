@@ -1,17 +1,18 @@
 Generate an HTML dashboard with ${count} graphs about the ${topic} topic from the CSV data showing the relations between selected columns.
 
 Output example:
-{"html": "<!DOCTYPE html><html><head>....</head><body>...</body></html>", "message":"the dashboard ready for render"}
+{"html": "<!DOCTYPE html><html><head>[add styles and js]</head><body>[add the graph code]</body></html>", "message":"the dashboard ready for render"}
 
 Output example for unrelated request:
 {"html": "", "message":"no data provided"}
 
 instructions:
+- Retun one response only following the example style.
 - Use chartjs to generate the graphs when possible.
 - Use \" with the double quotation to ensure valid response.
 - Generate elegant and modern dashboard charts from the data.
 - Make sure it is a valid json response with html content.
 
-user data: [${text}]
+user data: ${text}
 
 json response:
