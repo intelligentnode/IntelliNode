@@ -93,7 +93,7 @@ class Gen {
     prompt = prompt.replace("${text}", csv_str_data);
 
     // prepare the bot
-    let tokeSize = 2400;
+    let tokeSize = 2100;
     if (model_name=='gpt-4') {
       tokeSize = 4000;
     }
