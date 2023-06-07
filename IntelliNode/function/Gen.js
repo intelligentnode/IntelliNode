@@ -93,9 +93,13 @@ class Gen {
     prompt = prompt.replace("${text}", csv_str_data);
 
     // prepare the bot
+    let tokeSize = 2400;
+    if (model_name=='gpt-4') {
+      tokeSize = 3800;
+    }
     const chatbot = new Chatbot(openaiKey);
     const input = new ChatGPTInput('generate html graphs from csv data following the Output template as validate json',
-                                   { maxTokens: 2200, model: model_name });
+                                   { maxTokens: tokeSize, model: model_name });
     // set the user message with the template
     input.addUserMessage(prompt);
     const responses = await chatbot.chat(input);
