@@ -95,11 +95,11 @@ class Gen {
     // prepare the bot
     let tokeSize = 2400;
     if (model_name=='gpt-4') {
-      tokeSize = 3800;
+      tokeSize = 4000;
     }
     const chatbot = new Chatbot(openaiKey);
-    const input = new ChatGPTInput('generate html graphs from csv data following the Output template as validate json',
-                                   { maxTokens: tokeSize, model: model_name });
+    const input = new ChatGPTInput(`Generate HTML graphs from the CSV data, following the output template, and ensure the response is a valid JSON to parse. Include valid HTML tags. The resulting output should not exceed ${tokeSize} tokens.`,
+                                   { maxTokens: tokeSize, model: model_name, temperature:0.3 });
     // set the user message with the template
     input.addUserMessage(prompt);
     const responses = await chatbot.chat(input);
