@@ -1,13 +1,11 @@
 # Intelligent Node (IntelliNode)
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
-
-
 # Latest Updates
-- Add Gen function, the fastest way to generate text, speech, web pages or images for your business use cases. :bullettrain_side:	
+- Add Gen function, the fastest way to generate text, speech, web pages or images. :bullettrain_side:
 - Update stable diffusion to use XL model engine.
-- Update openai chatGPT to receive optional parameters.
 - Add support for hugging face inference.
+- Extended support for Azure OpenAI and custom OpenAI proxy services to circumvent restrictions.
 
 # Examples
 ## Functions
