@@ -44,15 +44,16 @@ class LanguageModelInput {
     return inputs;
   }
 
-  setDefaultValues(provider) {
+  setDefaultValues(provider, tokenCount) {
+
     this.setDefaultModels(provider)
     if (provider === "openai") {
       this.temperature = 0.7;
-      this.maxTokens = 50;
+      this.maxTokens = tokenCount;
       this.numberOfOutputs = 1;
     } else if (provider === "cohere") {
       this.temperature = 0.75;
-      this.maxTokens = 20;
+      this.maxTokens = tokenCount;
       this.numberOfOutputs = 1;
     } else {
       throw new Error("Invalid provider name");

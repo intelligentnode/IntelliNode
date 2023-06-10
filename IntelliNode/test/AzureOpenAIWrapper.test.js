@@ -2,13 +2,12 @@ require('dotenv').config();
 const assert = require('assert');
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const proxyHelper = require('../utils/ProxyHelper').getInstance();
-
-const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
+let openAI = null;
 
 async function testLanguageModel() {
   try {
     const params = {
-      model: 'text-davinci-003',
+      model: 'davinci_003',
       prompt: 'Summarize the plot of the Inception movie in two sentences',
       max_tokens: 50,
       n: 1,
@@ -28,7 +27,7 @@ async function testLanguageModel() {
 async function testChatGPT() {
   try {
     const params = {
-      model: 'gpt-3.5-turbo',
+      model: 'gpt_basic',
       messages: [
         {role: 'system', content: 'You are a helpful assistant.'},
         {role: 'user', content: 'Generate a product description for black and white standing desk.'}
@@ -67,7 +66,7 @@ async function testEmbeddings() {
   try {
     const params = {
       input: 'IntelliNode provide lightning-fast access to the latest deep learning models',
-      model: 'text-embedding-ada-002',
+      model: 'embed_latest',
     };
 
     const result = await openAI.getEmbeddings(params);
@@ -80,6 +79,11 @@ async function testEmbeddings() {
 }
 
 (async () => {
+  const args = process.argv.slice(2);
+  const resourceName = args[0];
+  // set azure openai parameters
+  openAI = new OpenAIWrapper(process.env.AZURE_OPENAI_API_KEY, type='azure', resourceName);
+
   await testLanguageModel();
   await testChatGPT();
   await testImageModel();

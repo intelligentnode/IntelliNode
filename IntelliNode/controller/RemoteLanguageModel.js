@@ -20,7 +20,7 @@ class RemoteLanguageModel {
       provider = SupportedLangModels.OPENAI;
     }
 
-    const supportedModels = this.getSupportedModels();
+    const supportedModels = RemoteLanguageModel.getSupportedModels();
 
     if (supportedModels.includes(provider)) {
       this.initiate(keyValue, provider);
@@ -42,7 +42,7 @@ class RemoteLanguageModel {
     }
   }
 
-  getSupportedModels() {
+  static getSupportedModels() {
     return Object.values(SupportedLangModels);
   }
 
