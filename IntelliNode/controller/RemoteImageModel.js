@@ -20,7 +20,7 @@ class RemoteImageModel {
       provider = SupportedImageModels.OPENAI;
     }
 
-    const supportedModels = this.getSupportedModels();
+    const supportedModels = RemoteImageModel.getSupportedModels();
 
     if (supportedModels.includes(provider)) {
       this.initiate(keyValue, provider);
@@ -44,7 +44,7 @@ class RemoteImageModel {
     }
   }
 
-  getSupportedModels() {
+  static getSupportedModels() {
     return Object.values(SupportedImageModels);
   }
 

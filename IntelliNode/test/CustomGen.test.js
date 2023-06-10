@@ -38,8 +38,21 @@ async function testGetBlogPost(custom_provider) {
   assert(result.length > 0, "Test passed");
 }
 
-(async () => {
+async function testGenerateImageFromDesc(custom_provider) {
+  const prompt = "Generate an image of a futuristic city skyline.";
+  let image = ''
+  if (custom_provider == 'stability') {
+    image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey, true);
+  } else if (custom_provider == 'openai'){
+    image = await Gen.generate_image_from_desc(prompt, openaiApiKey,
+                                    openaiApiKey, true, provider='openai');
+  }
+  // console.log("Generated Image (Base64):", image);
+  assert(image.length > 10, "Test passed");
+}
 
+(async () => {
+  /*
   console.log('marketing description using openai')
   await testGetMarketingDesc('openai');
 
@@ -57,7 +70,13 @@ async function testGetBlogPost(custom_provider) {
 
   console.log('blog using cohere')
   await testGetBlogPost('cohere');
-
+  */
   console.log('\n')
+
+  console.log('stability image')
+  //testGenerateImageFromDesc('stability')
+
+  console.log('DALL·E 2 image')
+  testGenerateImageFromDesc('openai')
 
 })();

@@ -11,8 +11,8 @@ class ImageModelInput {
     numberOfImages = 1,
     imageSize = null,
     responseFormat = null,
-    height = null,
     width = null,
+    height = null,
     diffusion_cfgScale = null,
     diffusion_style_preset = null,
     engine = null
@@ -21,14 +21,22 @@ class ImageModelInput {
     this.numberOfImages = numberOfImages;
     this.imageSize = imageSize;
     this.responseFormat = responseFormat;
-    this.height = height;
     this.width = width;
+    this.height = height;
     this.diffusion_cfgScale = diffusion_cfgScale;
     this.diffusion_style_preset = diffusion_style_preset;
     this.engine = engine;
+    if (width != null && height != null && imageSize == null) {
+        this.imageSize = width+'x'+height;
+    } else if (width == null && height == null && imageSize == null) {
+        const sizesParts = imageSize.split('x').map(Number);
+        this.width = sizesParts[0];
+        this.height = sizesParts[1];
+    }
   }
 
   getOpenAIInputs() {
+
     const inputs = {
       prompt: this.prompt,
       ...this.numberOfImages && { n: this.numberOfImages },

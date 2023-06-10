@@ -70,13 +70,28 @@ class Gen {
     return responses[0].trim();
   }
 
-  static async generate_image_from_desc(prompt, openaiKey, stabilityKey, is_base64 = true) {
-    const imageDescription = await Gen.getImageDescription(prompt, openaiKey);
-    const imgModel = new RemoteImageModel(stabilityKey, SupportedImageModels.STABILITY);
-    const images = await imgModel.generateImages(
-      new ImageModelInput({ prompt: imageDescription, numberOfImages: 1, width: 512, height: 512 })
-    );
+  /**
+  * Generates image description from the user prompt then use the image description to generate the image.
+  *
+  * @param {string} prompt - The text prompt used for image generation.
+  * @param {string} openaiKey - The OpenAI API key to generate the description.
+  * @param {string} imageApiKey - The image API key to generate the image based on the received provider.
+  * @param {boolean} [is_base64=true] - Set to true for base64 image string, false if it should be returned as a Buffer.
+  * @param {SupportedImageModels} [provider=SupportedImageModels.STABILITY] - The image model provider.
+  *
+  * @returns {Promise<string|Buffer>} - The generated image, either as base64 string or Buffer.
+  */
+  static async generate_image_from_desc(prompt, openaiKey, imageApiKey, is_base64 = true,
+                                          provider = SupportedImageModels.STABILITY) {
 
+    const imageDescription = await Gen.getImageDescription(prompt, openaiKey);
+    const imgModel = new RemoteImageModel(imageApiKey, provider);
+    const images = await imgModel.generateImages(
+          new ImageModelInput({ prompt: imageDescription,
+                                numberOfImages: 1,
+                                width: 512,
+                                height: 512,
+                                responseFormat: 'b64_json'}));
     if (is_base64) {
       return images[0];
     } else {
