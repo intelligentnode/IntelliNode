@@ -23,14 +23,15 @@ async function testGenerateImageToImage(imagePath) {
   try {
     const params = {
       text_prompts: [
-        { text: "apply manga style to the human image and make him figher.", weight: 0.3 },
+        { text: "apply manga style to the human image and make him ninja.", weight: 0.6 },
       ],
+      image_strength: 0.45,
       imagePath: imagePath,
       cfg_scale: 8.0,
       clip_guidance_preset: "FAST_BLUE",
       samples: 1,
-      steps: 30,
-      // sampler:'K_DPM_2'
+      steps: 50,
+      // sampler: "K_LMS",
     };
 
     const result = await stabilityAI.generateImageToImage(params);
@@ -44,7 +45,7 @@ async function testGenerateImageToImage(imagePath) {
 }
 
 (async () => {
-  // await testGenerateTextToImage();
+  await testGenerateTextToImage();
 
   const args = process.argv.slice(2);
   const imagePath = args[0];
