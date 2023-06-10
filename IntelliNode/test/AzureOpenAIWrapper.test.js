@@ -45,23 +45,6 @@ async function testChatGPT() {
   }
 }
 
-async function testImageModel() {
-  try {
-    const params = {
-      prompt: 'teddy writing a blog in times square',
-      n: 1,
-      size: '256x256'
-    };
-
-    const result = await openAI.generateImages(params);
-    const responseUrl = result['data'][0]['url'].trim();
-    console.log('Image Model Result:\n', responseUrl, '\n');
-    assert(responseUrl.length > 0, 'testImageModel response length should be greater than 0');
-  } catch (error) {
-    console.error('Image Model Error:', error);
-  }
-}
-
 async function testEmbeddings() {
   try {
     const params = {
@@ -82,10 +65,10 @@ async function testEmbeddings() {
   const args = process.argv.slice(2);
   const resourceName = args[0];
   // set azure openai parameters
-  openAI = new OpenAIWrapper(process.env.AZURE_OPENAI_API_KEY, type='azure', resourceName);
+  proxyHelper.setAzureOpenai(resourceName);
+  openAI = new OpenAIWrapper(process.env.AZURE_OPENAI_API_KEY);
 
   await testLanguageModel();
   await testChatGPT();
-  await testImageModel();
   await testEmbeddings();
 })();

@@ -12,10 +12,14 @@ const connHelper = require('../utils/ConnHelper');
 
 class OpenAIWrapper {
 
-  constructor(apiKey, type='openai', resourceName='') {
+  constructor(apiKey, type=proxyHelper.getOpenaiType(),
+                resourceName=proxyHelper.getOpenaiResource()) {
 
     if (type == 'azure') {
-        proxyHelper.setAzureOpenai(resourceName);
+        if (!proxyHelper.getOpenaiResource() || proxyHelper.getOpenaiResource() === '') {
+            proxyHelper.setAzureOpenai(resourceName);
+        }
+
         this.API_BASE_URL = proxyHelper.getOpenaiURL();
         this.API_KEY = apiKey;
         this.httpClient = axios.create({

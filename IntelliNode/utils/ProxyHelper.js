@@ -53,6 +53,10 @@ class ProxyHelper {
     return this._openai_type;
   }
 
+  getOpenaiResource() {
+    return this._resourceName;
+  }
+
   setOpenaiURL(url) {
     this._openaiURL = url;
   }
@@ -68,6 +72,7 @@ class ProxyHelper {
     this._openaiImage = config.getProperty('url.azure_openai.imagegenerate');
     this._openaiEmbed = config.getProperty('url.azure_openai.embeddings');
     this._openai_type = 'azure';
+    this._resourceName = resourceName;
   }
 
   setOriginOpenai() {
@@ -77,6 +82,7 @@ class ProxyHelper {
     this._openaiImage = config.getProperty('url.openai.imagegenerate');
     this._openaiEmbed = config.getProperty('url.openai.embeddings');
     this._openai_type = 'openai';
+    this._resourceName = '';
   }
 
 }
