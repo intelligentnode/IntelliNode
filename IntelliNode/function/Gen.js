@@ -38,12 +38,28 @@ class Gen {
 
   }
 
-  static async get_blog_post(prompt, openaiKey) {
-    const chatbot = new Chatbot(openaiKey);
-    const input = new ChatGPTInput("generate blog posts related to user input", { maxTokens: 800 });
-    input.addUserMessage(`Write a blog post about ${prompt}`);
-    const responses = await chatbot.chat(input);
-    return responses[0].trim();
+  static async get_blog_post(prompt, apiKey, provider = SupportedLangModels.OPENAI) {
+    if (provider == SupportedLangModels.OPENAI) {
+        const chatbot = new Chatbot(apiKey);
+        const input = new ChatGPTInput("generate blog posts related to user input", { maxTokens: 1200 });
+        input.addUserMessage(`Write a blog post about ${prompt}`);
+        const responses = await chatbot.chat(input);
+
+        return responses[0].trim();
+    } else if (provider == SupportedLangModels.COHERE) {
+        const langInput = new LanguageModelInput({prompt:`Write a blog post with sections titles about ${prompt}`});
+        langInput.setDefaultValues(SupportedLangModels.COHERE, 1200);
+
+        const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
+        const responses = await cohereLanguageModel.generateText(langInput);
+
+        return responses[0].trim();
+    } else {
+        const supportedModels = RemoteLanguageModel.getSupportedModels();
+        const models = supportedModels.join(' - ');
+        throw new Error(`The received keyValue is not supported. Send any model from: ${models}`);
+    }
+
   }
 
   static async getImageDescription(prompt, apiKey) {

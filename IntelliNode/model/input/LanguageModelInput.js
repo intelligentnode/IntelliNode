@@ -44,8 +44,7 @@ class LanguageModelInput {
     return inputs;
   }
 
-  setDefaultValues(provider) {
-    console.log('tokenCount: ', tokenCount)
+  setDefaultValues(provider, tokenCount) {
 
     this.setDefaultModels(provider)
     if (provider === "openai") {
