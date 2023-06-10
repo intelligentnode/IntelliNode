@@ -1,7 +1,7 @@
 require("dotenv").config();
 const StabilityAIWrapper = require("../wrappers/StabilityAIWrapper");
 const ImageModelInput = require("../model/input/ImageModelInput");
-
+const fs = require('fs');
 const stabilityAI = new StabilityAIWrapper(process.env.STABILITY_API_KEY);
 
 async function testGenerateTextToImage() {
@@ -12,6 +12,7 @@ async function testGenerateTextToImage() {
     });
 
     const result = await stabilityAI.generateTextToImage(imageInput.getStabilityInputs());
+
     console.log("Text to Image Result:", result);
   } catch (error) {
     console.error("Text to Image Error:", error);
@@ -22,24 +23,28 @@ async function testGenerateImageToImage(imagePath) {
   try {
     const params = {
       text_prompts: [
-        { text: "A cat sitting on the chair.", weight: 1 },
+        { text: "apply manga style to the human image and make him figher.", weight: 0.3 },
       ],
       imagePath: imagePath,
-      cfg_scale: 7,
+      cfg_scale: 8.0,
       clip_guidance_preset: "FAST_BLUE",
       samples: 1,
       steps: 30,
+      // sampler:'K_DPM_2'
     };
 
     const result = await stabilityAI.generateImageToImage(params);
-    console.log("Image to Image Result:", result);
+    image = result['artifacts'][0]['base64']
+    fs.writeFileSync('../temp/test_style_image.png', image, { encoding: 'base64' });
+
+    // console.log("Image to Image Result:", result);
   } catch (error) {
     console.error("Image to Image Error:", error);
   }
 }
 
 (async () => {
-  await testGenerateTextToImage();
+  // await testGenerateTextToImage();
 
   const args = process.argv.slice(2);
   const imagePath = args[0];

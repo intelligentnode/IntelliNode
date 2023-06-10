@@ -64,7 +64,7 @@ class StabilityAIWrapper {
 
   /**
    * Generates an image based on the provided text prompts and initial image.
-
+   *
    * @param {object} params - The parameters for the image-to-image generation.
    * @param {Array<{text: string, weight?: number}>} params.text_prompts - an array of text prompts to use for generation.
    * @param {string} params.imagePath - the path to the initial image file.
