@@ -1,6 +1,7 @@
 require('dotenv').config();
 const assert = require('assert');
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
+const proxyHelper = require('../utils/ProxyHelper').getInstance();
 
 const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
 

@@ -7,11 +7,13 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 */
 const axios = require('axios');
 const config = require('../utils/Config2').getInstance();
+const proxyHelper = require('../utils/ProxyHelper').getInstance();
 const connHelper = require('../utils/ConnHelper');
 
 class OpenAIWrapper {
+
   constructor(apiKey) {
-    this.API_BASE_URL = config.getProperty('url.openai.base');
+    this.API_BASE_URL = proxyHelper.getOpenaiURL();
     this.API_KEY = apiKey;
     this.httpClient = axios.create({
       baseURL: this.API_BASE_URL,
