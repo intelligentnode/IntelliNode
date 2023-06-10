@@ -52,7 +52,7 @@ async function testGenerateImageFromDesc(custom_provider) {
 }
 
 (async () => {
-  /*
+
   console.log('marketing description using openai')
   await testGetMarketingDesc('openai');
 
@@ -70,11 +70,11 @@ async function testGenerateImageFromDesc(custom_provider) {
 
   console.log('blog using cohere')
   await testGetBlogPost('cohere');
-  */
+
   console.log('\n')
 
   console.log('stability image')
-  //testGenerateImageFromDesc('stability')
+  testGenerateImageFromDesc('stability')
 
   console.log('DALL·E 2 image')
   testGenerateImageFromDesc('openai')
