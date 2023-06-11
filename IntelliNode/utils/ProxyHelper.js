@@ -61,6 +61,16 @@ class ProxyHelper {
     this._openaiURL = url;
   }
 
+  setOpenaiProxyValues(proxySettings) {
+    this._openaiURL = proxySettings.url || config.getProperty('url.openai.base');
+    this._openaiCompletion = proxySettings.completions || config.getProperty('url.openai.completions');
+    this._openaiChatGPT = proxySettings.chatgpt || config.getProperty('url.openai.chatgpt');
+    this._openaiImage = proxySettings.imagegenerate || config.getProperty('url.openai.imagegenerate');
+    this._openaiEmbed = proxySettings.embeddings || config.getProperty('url.openai.embeddings');
+    this._openai_type = 'openai';
+    this._resourceName = '';
+  }
+
   setAzureOpenai(resourceName) {
     if (!resourceName) {
         throw new Error("Set your azure resource name");
