@@ -148,7 +148,7 @@ class Gen {
       tokeSize = 4000;
     }
     const chatbot = new Chatbot(openaiKey);
-    const input = new ChatGPTInput(`Generate HTML graphs from the CSV data, following the output template, and ensure the response is a valid JSON to parse. Include valid HTML tags. The resulting output should not exceed ${tokeSize} tokens.`,
+    const input = new ChatGPTInput('Generate HTML graphs from the CSV data and ensure the response is a valid JSON to parse with full HTML code.',
                                    { maxTokens: tokeSize, model: model_name, temperature:0.3 });
     // set the user message with the template
     input.addUserMessage(prompt);
