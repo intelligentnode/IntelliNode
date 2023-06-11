@@ -58,5 +58,6 @@ module.exports = {
   SystemHelper,
   TextAnalyzer,
   HuggingWrapper,
-  Gen
+  Gen,
+  ProxyHelper
 };
