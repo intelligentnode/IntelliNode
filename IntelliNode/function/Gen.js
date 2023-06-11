@@ -154,7 +154,7 @@ class Gen {
     input.addUserMessage(prompt);
     const responses = await chatbot.chat(input);
 
-    return JSON.parse(responses[0].trim());
+    return JSON.parse(responses[0].trim())[0];
   }
 
 }
