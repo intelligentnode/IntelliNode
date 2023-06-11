@@ -44,6 +44,8 @@ HUGGING_API_KEY=<key_value>
 9. Huggingface simplified inference access:
 `node test_hugging_face.js`
 
+10. Azure openai sample
+`node test_azure_chatbot.js <resource_name> <deployment_name>`
 
 ## Access Keys
 Generate the access keys from the following websites; you must generate the keys only for the models you use.
