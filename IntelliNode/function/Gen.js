@@ -12,10 +12,11 @@ const fs = require('fs');
 const path = require('path');
 
 class Gen {
-  static async get_marketing_desc(prompt, apiKey, provider = SupportedLangModels.OPENAI) {
+  static async get_marketing_desc(prompt, apiKey,
+                            provider = SupportedLangModels.OPENAI, customProxyHelper=null) {
 
     if (provider == SupportedLangModels.OPENAI) {
-        const chatbot = new Chatbot(apiKey);
+        const chatbot = new Chatbot(apiKey, customProxyHelper);
         const input = new ChatGPTInput("generate marketing description", { maxTokens: 800 });
         input.addUserMessage(`Create a marketing description for the following: ${prompt}`);
         const responses = await chatbot.chat(input);
@@ -38,9 +39,10 @@ class Gen {
 
   }
 
-  static async get_blog_post(prompt, apiKey, provider = SupportedLangModels.OPENAI) {
+  static async get_blog_post(prompt, apiKey, provider = SupportedLangModels.OPENAI,
+                                        customProxyHelper=null) {
     if (provider == SupportedLangModels.OPENAI) {
-        const chatbot = new Chatbot(apiKey);
+        const chatbot = new Chatbot(apiKey, customProxyHelper);
         const input = new ChatGPTInput("generate blog posts related to user input", { maxTokens: 1200 });
         input.addUserMessage(`Write a blog post about ${prompt}`);
         const responses = await chatbot.chat(input);
@@ -62,8 +64,8 @@ class Gen {
 
   }
 
-  static async getImageDescription(prompt, apiKey) {
-    const chatbot = new Chatbot(apiKey);
+  static async getImageDescription(prompt, apiKey, customProxyHelper=null) {
+    const chatbot = new Chatbot(apiKey, customProxyHelper);
     const input = new ChatGPTInput("Generate image description to use for image generation models. return only the image description");
     input.addUserMessage(`Generate image description from the following text: ${prompt}`);
     const responses = await chatbot.chat(input);
@@ -82,9 +84,9 @@ class Gen {
   * @returns {Promise<string|Buffer>} - The generated image, either as base64 string or Buffer.
   */
   static async generate_image_from_desc(prompt, openaiKey, imageApiKey, is_base64 = true,
-                                          provider = SupportedImageModels.STABILITY) {
+                                          provider = SupportedImageModels.STABILITY, customProxyHelper=null) {
 
-    const imageDescription = await Gen.getImageDescription(prompt, openaiKey);
+    const imageDescription = await Gen.getImageDescription(prompt, openaiKey, customProxyHelper);
     const imgModel = new RemoteImageModel(imageApiKey, provider);
     const images = await imgModel.generateImages(
           new ImageModelInput({ prompt: imageDescription,
@@ -106,13 +108,13 @@ class Gen {
     return audioContent;
   }
 
-  static async generate_html_page(text, openaiKey, model_name='gpt-4') {
+  static async generate_html_page(text, openaiKey, model_name='gpt-4', customProxyHelper=null) {
     // load and fill the template
     const promptTemplate = new SystemHelper().loadPrompt("html_page");
     const prompt = promptTemplate.replace("${text}", text);
 
     // prepare the bot
-    const chatbot = new Chatbot(openaiKey);
+    const chatbot = new Chatbot(openaiKey, customProxyHelper);
     const input = new ChatGPTInput('generate only html, css and javascript based on the user request in the following format {"html": "<code>", "message":"<text>"}',
                                    { maxTokens: 2000, model: model_name });
     // set the user message with the template
@@ -121,15 +123,15 @@ class Gen {
     return JSON.parse(responses[0].trim());
   }
 
-  static async save_html_page(text, folder, file_name, openaiKey, model_name='gpt-4') {
-    const htmlCode = await Gen.generate_html_page(text, openaiKey, model_name=model_name);
+  static async save_html_page(text, folder, file_name, openaiKey, model_name='gpt-4', customProxyHelper=null) {
+    const htmlCode = await Gen.generate_html_page(text, openaiKey, model_name=model_name, customProxyHelper);
     const folderPath = path.join(folder, file_name + '.html');
     fs.writeFileSync(folderPath, htmlCode['html']);
     return true;
   }
 
 
-  static async generate_dashboard(csv_str_data, topic, openaiKey, model_name='gpt-4', num_graphs=1) {
+  static async generate_dashboard(csv_str_data, topic, openaiKey, model_name='gpt-4', num_graphs=1, customProxyHelper=null) {
 
     if (num_graphs < 1 || num_graphs > 4) {
         throw new Error('num_graphs should be between 1 and 4 (inclusive)');
@@ -147,7 +149,7 @@ class Gen {
     if (model_name=='gpt-4') {
       tokeSize = 4000;
     }
-    const chatbot = new Chatbot(openaiKey);
+    const chatbot = new Chatbot(openaiKey, customProxyHelper);
     const input = new ChatGPTInput('Generate HTML graphs from the CSV data and ensure the response is a valid JSON to parse with full HTML code.',
                                    { maxTokens: tokeSize, model: model_name, temperature:0.3 });
     // set the user message with the template
