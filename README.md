@@ -128,6 +128,18 @@ const blogPost = await Gen.get_blog_post(prompt, openaiApiKey);
 text = 'a registration page with flat modern theme.'
 await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
+
+### Openai advanced access
+To access Openai services from your Azure account, you have to call the following function at the beginning of your application:
+```js
+const { ProxyHelper } = require('intellinode');
+ProxyHelper.getInstance().setAzureOpenai(resourceName);
+```
+To access Openai from a proxy for restricted regions:
+```js
+ProxyHelper.getInstance().setOpenaiProxyValues(openaiProxyJson);
+```
+
 For more examples, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
 
 # The code repository setup
@@ -193,7 +205,6 @@ Call for contributors:
 - [ ] Add support to Midjourney image generation.
 - [x] Add support to Stable diffusion.
 - [x] Add support to hugging face inference.
-- [ ] Add support to WuDao 2.0 model.
 - [x] Add more high-level functions like semantic search, etc.
 
 

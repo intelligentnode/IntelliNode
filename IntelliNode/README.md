@@ -139,6 +139,14 @@ The available hugging-face functions: `generateText`, `generateImage`, `processI
 
 Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more code details.
 
+## Custom Settings
+### Azure Openai Access
+To access Openai services from your Azure account, you have to call the following function at the beginning of your application:
+```js
+const { ProxyHelper } = require('intellinode');
+ProxyHelper.getInstance().setAzureOpenai(resourceName);
+```
+
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models
 - **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
