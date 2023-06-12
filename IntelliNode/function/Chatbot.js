@@ -13,11 +13,11 @@ const SupportedChatModels = {
 };
 
 class Chatbot {
-  constructor(keyValue, provider = SupportedChatModels.OPENAI) {
+  constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper=null) {
     const supportedModels = this.getSupportedModels();
 
     if (supportedModels.includes(provider)) {
-      this.initiate(keyValue, provider);
+      this.initiate(keyValue, provider, customProxyHelper);
     } else {
       const models = supportedModels.join(" - ");
       throw new Error(

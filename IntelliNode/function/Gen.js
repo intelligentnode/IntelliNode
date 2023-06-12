@@ -16,7 +16,7 @@ class Gen {
                             provider = SupportedLangModels.OPENAI, customProxyHelper=null) {
 
     if (provider == SupportedLangModels.OPENAI) {
-        const chatbot = new Chatbot(apiKey, customProxyHelper);
+        const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
         const input = new ChatGPTInput("generate marketing description", { maxTokens: 800 });
         input.addUserMessage(`Create a marketing description for the following: ${prompt}`);
         const responses = await chatbot.chat(input);
@@ -42,7 +42,7 @@ class Gen {
   static async get_blog_post(prompt, apiKey, provider = SupportedLangModels.OPENAI,
                                         customProxyHelper=null) {
     if (provider == SupportedLangModels.OPENAI) {
-        const chatbot = new Chatbot(apiKey, customProxyHelper);
+        const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
         const input = new ChatGPTInput("generate blog posts related to user input", { maxTokens: 1200 });
         input.addUserMessage(`Write a blog post about ${prompt}`);
         const responses = await chatbot.chat(input);
@@ -65,7 +65,7 @@ class Gen {
   }
 
   static async getImageDescription(prompt, apiKey, customProxyHelper=null) {
-    const chatbot = new Chatbot(apiKey, customProxyHelper);
+    const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput("Generate image description to use for image generation models. return only the image description");
     input.addUserMessage(`Generate image description from the following text: ${prompt}`);
     const responses = await chatbot.chat(input);
@@ -114,7 +114,7 @@ class Gen {
     const prompt = promptTemplate.replace("${text}", text);
 
     // prepare the bot
-    const chatbot = new Chatbot(openaiKey, customProxyHelper);
+    const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput('generate only html, css and javascript based on the user request in the following format {"html": "<code>", "message":"<text>"}',
                                    { maxTokens: 2000, model: model_name });
     // set the user message with the template
@@ -149,7 +149,7 @@ class Gen {
     if (model_name=='gpt-4') {
       tokeSize = 4000;
     }
-    const chatbot = new Chatbot(openaiKey, customProxyHelper);
+    const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput('Generate HTML graphs from the CSV data and ensure the response is a valid JSON to parse with full HTML code.',
                                    { maxTokens: tokeSize, model: model_name, temperature:0.3 });
     // set the user message with the template
