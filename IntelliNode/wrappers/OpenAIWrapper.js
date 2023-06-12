@@ -7,20 +7,28 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 */
 const axios = require('axios');
 const config = require('../utils/Config2').getInstance();
-const proxyHelper = require('../utils/ProxyHelper').getInstance();
+const ProxyHelper = require('../utils/ProxyHelper')
 const connHelper = require('../utils/ConnHelper');
 
 class OpenAIWrapper {
 
-  constructor(apiKey, type=proxyHelper.getOpenaiType(),
-                resourceName=proxyHelper.getOpenaiResource()) {
+  proxyHelper = ProxyHelper.getInstance();
 
-    if (type == 'azure') {
-        if (!proxyHelper.getOpenaiResource() || proxyHelper.getOpenaiResource() === '') {
-            proxyHelper.setAzureOpenai(resourceName);
+  constructor(apiKey, customProxyHelper=null) {
+
+    if (customProxyHelper) {
+        this.proxyHelper = customProxyHelper;
+    }
+
+    if (this.proxyHelper.getOpenaiType() == 'azure') {
+
+        console.log('set Openai azure settings')
+
+        if (this.proxyHelper.getOpenaiResource() === '') {
+            throw new Error("Set your azure resource name");
         }
 
-        this.API_BASE_URL = proxyHelper.getOpenaiURL();
+        this.API_BASE_URL = this.proxyHelper.getOpenaiURL();
         this.API_KEY = apiKey;
         this.httpClient = axios.create({
           baseURL: this.API_BASE_URL,
@@ -30,7 +38,7 @@ class OpenAIWrapper {
           },
         });
     } else {
-        this.API_BASE_URL = proxyHelper.getOpenaiURL();
+        this.API_BASE_URL = this.proxyHelper.getOpenaiURL();
         this.API_KEY = apiKey;
         this.httpClient = axios.create({
           baseURL: this.API_BASE_URL,
@@ -44,7 +52,7 @@ class OpenAIWrapper {
   }
 
   async generateText(params) {
-    const url = proxyHelper.getOpenaiCompletion(params.model);
+    const url = this.proxyHelper.getOpenaiCompletion(params.model);
     try {
       const response = await this.httpClient.post(url, params);
       return response.data;
@@ -54,7 +62,7 @@ class OpenAIWrapper {
   }
 
   async generateChatText(params) {
-    const url = proxyHelper.getOpenaiChat(params.model);
+    const url = this.proxyHelper.getOpenaiChat(params.model);
     try {
       const response = await this.httpClient.post(url, params);
       return response.data;
@@ -64,7 +72,7 @@ class OpenAIWrapper {
   }
 
   async generateImages(params) {
-    const url = proxyHelper.getOpenaiImage();
+    const url = this.proxyHelper.getOpenaiImage();
     try {
       const response = await this.httpClient.post(url, params);
       return response.data;
@@ -74,7 +82,7 @@ class OpenAIWrapper {
   }
 
    async getEmbeddings(params) {
-    const url = proxyHelper.getOpenaiEmbed(params.model);
+    const url = this.proxyHelper.getOpenaiEmbed(params.model);
     try {
       const response = await this.httpClient.post(url, params);
       return response.data;
