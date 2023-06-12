@@ -73,11 +73,11 @@ async function testGenerateDashboard() {
 }
 
 (async () => {
-  await testGetMarketingDesc();
-  await testGetBlogPost();
-  await testGenerateImageFromDesc();
-  await testGenerateSpeechSynthesis();
-  await testGenerateHtmlPage();
-  await testSaveHTML();
+  // await testGetMarketingDesc();
+  // await testGetBlogPost();
+  // await testGenerateImageFromDesc();
+  // await testGenerateSpeechSynthesis();
+  // await testGenerateHtmlPage();
+  // await testSaveHTML();
   await testGenerateDashboard();
 })();

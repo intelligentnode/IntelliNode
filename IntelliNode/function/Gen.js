@@ -114,7 +114,7 @@ class Gen {
     const prompt = promptTemplate.replace("${text}", text);
 
     // prepare the bot
-    const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
+    const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput('generate only html, css and javascript based on the user request in the following format {"html": "<code>", "message":"<text>"}',
                                    { maxTokens: 2000, model: model_name });
     // set the user message with the template
@@ -124,7 +124,7 @@ class Gen {
   }
 
   static async save_html_page(text, folder, file_name, openaiKey, model_name='gpt-4', customProxyHelper=null) {
-    const htmlCode = await Gen.generate_html_page(text, openaiKey, model_name=model_name, customProxyHelper);
+    const htmlCode = await Gen.generate_html_page(text, openaiKey, model_name, customProxyHelper);
     const folderPath = path.join(folder, file_name + '.html');
     fs.writeFileSync(folderPath, htmlCode['html']);
     return true;
@@ -149,7 +149,7 @@ class Gen {
     if (model_name=='gpt-4') {
       tokeSize = 4000;
     }
-    const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
+    const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput('Generate HTML graphs from the CSV data and ensure the response is a valid JSON to parse with full HTML code.',
                                    { maxTokens: tokeSize, model: model_name, temperature:0.3 });
     // set the user message with the template
