@@ -26,11 +26,11 @@ class Chatbot {
     }
   }
 
-  initiate(keyValue, provider) {
+  initiate(keyValue, provider, customProxyHelper=null) {
     this.provider = provider;
 
     if (provider === SupportedChatModels.OPENAI) {
-      this.openaiWrapper = new OpenAIWrapper(keyValue);
+      this.openaiWrapper = new OpenAIWrapper(keyValue, customProxyHelper);
     } else {
       throw new Error("Invalid provider name");
     }
