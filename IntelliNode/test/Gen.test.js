@@ -72,12 +72,32 @@ async function testGenerateDashboard() {
   assert(htmlCode["html"].length > 0, "Test passed");
 }
 
+
+async function testInstructUpdate() {
+  const modelOutput = "{\"html\": \"<!DOCTYPE html><html><body><h1>Title1</h1></";
+  const userInstruction = "fix the format";
+  const type = "json with html content"
+
+  const fixedOutput = await Gen.instructUpdate(modelOutput, userInstruction, type, openaiApiKey);
+
+  assert(fixedOutput.length > 0, "Test passed");
+}
+
 (async () => {
+  console.log('test the marketing function');
   await testGetMarketingDesc();
+  console.log('test blog post function');
   await testGetBlogPost();
+  console.log('test image description function');
   await testGenerateImageFromDesc();
+  console.log('test speech function');
   await testGenerateSpeechSynthesis();
+  console.log('test generate html function');
   await testGenerateHtmlPage();
+  console.log('test save html function');
   await testSaveHTML();
+  console.log('test the dashboard function');
   await testGenerateDashboard();
+  console.log('test the instruct function');
+  await testInstructUpdate();
 })();
