@@ -166,7 +166,31 @@ class Gen {
   }
 
 
-  
+  static async instructUpdate(modelOutput, userInstruction, type='', openaiKey,
+                                model_name='gpt-4', customProxyHelper=null) {
+
+    // load and fill the template
+    const promptTemplate = new SystemHelper().loadPrompt("instruct_update");
+
+    let prompt = promptTemplate.replace("${model_output}", modelOutput);
+    prompt = prompt.replace("${user_instruction}", userInstruction).replace("${type}", type);
+
+    // prepare the bot
+    let tokeSize = 2000;
+    if (model_name.includes('gpt-4')) {
+      tokeSize = 3900;
+    }
+
+    const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
+    const input = new ChatGPTInput('Update the model message based on the user feedback maintaining the format/structure.',
+                                   { maxTokens: tokeSize, model: model_name, temperature:0.2 });
+
+    // set the user message with the template
+    input.addUserMessage(prompt);
+    const responses = await chatbot.chat(input);
+
+    return responses[0].trim();
+  }
 }
 
 module.exports = { Gen };

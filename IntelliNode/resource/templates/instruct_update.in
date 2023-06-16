@@ -1,0 +1,16 @@
+Update the model output and make sure to maintain the format. Don't use the example content with the user message.
+Return all the model generated after applying the instructions.
+
+Example:
+the model generated json html output: ###{"html": "<!DOCTYPE html><html><body><h1>Title1</h1></body></html>"}###
+the user update instructions: ###change to Title2###
+output: {"html": "<!DOCTYPE html><html><body><h1>Title2</h1></body></html>"}
+----
+the model generated text output: ###Text1 example bla bla###
+the user update instructions: ###change to text2###
+output: Text2 example  bla bla
+===
+User message:
+the model generated ${type} output: ###${model_output}###
+the user update instructions:  ###${user_instruction}###
+output:
