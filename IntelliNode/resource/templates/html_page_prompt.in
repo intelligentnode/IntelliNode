@@ -1,10 +1,7 @@
 Generate website, javascript and css in one page based on the user request.
 
-Output example:
-{"html": "<!DOCTYPE html><html><head>....</head><body></body></html>", "message"":"the page ready for render"}
-
-Output example for unrelated request:
-{"html": "", "message":"the request does not fit in one page"}
+Output format:
+{"html": "<!DOCTYPE html><html><head>[generated head content]</head><body>[generated body content]</body></html>", "message"":"the page ready for render"}
 
 Ensure the page is compatible with screen sizes and use ready bootstrap component when needed.
 

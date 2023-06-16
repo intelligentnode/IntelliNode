@@ -116,13 +116,13 @@ class Gen {
     // prepare the bot
     let tokeSize = 2100;
     if (model_name.includes('gpt-4')) {
-      tokeSize = 3900;
+      tokeSize = 4000;
     }
 
     // prepare the bot
     const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput('generate only html, css and javascript based on the user request in the following format {"html": "<code>", "message":"<text>"}',
-                                   { maxTokens: tokeSize, model: model_name });
+                                   { maxTokens: tokeSize, model: model_name, temperature:0.6 });
     // set the user message with the template
     input.addUserMessage(prompt);
     const responses = await chatbot.chat(input);
