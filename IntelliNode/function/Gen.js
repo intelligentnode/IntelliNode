@@ -114,9 +114,15 @@ class Gen {
     const prompt = promptTemplate.replace("${text}", text);
 
     // prepare the bot
+    let tokeSize = 2100;
+    if (model_name.includes('gpt-4')) {
+      tokeSize = 3900;
+    }
+
+    // prepare the bot
     const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput('generate only html, css and javascript based on the user request in the following format {"html": "<code>", "message":"<text>"}',
-                                   { maxTokens: 2000, model: model_name });
+                                   { maxTokens: tokeSize, model: model_name });
     // set the user message with the template
     input.addUserMessage(prompt);
     const responses = await chatbot.chat(input);
@@ -131,7 +137,7 @@ class Gen {
   }
 
 
-  static async generate_dashboard(csv_str_data, topic, openaiKey, model_name='gpt-4', num_graphs=1, customProxyHelper=null) {
+  static async generate_dashboard(csvStrData, topic, openaiKey, model_name='gpt-4', num_graphs=1, customProxyHelper=null) {
 
     if (num_graphs < 1 || num_graphs > 4) {
         throw new Error('num_graphs should be between 1 and 4 (inclusive)');
@@ -142,12 +148,12 @@ class Gen {
 
     let prompt = promptTemplate.replace("${count}", num_graphs);
     prompt = prompt.replace("${topic}", topic);
-    prompt = prompt.replace("${text}", csv_str_data);
+    prompt = prompt.replace("${text}", csvStrData);
 
     // prepare the bot
     let tokeSize = 2100;
-    if (model_name=='gpt-4') {
-      tokeSize = 4000;
+    if (model_name.includes('gpt-4')) {
+      tokeSize = 3900;
     }
     const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput('Generate HTML graphs from the CSV data and ensure the response is a valid JSON to parse with full HTML code.',
@@ -159,6 +165,8 @@ class Gen {
     return JSON.parse(responses[0].trim())[0];
   }
 
+
+  
 }
 
 module.exports = { Gen };
