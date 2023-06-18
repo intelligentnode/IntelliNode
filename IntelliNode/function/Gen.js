@@ -115,7 +115,10 @@ class Gen {
 
     // prepare the bot
     let tokeSize = 2100;
-    if (model_name.includes('gpt-4')) {
+
+    if (model_name.includes('-16k')) {
+        tokeSize = 8000;
+    } else if (model_name.includes('gpt-4')) {
       tokeSize = 4000;
     }
 
@@ -152,7 +155,9 @@ class Gen {
 
     // prepare the bot
     let tokeSize = 2100;
-    if (model_name.includes('gpt-4')) {
+    if (model_name.includes('-16k')) {
+        tokeSize = 8000;
+    } else if (model_name.includes('gpt-4')) {
       tokeSize = 3900;
     }
     const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
