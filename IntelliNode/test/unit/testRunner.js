@@ -1,0 +1,20 @@
+const testCohereAIWrapper = require('./CohereAIWrapper.test');
+const testGoogleAIWrapper = require('./GoogleAIWrapper.test');
+const testHuggingWrapper = require('./HuggingWrapper.test');
+const testOpenAIWrapper = require('./OpenAIWrapper.test');
+const testStabilityAIWrapper = require('./StabilityAIWrapper.test');
+
+console.log('Running CohereAIWrapper unit tests...');
+testCohereAIWrapper();
+
+console.log('Running GoogleAIWrapper unit tests...');
+testGoogleAIWrapper();
+
+console.log('Running HuggingWrapper unit tests...');
+testHuggingWrapper();
+
+console.log('Running OpenAIWrapper unit tests...');
+testOpenAIWrapper();
+
+console.log('Running Stability unit tests...');
+testStabilityAIWrapper()

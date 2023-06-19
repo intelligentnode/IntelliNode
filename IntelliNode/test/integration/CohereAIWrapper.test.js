@@ -1,6 +1,6 @@
 require('dotenv').config();
 const assert = require('assert');
-const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
+const CohereAIWrapper = require('../../wrappers/CohereAIWrapper');
 
 const cohere = new CohereAIWrapper(process.env.COHERE_API_KEY);
 

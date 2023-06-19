@@ -1,5 +1,5 @@
 require('dotenv').config();
-const GoogleAIWrapper = require('../wrappers/GoogleAIWrapper');
+const GoogleAIWrapper = require('../../wrappers/GoogleAIWrapper');
 
 const googleAI = new GoogleAIWrapper(process.env.GOOGLE_API_KEY);
 
