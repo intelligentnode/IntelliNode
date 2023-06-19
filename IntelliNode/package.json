@@ -11,7 +11,7 @@
     "url": "git+https://github.com/Barqawiz/IntelliNode.git"
   },
   "scripts": {
-    "test": "node test/offline/testRunner"
+    "test": "node test/unit/testRunner"
   },
   "homepage": "https://intellinode.ai",
   "dependencies": {
