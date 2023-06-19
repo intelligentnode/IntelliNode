@@ -1,4 +1,4 @@
-const { Gen } = require("../function/Gen");
+const { Gen } = require("../../function/Gen");
 require("dotenv").config();
 const assert = require("assert");
 const fs = require('fs');

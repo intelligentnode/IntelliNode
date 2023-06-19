@@ -2,8 +2,8 @@ const fs = require('fs');
 require('dotenv').config();
 const assert = require('assert');
 const { RemoteSpeechModel, SupportedSpeechModels } = require('../controller/RemoteSpeechModel');
-const Text2SpeechInput = require('../model/input/Text2SpeechInput');
-const AudioHelper = require('../utils/AudioHelper');
+const Text2SpeechInput = require('../../model/input/Text2SpeechInput');
+const AudioHelper = require('../../utils/AudioHelper');
 
 const remoteSpeechModel = new RemoteSpeechModel(process.env.GOOGLE_API_KEY, SupportedSpeechModels.GOOGLE);
 const audioHelper = new AudioHelper();

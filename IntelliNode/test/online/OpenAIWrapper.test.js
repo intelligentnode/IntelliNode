@@ -1,13 +1,14 @@
 require('dotenv').config();
 const assert = require('assert');
-const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
-const proxyHelper = require('../utils/ProxyHelper').getInstance();
-let openAI = null;
+const OpenAIWrapper = require('../../wrappers/OpenAIWrapper');
+const proxyHelper = require('../../utils/ProxyHelper').getInstance();
+
+const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
 
 async function testLanguageModel() {
   try {
     const params = {
-      model: 'davinci_003',
+      model: 'text-davinci-003',
       prompt: 'Summarize the plot of the Inception movie in two sentences',
       max_tokens: 50,
       n: 1,
@@ -27,7 +28,7 @@ async function testLanguageModel() {
 async function testChatGPT() {
   try {
     const params = {
-      model: 'gpt_basic',
+      model: 'gpt-3.5-turbo',
       messages: [
         {role: 'system', content: 'You are a helpful assistant.'},
         {role: 'user', content: 'Generate a product description for black and white standing desk.'}
@@ -45,11 +46,28 @@ async function testChatGPT() {
   }
 }
 
+async function testImageModel() {
+  try {
+    const params = {
+      prompt: 'teddy writing a blog in times square',
+      n: 1,
+      size: '256x256'
+    };
+
+    const result = await openAI.generateImages(params);
+    const responseUrl = result['data'][0]['url'].trim();
+    console.log('Image Model Result:\n', responseUrl, '\n');
+    assert(responseUrl.length > 0, 'testImageModel response length should be greater than 0');
+  } catch (error) {
+    console.error('Image Model Error:', error);
+  }
+}
+
 async function testEmbeddings() {
   try {
     const params = {
       input: 'IntelliNode provide lightning-fast access to the latest deep learning models',
-      model: 'embed_latest',
+      model: 'text-embedding-ada-002',
     };
 
     const result = await openAI.getEmbeddings(params);
@@ -62,13 +80,8 @@ async function testEmbeddings() {
 }
 
 (async () => {
-  const args = process.argv.slice(2);
-  const resourceName = args[0];
-  // set azure openai parameters
-  proxyHelper.setAzureOpenai(resourceName);
-  openAI = new OpenAIWrapper(process.env.AZURE_OPENAI_API_KEY);
-
   await testLanguageModel();
   await testChatGPT();
+  await testImageModel();
   await testEmbeddings();
 })();

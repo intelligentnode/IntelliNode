@@ -1,6 +1,6 @@
 require("dotenv").config();
-const StabilityAIWrapper = require("../wrappers/StabilityAIWrapper");
-const ImageModelInput = require("../model/input/ImageModelInput");
+const StabilityAIWrapper = require("../../wrappers/StabilityAIWrapper");
+const ImageModelInput = require("../../model/input/ImageModelInput");
 const fs = require('fs');
 const stabilityAI = new StabilityAIWrapper(process.env.STABILITY_API_KEY);
 

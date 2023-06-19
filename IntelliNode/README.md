@@ -153,7 +153,7 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
 # License
-Apache 2.0 License
+Apache License
 
 Copyright 2023 Github.com/Barqawiz/IntelliNode
 

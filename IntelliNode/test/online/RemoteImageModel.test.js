@@ -1,6 +1,6 @@
 const assert = require("assert");
-const { RemoteImageModel } = require("../controller/RemoteImageModel");
-const ImageModelInput = require("../model/input/ImageModelInput");
+const { RemoteImageModel } = require("../../controller/RemoteImageModel");
+const ImageModelInput = require("../../model/input/ImageModelInput");
 
 require("dotenv").config();
 const openaiKey = process.env.OPENAI_API_KEY;

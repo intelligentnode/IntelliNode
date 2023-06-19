@@ -1,7 +1,7 @@
 require('dotenv').config();
 const assert = require('assert');
-const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/RemoteEmbedModel');
-const EmbedInput = require('../model/input/EmbedInput');
+const { RemoteEmbedModel, SupportedEmbedModels } = require('../../controller/RemoteEmbedModel');
+const EmbedInput = require('../../model/input/EmbedInput');
 
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const cohereApiKey = process.env.COHERE_API_KEY;

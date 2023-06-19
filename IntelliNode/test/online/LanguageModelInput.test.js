@@ -1,4 +1,4 @@
-const LanguageModelInput = require("../model/input/LanguageModelInput");
+const LanguageModelInput = require("../../model/input/LanguageModelInput");
 
 function testOpenAIInputs() {
   const input = new LanguageModelInput({

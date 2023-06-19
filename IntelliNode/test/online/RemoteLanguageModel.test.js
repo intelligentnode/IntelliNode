@@ -1,7 +1,7 @@
 require('dotenv').config();
 const assert = require('assert');
-const { RemoteLanguageModel, SupportedLangModels } = require('../controller/RemoteLanguageModel');
-const LanguageModelInput = require('../model/input/LanguageModelInput');
+const { RemoteLanguageModel, SupportedLangModels } = require('../../controller/RemoteLanguageModel');
+const LanguageModelInput = require('../../model/input/LanguageModelInput');
 
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const cohereApiKey = process.env.COHERE_API_KEY;

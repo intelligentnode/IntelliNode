@@ -162,21 +162,21 @@ HUGGING_API_KEY=<key_value>
 ## Test cases
 
 1. run the remote language models test cases:
-`node test/RemoteLanguageModel.test.js`
+`node test/local/RemoteLanguageModel.test.js`
 
 
 2. run the remote image models test cases:
-`node test/RemoteImageModel.test.js`
+`node test/local/RemoteImageModel.test.js`
 
 
 3. run the remote speech models test cases:
-`node test/RemoteSpeechModel.test.js`
+`node test/local/RemoteSpeechModel.test.js`
 
 4. run the embedding test cases:
-`node test/RemoteEmbedModel.test.js`
+`node test/local/RemoteEmbedModel.test.js`
 
 5. run the chatBot test cases:
-`node test/Chatbot.test.js`
+`node test/local/Chatbot.test.js`
 
 # :closed_book: Documentation
 - [Tutorial](https://medium.com/@albarqawi/lightning-fast-access-to-the-latest-ai-models-using-node-js-d31ccd1b09b2): Generate compelling eCommerce content and images.

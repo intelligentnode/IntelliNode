@@ -1,7 +1,7 @@
 require('dotenv').config();
 const assert = require('assert');
-const { TextAnalyzer } = require('../function/TextAnalyzer');
-const { SupportedLangModels } = require('../controller/RemoteLanguageModel');
+const { TextAnalyzer } = require('../../function/TextAnalyzer');
+const { SupportedLangModels } = require('../../controller/RemoteLanguageModel');
 
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const cohereApiKey = process.env.COHERE_API_KEY;

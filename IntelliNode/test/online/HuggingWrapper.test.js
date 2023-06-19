@@ -1,5 +1,5 @@
 require('dotenv').config();
-const HuggingWrapper = require('../wrappers/HuggingWrapper');
+const HuggingWrapper = require('../../wrappers/HuggingWrapper');
 
 const huggingWrapper = new HuggingWrapper(process.env.HUGGING_API_KEY);
 

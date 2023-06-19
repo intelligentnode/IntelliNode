@@ -1,7 +1,7 @@
 require("dotenv").config();
 const assert = require("assert");
-const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
-const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
+const { Chatbot, SupportedChatModels } = require("../../function/Chatbot");
+const { ChatGPTInput, ChatGPTMessage } = require("../../model/input/ChatModelInput");
 
 const apiKey = process.env.OPENAI_API_KEY;
 const bot = new Chatbot(apiKey, SupportedChatModels.OPENAI);
