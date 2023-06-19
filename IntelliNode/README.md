@@ -53,7 +53,7 @@ text = 'a registration page with flat modern theme.'
 await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
 ```js
-// or convert csv data to charts 
+// or convert csv data to charts
 const csv_str_data = '<your csv as string>'
 const topic = "<the csv topic>";
 
@@ -119,8 +119,8 @@ const { RemoteSpeechModel, Text2SpeechInput } = require('intellinode');
 ```js
 const speechModel = new RemoteSpeechModel('google-key', 'google');
 const audioContent = await speechModel.generateSpeech(new Text2SpeechInput({
-  text: text, 
-  language: 'en-gb' 
+  text: text,
+  language: 'en-gb'
 }));
 ```
 ### Hugging Face Inference
@@ -132,10 +132,10 @@ const { HuggingWrapper } =  require('intellinode');
 ```js
 const inference = new HuggingWrapper('HF-key');
 const result = await huggingWrapper.generateText(
-   modelId='facebook/bart-large-cnn', 
+   modelId='facebook/bart-large-cnn',
    data={ inputs: 'The tower is 324 metres (1,063 ft) tall, about the same height as an 81-storey building...' });
 ```
-The available hugging-face functions: `generateText`, `generateImage`, `processImage`. 
+The available hugging-face functions: `generateText`, `generateImage`, `processImage`.
 
 Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more code details.
 
@@ -153,7 +153,7 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
 # License
-Apache License
+Apache 2.0 License
 
 Copyright 2023 Github.com/Barqawiz/IntelliNode
 

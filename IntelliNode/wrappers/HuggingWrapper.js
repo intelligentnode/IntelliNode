@@ -15,7 +15,7 @@ const connHelper = require('../utils/ConnHelper');
 
 class HuggingWrapper {
   constructor(apiKey) {
-    this.API_BASE_URL = 'https://api-inference.huggingface.co/models';
+    this.API_BASE_URL = config.getProperty('url.huggingface.base');
     this.API_KEY = apiKey;
     this.httpClient = axios.create({
       baseURL: this.API_BASE_URL,
