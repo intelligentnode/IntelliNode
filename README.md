@@ -26,8 +26,8 @@
 
 # Intelligent Node
 
-IntelliNode is a javascript library that integrates cutting-edge AI models into your project. With its intuitive functions, you can easily feed data to models like ChatGPT, WaveNet, and Stable diffusion and receive generated text, speech, or images. It also offers high-level functions such as semantic search and chatbot capabilities.
-<br> What sets IntelliNode apart is its lightning-fast access to the latest deep learning models, allowing you to integrate them into your projects with just a few lines of code.
+IntelliNode is a javascript module that integrates cutting-edge AI into your project. With its intuitive functions, you can easily feed data to models like ChatGPT, WaveNet, and Stable diffusion and receive generated text, speech, or images. It also offers high-level functions such as semantic search and chatbot capabilities.
+<br> What sets IntelliNode apart is its lightning-fast access to the latest deep learning models with just a few lines of code.
 
 # Access the module
 ## Install
@@ -37,6 +37,50 @@ npm i intellinode
 ```
 
 ## Examples
+### Gen
+The `Gen` function quickly generates tailored content in one line.<br><br>
+import:
+```js
+const { Gen } = require('intellinode');
+```
+call:
+```js
+// one line to generate html page code
+text = 'a registration page with flat modern theme.'
+await Gen.save_html_page(text, folder, file_name, openaiKey);
+```
+```js
+// or generate blog post
+const blogPost = await Gen.get_blog_post(prompt, apiKey, provider='cohere');
+```
+
+### Chatbot (chatGPT)
+import:
+```js
+const { Chatbot, ChatGPTInput } = require('intellinode');
+```
+call:
+```js
+// set the system mode and the user message.
+const input = new ChatGPTInput('You are a helpful assistant.');
+input.addUserMessage('What is the distance between the Earth and the Moon?');
+
+// get the responses from the chatbot
+const responses = await chatbot.chat(input);
+```
+### Semantic search
+import:
+```js
+const { SemanticSearch } = require('intellinode');
+```
+call:
+```js
+const search = new SemanticSearch(apiKey);
+// pivotItem is the item to search.
+const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
+const filteredArray = search.filterTopMatches(results, searchArray)
+```
+
 ### Language models
 import:
 ```js
@@ -86,48 +130,7 @@ change to call Stable Diffusion:
 provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
-### Chatbot (chatGPT)
-import:
-```js
-const { Chatbot, ChatGPTInput } = require('intellinode');
-```
-call:
-```js
-// set the system mode and the user message.
-const input = new ChatGPTInput('You are a helpful assistant.');
-input.addUserMessage('What is the distance between the Earth and the Moon?');
 
-// get the responses from the chatbot
-const responses = await chatbot.chat(input);
-```
-### Semantic search
-import:
-```js
-const { SemanticSearch } = require('intellinode');
-```
-call:
-```js
-const search = new SemanticSearch(apiKey);
-// pivotItem is the item to search.
-const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
-const filteredArray = search.filterTopMatches(results, searchArray)
-```
-### Gen
-The `Gen` function quickly generate content that is tailored to user's business needs.<br><br>
-import:
-```js
-const { Gen } = require('intellinode');
-```
-call:
-```js
-// one line to generate blog post
-const blogPost = await Gen.get_blog_post(prompt, openaiApiKey);
-```
-```js
-// or generate html page code
-text = 'a registration page with flat modern theme.'
-await Gen.save_html_page(text, folder, file_name, openaiKey);
-```
 
 ### Openai advanced access
 To access Openai services from your Azure account, you have to call the following function at the beginning of your application:
