@@ -50,7 +50,7 @@ async function main() {
 }
 
 async function generateProductDescription(textInput, apiKey, modelBackend) {
-  const modelName = (modelBackend === SupportedLangModels.OPENAI) ? 'text-davinci-003' : 'command-xlarge-20221108';
+  const modelName = (modelBackend === SupportedLangModels.OPENAI) ? 'text-davinci-003' : 'command';
   const langModel = new RemoteLanguageModel(apiKey, modelBackend);
   const results = await langModel.generateText(new LanguageModelInput({
     prompt: textInput,
