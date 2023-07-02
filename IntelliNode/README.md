@@ -5,7 +5,7 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - Add Gen function, the fastest way to generate text, speech, web pages or images. :bullettrain_side:
 - Update stable diffusion to use XL model engine.
 - Add support for hugging face inference.
-- Extended support for Azure OpenAI and custom OpenAI proxy services to circumvent restrictions.
+- Update the chatbot to support function calls, empowering automation.
 
 # Examples
 ## Functions
