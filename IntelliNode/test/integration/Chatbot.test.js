@@ -50,16 +50,24 @@ async function testOpenaiChatGPTCase3() {
 
     const sysMsg = "You are a helpful assistant.";
     const input = new ChatGPTInput(sysMsg, {model: "gpt-3.5-turbo-0613"});
-    input.addMessage(new ChatGPTMessage("Please return the current date and time.", "user"));
+    input.addMessage(new ChatGPTMessage("Please return the current date and time in Dublin.", "user"));
 
-    const functions = [{
-      name: 'get_current_datetime',
-      description: 'Returns current datetime',
-      parameters: {
-        type: 'object',
-        properties: {}
-      }
-    }];
+    const functions =  [
+      {
+        name: 'get_current_datetime',
+        description: 'Returns current datetime',
+        parameters: {
+          type: 'object',
+          properties: {
+            location: {
+              type: 'string',
+              description: 'The location to get current datetime',
+            },
+          },
+          required: ['location'],
+        },
+      },
+    ];
 
     const function_call = 'auto';
 
@@ -88,7 +96,7 @@ async function testOpenaiChatGPTCase3() {
 
 
 (async () => {
-  // await testOpenaiChatGPTCase1();
+  await testOpenaiChatGPTCase1();
   await testOpenaiChatGPTCase2();
   await testOpenaiChatGPTCase3();
 })();

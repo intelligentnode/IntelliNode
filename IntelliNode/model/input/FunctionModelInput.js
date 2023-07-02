@@ -9,7 +9,7 @@ class FunctionModelInput {
   constructor(name, description, parameters) {
     this.name = name;
     this.description = description || '';
-    this.parameters = parameters || {};
+    this.parameters = parameters || {type: 'object', properties: {}};
   }
 
   getFunctionModelInput() {
