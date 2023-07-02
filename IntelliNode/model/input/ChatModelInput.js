@@ -6,9 +6,10 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 class ChatGPTMessage {
-  constructor(content, role) {
+  constructor(content, role, name = null) {
     this.content = content;
     this.role = role;
+    this.name = name;
   }
 
   isSystemRole() {
@@ -44,6 +45,14 @@ class ChatGPTInput extends ChatModelInput {
     this.messages.push(new ChatGPTMessage(prompt, "user"));
   }
 
+  addAssistantMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, "assistant"));
+  }
+
+  addSystemMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, "system"));
+  }
+
   cleanMessages() {
     if (this.messages.length > 1) {
       const firstMessage = this.messages[0];
@@ -66,10 +75,19 @@ class ChatGPTInput extends ChatModelInput {
   }
 
   getChatGPTInput() {
-    const messages = this.messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
+    const messages = this.messages.map((message) => {
+    if (message.name) {
+      return {
+        role: message.role,
+        name: message.name,
+        content: message.content,
+      };
+    } else {
+      return {
+        role: message.role,
+        content: message.content,
+      };
+    }});
 
     const params = {
       model: this.model,

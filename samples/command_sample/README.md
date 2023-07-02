@@ -6,7 +6,8 @@ npm install
 ```
 
 ## Environment
-Create a .env file with the access keys:<br>
+Create a `.env` file with the required access keys:
+
 ```
 OPENAI_API_KEY=<key_value>
 COHERE_API_KEY=<key_value>
@@ -14,6 +15,12 @@ GOOGLE_API_KEY=<key_value>
 STABILITY_API_KEY=<key_value>
 HUGGING_API_KEY=<key_value>
 ```
+For the S3 automation sample, you'll additionally need AWS access credentials:
+
+ ```
+ AWS_ACCESS_KEY_ID=<key_value>
+ AWS_SECRET_ACCESS_KEY=<key_value>
+ ```
 
 ## Samples Execution
 
@@ -47,8 +54,11 @@ HUGGING_API_KEY=<key_value>
 10. Azure openai sample
 `node test_azure_chatbot.js <resource_name> <deployment_name>`
 
+11. Automation sample using the chatbot function call:
+`node automate_s3_bucket.js`
+
 ## Access Keys
-Generate the access keys from the following websites; you must generate the keys only for the models you use.
+Generate your access keys from the corresponding websites; You only need to generate keys for the models you'll use.
 
 1. openai: https://openai.com
 2. cohere: https://cohere.com
@@ -56,4 +66,4 @@ Generate the access keys from the following websites; you must generate the keys
 4. stability: https://stability.ai
 5. huggingface: https://huggingface.co
 
-For example, if you use the language model from openai, no need to generate cohere keys.
+For instance, if you're using the language model from OpenAI, there's no need for Cohere's keys.

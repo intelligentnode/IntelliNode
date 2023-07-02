@@ -15,7 +15,7 @@ class Config2 {
   }
 
   getProperty(key) {
-    return key.split('.').reduce((obj, k) => (obj && obj[k] !== 'undefined') ? obj[k] : undefined, this.config);
+    return key.split('.').reduce((obj, k) => (obj && obj[k] !== null && obj[k] !== 'undefined') ? obj[k] : null, this.config);
   }
 
   static getInstance() {

@@ -14,6 +14,7 @@ const LanguageModelInput = require('./model/input/LanguageModelInput');
 const ImageModelInput = require('./model/input/ImageModelInput');
 const Text2SpeechInput = require('./model/input/Text2SpeechInput');
 const { ChatGPTInput, ChatGPTMessage } = require("./model/input/ChatModelInput");
+const FunctionModelInput = require("./model/input/FunctionModelInput");
 const EmbedInput = require('./model/input/EmbedInput');
 // wrappers
 const CohereAIWrapper = require('./wrappers/CohereAIWrapper');
@@ -59,5 +60,6 @@ module.exports = {
   TextAnalyzer,
   HuggingWrapper,
   Gen,
-  ProxyHelper
+  ProxyHelper,
+  FunctionModelInput
 };
