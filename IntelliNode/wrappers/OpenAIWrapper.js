@@ -20,6 +20,8 @@ class OpenAIWrapper {
         this.proxyHelper = customProxyHelper;
     }
 
+    let axios_config;
+
     if (this.proxyHelper.getOpenaiType() == 'azure') {
 
         console.log('set Openai azure settings')
@@ -30,24 +32,31 @@ class OpenAIWrapper {
 
         this.API_BASE_URL = this.proxyHelper.getOpenaiURL();
         this.API_KEY = apiKey;
-        this.httpClient = axios.create({
-          baseURL: this.API_BASE_URL,
-          headers: {
-            'Content-Type': 'application/json',
-            'api-key': `${this.API_KEY}`,
-          },
-        });
+        axios_config = {
+            baseURL: this.API_BASE_URL,
+            headers: {
+                'Content-Type': 'application/json',
+                'api-key': `${this.API_KEY}`,
+            },
+        };
     } else {
         this.API_BASE_URL = this.proxyHelper.getOpenaiURL();
         this.API_KEY = apiKey;
-        this.httpClient = axios.create({
-          baseURL: this.API_BASE_URL,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.API_KEY}`,
-          },
-        });
+        axios_config = {
+            baseURL: this.API_BASE_URL,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.API_KEY}`,
+            },
+        };
+        // Check if Organization ID exists
+        let orgId = this.proxyHelper.getOpenaiOrg();
+        if (orgId) {
+            axios_config.headers["OpenAI-Organization"] = orgId;
+        }
     } /*validate openai or azure connection*/
+
+    this.httpClient = axios.create(axios_config);
 
   }
 

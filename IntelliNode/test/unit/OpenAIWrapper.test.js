@@ -33,4 +33,26 @@ function testOpenAIWrapper() {
   );
 }
 
-module.exports = testOpenAIWrapper;
+function testOpenAIOrganization() {
+    const proxyHelper = ProxyHelper.getInstance();
+
+    // test null organization
+    let organization = proxyHelper.getOpenaiOrg()
+
+    assert.strictEqual(
+        organization,
+        null,
+        'openai organization should be null'
+  );
+
+  // test organization with value
+  proxyHelper.setOpenaiOrg('test');
+  organization = proxyHelper.getOpenaiOrg()
+  assert.strictEqual(
+        organization,
+        'test',
+        'openai organization value not correct'
+  );
+}
+
+module.exports = {testOpenAIWrapper, testOpenAIOrganization};
