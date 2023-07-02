@@ -40,15 +40,15 @@ class Chatbot {
     return Object.values(SupportedChatModels);
   }
 
-  async chat(modelInput) {
+  async chat(modelInput, functions = null, function_call = null) {
     if (this.provider === SupportedChatModels.OPENAI) {
-      return this._chatGPT(modelInput);
+      return this._chatGPT(modelInput, functions, function_call);
     } else {
       throw new Error("The provider is not supported");
     }
   }
 
-  async _chatGPT(modelInput) {
+  async _chatGPT(modelInput, functions = null, function_call = null) {
     let params;
 
     if (modelInput instanceof ChatGPTInput) {
@@ -59,8 +59,17 @@ class Chatbot {
       throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
     }
 
-    const results = await this.openaiWrapper.generateChatText(params);
-    return results.choices.map((choice) => choice.message.content);
+    const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
+    return results.choices.map((choice) => {
+        if (choice.finish_reason === 'function_call' && choice.message.function_call) {
+            return {
+                content: choice.message.content,
+                function_call: choice.message.function_call
+            };
+        } else {
+            return choice.message.content;
+        }
+    });
   }
 }
 

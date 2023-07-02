@@ -43,7 +43,52 @@ async function testOpenaiChatGPTCase2() {
   }
 }
 
+async function testOpenaiChatGPTCase3() {
+  try {
+
+    console.log('\nChat test case 3: \n');
+
+    const sysMsg = "You are a helpful assistant.";
+    const input = new ChatGPTInput(sysMsg, {model: "gpt-3.5-turbo-0613"});
+    input.addMessage(new ChatGPTMessage("Please return the current date and time.", "user"));
+
+    const functions = [{
+      name: 'get_current_datetime',
+      description: 'Returns current datetime',
+      parameters: {
+        type: 'object',
+        properties: {}
+      }
+    }];
+
+    const function_call = 'auto';
+
+    const responses = await bot.chat(input, functions, function_call);
+
+    responses.forEach((response) => {
+      if (typeof response === "object") {
+        console.log("- Function call: ", JSON.stringify(response.function_call, null, 2));
+      } else {
+        console.log("- " + response);
+      }
+    });
+
+    // asert
+    const hasFunctionCall = responses.some(response =>
+      typeof response === "object" &&
+      response.function_call &&
+      response.function_call.name === "get_current_datetime"
+    );
+    assert(hasFunctionCall, "testOpenaiChatGPTCase3 response should contain a function call");
+
+  } catch (error) {
+    console.error("Test case failed with exception:", error.message);
+  }
+}
+
+
 (async () => {
-  await testOpenaiChatGPTCase1();
+  // await testOpenaiChatGPTCase1();
   await testOpenaiChatGPTCase2();
+  await testOpenaiChatGPTCase3();
 })();
