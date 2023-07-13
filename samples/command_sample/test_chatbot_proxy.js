@@ -12,7 +12,7 @@ const openaiProxyJson = {
 }
 
 const proxyHelper = new ProxyHelper();
-proxyHelper.setOpenaiProxyValues(openaiProxyJson)
+proxyHelper.setOriginOpenai(openaiProxyJson)
 
 async function callChatbot(apiKey, provider) {
   const chatbot = new Chatbot(apiKey, provider, proxyHelper);
