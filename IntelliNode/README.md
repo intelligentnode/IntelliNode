@@ -137,7 +137,7 @@ const result = await huggingWrapper.generateText(
 ```
 The available hugging-face functions: `generateText`, `generateImage`, `processImage`.
 
-Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more code details.
+Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more code details including automating your daily tasks using AI.
 
 ## Custom Settings
 ### Azure Openai Access
@@ -146,6 +146,9 @@ To access Openai services from your Azure account, you have to call the followin
 const { ProxyHelper } = require('intellinode');
 ProxyHelper.getInstance().setAzureOpenai(resourceName);
 ```
+### Custom proxy
+Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js)
+
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models

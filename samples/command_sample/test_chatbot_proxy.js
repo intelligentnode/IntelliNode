@@ -3,6 +3,7 @@ const { Chatbot, ChatGPTInput, ChatGPTMessage, ProxyHelper } = require('intellin
 const dotenv = require('dotenv');
 dotenv.config();
 
+// important note: using proxies is your responsibility to ensure the provider is safe
 const openaiProxyJson = {
   "url":"https://chimeragpt.adventblocks.cc",
   "completions":"/v1/completions",
