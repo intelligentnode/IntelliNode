@@ -19,7 +19,7 @@ async function callChatbot(apiKey, provider) {
 
   const system = 'You are a helpful assistant.';
   const input = new ChatGPTInput(system);
-  input.addUserMessage('What is the distance between the Earth and the Moon?');
+  input.addUserMessage('为什么答案是42?');
   input.numberOfOutputs = 1;
 
   const responses = await chatbot.chat(input);
