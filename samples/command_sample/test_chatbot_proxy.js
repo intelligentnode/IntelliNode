@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const openaiProxyJson = {
-  "url":"https://api.openai.com",
+  "url":"https://chimeragpt.adventblocks.cc",
   "completions":"/v1/completions",
   "chatgpt":"/v1/chat/completions",
   "imagegenerate":"/v1/images/generations",
@@ -12,7 +12,7 @@ const openaiProxyJson = {
 }
 
 const proxyHelper = new ProxyHelper();
-proxyHelper.setOriginOpenai(openaiProxyJson)
+proxyHelper.setOpenaiProxyValues(openaiProxyJson)
 
 async function callChatbot(apiKey, provider) {
   const chatbot = new Chatbot(apiKey, provider, proxyHelper);
