@@ -182,6 +182,7 @@ HUGGING_API_KEY=<key_value>
 `node test/integration/Chatbot.test.js`
 
 # :closed_book: Documentation
+- [Detailed Documentation](https://github.com/Barqawiz/IntelliNode/wiki): Check the wiki page for indepeth instructions and practical use cases.
 - [Tutorial](https://medium.com/@albarqawi/lightning-fast-access-to-the-latest-ai-models-using-node-js-d31ccd1b09b2): Generate compelling eCommerce content and images.
 - [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Explore a code sample with detailed setup documentation to get started with Intellinode.
 - [Tutorial](https://hackernoon.com/how-to-build-a-jasper-like-content-generation-platform-using-nodejs): Build your content generation platform using Intellinode.
