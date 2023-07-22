@@ -5,6 +5,8 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+const config = require('../../utils/Config2').getInstance();
+
 class ChatGPTMessage {
   constructor(content, role, name = null) {
     this.content = content;
@@ -17,7 +19,9 @@ class ChatGPTMessage {
   }
 }
 
-class ChatModelInput {}
+class ChatModelInput {
+    getChatInput() {return null}
+}
 
 class ChatGPTInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
@@ -74,7 +78,7 @@ class ChatGPTInput extends ChatModelInput {
     return false;
   }
 
-  getChatGPTInput() {
+  getChatInput() {
     const messages = this.messages.map((message) => {
     if (message.name) {
       return {
@@ -101,8 +105,66 @@ class ChatGPTInput extends ChatModelInput {
   }
 }
 
+class ChatLLamaInput extends ChatModelInput {
+  constructor(systemMessage, options = {}) {
+    super();
+    if (systemMessage instanceof ChatGPTMessage && systemMessage.isSystemRole()) {
+      this.system_prompt = systemMessage.content;
+    } else if (typeof systemMessage === "string") {
+      this.system_prompt = systemMessage;
+    } else {
+      throw new Error(
+        "The input type should be system to define the bot theme or instructions."
+      );
+    }
+    this.model = config.getProperty('models.replicate.llama.13b');
+    this.version = config.getProperty('models.replicate.llama.core-version');
+    this.temperature = options.temperature || 0.5;
+    this.max_new_tokens = options.maxTokens || 500;
+    this.top_p = options.top_p || 1;
+    this.prompt = options.prompt || "";
+    this.repetition_penalty = options.repetition_penalty || 1;
+    this.debug = options.debug || false;
+  }
+
+  addUserMessage(prompt) {
+    if (this.prompt) {
+        this.prompt += `\nUser: ${prompt}`;
+    } else {
+        this.prompt = `User: ${prompt}`;
+    }
+  }
+
+  addAssistantMessage(prompt) {
+    if (this.prompt) {
+        this.prompt += `\nAssistant: ${prompt}`;
+    } else {
+        this.prompt = `Assistant: ${prompt}`;
+    }
+  }
+
+  getChatInput() {
+    return {
+      model: this.model,
+      inputData: {
+          version: this.version,
+          input: {
+            prompt: this.prompt,
+            system_prompt: this.systemMessage,
+            max_new_tokens: this.max_new_tokens,
+            temperature: this.temperature,
+            top_p: this.top_p,
+            repetition_penalty: this.repetition_penalty,
+            debug: this.debug
+          }
+      }
+    };
+  }
+}
+
 module.exports = {
   ChatGPTInput,
   ChatModelInput,
   ChatGPTMessage,
+  ChatLLamaInput,
 };
