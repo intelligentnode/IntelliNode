@@ -8,7 +8,7 @@ async function callChatbot(apiKey, provider) {
 
   const system = 'You are a helpful assistant.';
   const input = new ChatLLamaInput(system);
-  input.addUserMessage('What is the distance between the Earth and the Moon?');
+  input.addUserMessage('Explain the plot of the Inception movie in one line.');
 
   const response = await chatbot.chat(input);
 
