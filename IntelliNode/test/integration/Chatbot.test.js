@@ -1,10 +1,14 @@
 require("dotenv").config();
 const assert = require("assert");
 const { Chatbot, SupportedChatModels } = require("../../function/Chatbot");
-const { ChatGPTInput, ChatGPTMessage } = require("../../model/input/ChatModelInput");
+const { ChatGPTInput, ChatGPTMessage, ChatLLamaInput } = require("../../model/input/ChatModelInput");
 
 const apiKey = process.env.OPENAI_API_KEY;
+const replicateApiKey = process.env.REPLICATE_API_KEY;
+// openai bot
 const bot = new Chatbot(apiKey, SupportedChatModels.OPENAI);
+// llama bots
+const replicateBot = new Chatbot(replicateApiKey, SupportedChatModels.REPLICATE);
 
 async function testOpenaiChatGPTCase1() {
   try {
@@ -94,9 +98,49 @@ async function testOpenaiChatGPTCase3() {
   }
 }
 
+async function testReplicateLLamaCase1() {
+  try {
+    console.log('\nLLama test case 1: \n')
+    const input = new ChatLLamaInput("you are helpful assistant!");
+    input.addUserMessage("Explain the plot of the Inception movie");
+
+    const responses = await replicateBot.chat(input);
+
+    console.log("- " + responses);
+
+    assert(responses.length > 0, "testReplicateLLamaCase1 response length should be greater than 0");
+  } catch (error) {
+    console.error("Test case failed with exception:", error.message);
+  }
+}
+
+
+async function testReplicateLLamaCase2() {
+  try {
+    console.log('\nLLama test case 2: \n')
+    const input = new ChatLLamaInput("you are helpful assistant!");
+    input.addUserMessage("Explain the plot of the Inception movie");
+    input.addAssistantMessage("The plot of the movie Inception follows a skilled thief who enters people's dreams to steal their secrets and is tasked with implanting an idea into a target's mind to alter their future actions.");
+    input.addUserMessage("Explain the plot of the dark night movie");
+
+    const responses = await replicateBot.chat(input);
+
+    console.log("- " + responses);
+
+    assert(responses.length > 0, "testReplicateLLamaCase1 response length should be greater than 0");
+  } catch (error) {
+    console.error("Test case failed with exception:", error.message);
+  }
+}
+
 
 (async () => {
+  console.log('### Openai model ###')
   await testOpenaiChatGPTCase1();
   await testOpenaiChatGPTCase2();
   await testOpenaiChatGPTCase3();
+
+  console.log('### Replicate llama model ###')
+  await testReplicateLLamaCase1();
+  await testReplicateLLamaCase2();
 })();

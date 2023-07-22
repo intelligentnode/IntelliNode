@@ -1,7 +1,7 @@
 {
   "name": "intellinode",
-  "version": "1.1.1",
-  "description": "Access various AI models, such as ChatGPT, Diffusion, Cohere, Google, and others",
+  "version": "1.1.2",
+  "description": "Access various AI models, such as ChatGPT, Llama, Diffusion, Cohere, WaveNet, and others",
   "main": "index.js",
   "keywords": [
     "AI",
@@ -10,13 +10,14 @@
     "stable diffusion",
     "openai",
     "huggingface",
+    "Llama",
     "language models",
     "image generation",
     "speech synthesis",
     "semantic search",
     "automation"
   ],
-  "author": "Ahmad Albarqawi",
+  "author": "Intellinode",
   "license": "Apache",
   "repository": {
     "type": "git",

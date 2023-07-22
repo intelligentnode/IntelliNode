@@ -2,6 +2,7 @@
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
+- Update the chatbot to support Llama v2. 🦙
 - Add Gen function, the fastest way to generate text, speech, web pages or images. :bullettrain_side:
 - Update stable diffusion to use XL model engine.
 - Add support for hugging face inference.
@@ -25,6 +26,7 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const bot = new Chatbot(apiKey);
 const responses = await bot.chat(input);
 ```
+The documentation on how to switch the chatbot between ChatGPT and LLama can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
 ### Semantic Search
 1. imports:
 ```js
