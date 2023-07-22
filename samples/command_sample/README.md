@@ -8,19 +8,20 @@ npm install
 ## Environment
 Create a `.env` file with the required access keys:
 
-```
-OPENAI_API_KEY=<key_value>
-COHERE_API_KEY=<key_value>
-GOOGLE_API_KEY=<key_value>
-STABILITY_API_KEY=<key_value>
-HUGGING_API_KEY=<key_value>
-```
-For the S3 automation sample, you'll additionally need AWS access credentials:
+```sh
+# Access keys for various models
+OPENAI_API_KEY=<your_openai_api_key>
+COHERE_API_KEY=<your_cohere_api_key>
+GOOGLE_API_KEY=<your_google_api_key>
+STABILITY_API_KEY=<your_stability_api_key>
+HUGGING_API_KEY=<your_hugging_api_key>
+REPLICATE_API_KEY=<your_replicate_api_key>
 
- ```
- AWS_ACCESS_KEY_ID=<key_value>
- AWS_SECRET_ACCESS_KEY=<key_value>
- ```
+# Optional - AWS access credentials for S3 automation sample
+AWS_ACCESS_KEY_ID=<your_aws_access_key_id>
+AWS_SECRET_ACCESS_KEY=<your_aws_secret_access_key>
+```
+The Llama model is made available by several hosting services, and Replicate is among the platforms that offer hosting for the Llama model.
 
 ## Samples Execution
 
@@ -58,12 +59,13 @@ For the S3 automation sample, you'll additionally need AWS access credentials:
 `node automate_s3_bucket.js`
 
 ## Access Keys
-Generate your access keys from the corresponding websites; You only need to generate keys for the models you'll use.
+Generate your access keys from the corresponding websites; You only need to generate keys for the models you'll use. 
+For instance, if you're using the language model from OpenAI, there's no need for Cohere's keys.
 
 1. openai: https://openai.com
 2. cohere: https://cohere.com
 3. google: https://console.cloud.google.com
 4. stability: https://stability.ai
 5. huggingface: https://huggingface.co
+6. Replicate: https://replicate.com
 
-For instance, if you're using the language model from OpenAI, there's no need for Cohere's keys.
