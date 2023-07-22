@@ -37,6 +37,19 @@
     },
     "huggingface": {
       "base": "https://api-inference.huggingface.co/models"
+    },
+    "replicate": {
+      "base": "https://api.replicate.com",
+      "predictions": "/v1/predictions"
+    }
+  },
+  "models": {
+    "replicate": {
+      "llama": {
+        "70b": "replicate/llama70b-v2-chat",
+        "13b": "replicate/llama13b-v2-chat",
+        "core-version": "2d19859030ff705a87c746f7e96eea03aefb71f166725aee39692f1476566d48"
+      }
     }
   }
 }
