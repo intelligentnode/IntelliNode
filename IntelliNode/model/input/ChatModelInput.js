@@ -117,8 +117,14 @@ class ChatLLamaInput extends ChatModelInput {
         "The input type should be system to define the bot theme or instructions."
       );
     }
-    this.model = config.getProperty('models.replicate.llama.13b');
-    this.version = config.getProperty('models.replicate.llama.core-version');
+
+    if (!options.model) {
+        console.log("warning: send the model name or use the tuned llama inputs (LLamaReplicateInput, LLamaAWSInput)");
+    }
+
+    this.model = options.model || "";
+    this.version = options.version || "";
+    this.url = options.url || "";
     this.temperature = options.temperature || 0.5;
     this.max_new_tokens = options.maxTokens || 500;
     this.top_p = options.top_p || 1;
@@ -146,11 +152,12 @@ class ChatLLamaInput extends ChatModelInput {
   getChatInput() {
     return {
       model: this.model,
+      url: this.url,
       inputData: {
           version: this.version,
           input: {
             prompt: this.prompt,
-            system_prompt: this.systemMessage,
+            system_prompt: this.system_prompt,
             max_new_tokens: this.max_new_tokens,
             temperature: this.temperature,
             top_p: this.top_p,
@@ -162,9 +169,18 @@ class ChatLLamaInput extends ChatModelInput {
   }
 }
 
+class LLamaReplicateInput extends ChatLLamaInput {
+  constructor(systemMessage, options = {}) {
+    options.model = options.model || config.getProperty('models.replicate.llama.13b');
+    options.version = options.version || config.getProperty('models.replicate.llama.core-version');
+    super(systemMessage, options);
+  }
+}
+
 module.exports = {
   ChatGPTInput,
   ChatModelInput,
   ChatGPTMessage,
   ChatLLamaInput,
+  LLamaReplicateInput
 };

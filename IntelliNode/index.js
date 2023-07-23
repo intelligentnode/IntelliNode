@@ -13,7 +13,7 @@ const { Gen } = require('./function/Gen');
 const LanguageModelInput = require('./model/input/LanguageModelInput');
 const ImageModelInput = require('./model/input/ImageModelInput');
 const Text2SpeechInput = require('./model/input/Text2SpeechInput');
-const { ChatGPTInput, ChatLLamaInput, ChatGPTMessage } = require("./model/input/ChatModelInput");
+const { ChatGPTInput, ChatLLamaInput, LLamaReplicateInput, ChatGPTMessage } = require("./model/input/ChatModelInput");
 const FunctionModelInput = require("./model/input/FunctionModelInput");
 const EmbedInput = require('./model/input/EmbedInput');
 // wrappers
@@ -52,6 +52,7 @@ module.exports = {
   SupportedChatModels,
   ChatGPTInput,
   ChatLLamaInput,
+  LLamaReplicateInput,
   ChatGPTMessage,
   EmbedInput,
   MatchHelpers,

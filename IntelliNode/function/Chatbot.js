@@ -7,7 +7,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 */
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
-const { ChatGPTInput, ChatModelInput, ChatGPTMessage, ChatLLamaInput } = require("../model/input/ChatModelInput");
+const { ChatGPTInput, ChatModelInput, ChatGPTMessage, ChatLLamaInput, LLamaReplicateInput } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
   OPENAI: "openai",
@@ -115,7 +115,7 @@ class Chatbot {
               clearInterval(poll);
 
               if (status.status === 'succeeded') {
-                resolve(status.output.join(' '));
+                resolve([status.output.join(' ')]);
               } else {
                 console.error('LLama prediction failed:', status.error);
                 reject(new Error('LLama prediction failed.'));
