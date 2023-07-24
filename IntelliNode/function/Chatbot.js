@@ -165,7 +165,7 @@ class Chatbot {
         } else {
           throw new Error("Invalid input: Must be an instance of LLamaSageInput or a dictionary");
         }
-        
+
         const results = await this.sagemakerWrapper.predict(params);
 
         return results.map(result => result.generation ? result.generation.content : result);
