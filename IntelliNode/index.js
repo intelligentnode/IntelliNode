@@ -13,7 +13,7 @@ const { Gen } = require('./function/Gen');
 const LanguageModelInput = require('./model/input/LanguageModelInput');
 const ImageModelInput = require('./model/input/ImageModelInput');
 const Text2SpeechInput = require('./model/input/Text2SpeechInput');
-const { ChatGPTInput, ChatLLamaInput, ChatGPTMessage } = require("./model/input/ChatModelInput");
+const { ChatGPTInput, ChatLLamaInput, LLamaReplicateInput, ChatGPTMessage, LLamaSageInput } = require("./model/input/ChatModelInput");
 const FunctionModelInput = require("./model/input/FunctionModelInput");
 const EmbedInput = require('./model/input/EmbedInput');
 // wrappers
@@ -23,6 +23,7 @@ const OpenAIWrapper = require('./wrappers/OpenAIWrapper');
 const StabilityAIWrapper = require('./wrappers/StabilityAIWrapper');
 const HuggingWrapper = require('./wrappers/HuggingWrapper');
 const ReplicateWrapper = require('./wrappers/ReplicateWrapper');
+const AWSEndpointWrapper = require('./wrappers/AWSEndpointWrapper');
 // utils
 const AudioHelper = require('./utils/AudioHelper');
 const Config2 = require('./utils/Config2');
@@ -52,6 +53,7 @@ module.exports = {
   SupportedChatModels,
   ChatGPTInput,
   ChatLLamaInput,
+  LLamaReplicateInput,
   ChatGPTMessage,
   EmbedInput,
   MatchHelpers,
@@ -64,5 +66,7 @@ module.exports = {
   ReplicateWrapper,
   Gen,
   ProxyHelper,
-  FunctionModelInput
+  FunctionModelInput,
+  AWSEndpointWrapper,
+  LLamaSageInput
 };

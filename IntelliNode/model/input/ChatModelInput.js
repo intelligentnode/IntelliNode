@@ -117,8 +117,13 @@ class ChatLLamaInput extends ChatModelInput {
         "The input type should be system to define the bot theme or instructions."
       );
     }
-    this.model = config.getProperty('models.replicate.llama.13b');
-    this.version = config.getProperty('models.replicate.llama.core-version');
+
+    if (!options.model) {
+        console.log("warning: send the model name or use the tuned llama inputs (LLamaReplicateInput, LLamaAWSInput)");
+    }
+
+    this.model = options.model || "";
+    this.version = options.version || "";
     this.temperature = options.temperature || 0.5;
     this.max_new_tokens = options.maxTokens || 500;
     this.top_p = options.top_p || 1;
@@ -143,6 +148,10 @@ class ChatLLamaInput extends ChatModelInput {
     }
   }
 
+  cleanMessages() {
+    this.prompt = "";
+  }
+
   getChatInput() {
     return {
       model: this.model,
@@ -150,7 +159,7 @@ class ChatLLamaInput extends ChatModelInput {
           version: this.version,
           input: {
             prompt: this.prompt,
-            system_prompt: this.systemMessage,
+            system_prompt: this.system_prompt,
             max_new_tokens: this.max_new_tokens,
             temperature: this.temperature,
             top_p: this.top_p,
@@ -162,9 +171,84 @@ class ChatLLamaInput extends ChatModelInput {
   }
 }
 
+class LLamaReplicateInput extends ChatLLamaInput {
+  constructor(systemMessage, options = {}) {
+    options.model = options.model || config.getProperty('models.replicate.llama.13b');
+    options.version = options.version || config.getProperty('models.replicate.llama.core-version');
+    super(systemMessage, options);
+  }
+}
+
+class LLamaSageInput extends ChatModelInput {
+
+  constructor(systemMessage, parameters = {}) {
+    super();
+    if (systemMessage instanceof ChatGPTMessage && systemMessage.isSystemRole()) {
+      this.messages = [systemMessage];
+    } else if (typeof systemMessage === "string") {
+      this.messages = [new ChatGPTMessage(systemMessage, "system")];
+    } else {
+      throw new Error(
+        "The input type should be system to define the chatbot theme or instructions."
+      );
+    }
+
+    this.parameters = parameters;
+  }
+
+  addMessage(message) {
+    this.messages.push(message);
+  }
+
+  addUserMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, "user"));
+  }
+
+  addAssistantMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, "assistant"));
+  }
+
+  addSystemMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, "system"));
+  }
+
+  cleanMessages() {
+    if (this.messages.length > 1) {
+      const firstMessage = this.messages[0];
+      this.messages = [firstMessage];
+    }
+  }
+
+  deleteLastMessage(message) {
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      const currentMessage = this.messages[i];
+      if (
+        currentMessage.content === message.content &&
+        currentMessage.role === message.role
+      ) {
+        this.messages.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  getChatInput() {
+      return {
+        parameters: this.parameters,
+        inputs: [
+          this.messages.map(msg => ({ role: msg.role, content: msg.content }))
+        ]
+      };
+  }
+}
+
 module.exports = {
   ChatGPTInput,
   ChatModelInput,
   ChatGPTMessage,
   ChatLLamaInput,
+  LLamaSageInput,
+  LLamaReplicateInput,
+
 };
