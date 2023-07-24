@@ -30,6 +30,52 @@ class ConnHelper {
       stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     });
   }
+
+  static async lambdaSagemakerInputPass(internal_endpoint,
+                                    event,
+                                    client,
+                                    InvokeEndpointCommand,
+                                    log=false) {
+    if (!event.body) {
+        return {
+            statusCode: 400,
+            body: "Invalid input: " + JSON.stringify(event.body)
+        };
+    }
+    let jsonString = "";
+    if (typeof event.body === 'object') {
+        jsonString = JSON.stringify(event.body);
+    } else {
+        jsonString = event.body;
+    }
+
+    const command = new InvokeEndpointCommand({
+        EndpointName: internal_endpoint,
+        ContentType: 'application/json',
+        Body: jsonString,
+        CustomAttributes: "accept_eula=true",
+    });
+
+    const response = await client.send(command);
+
+    // Convert buffer to string
+    const bodyString = Buffer.from(response.Body).toString('utf8');
+    if (log) {
+        console.log("Converted Response.Body: ", bodyString);
+    }
+
+
+    try {
+        return {
+            statusCode: 200,
+            body: JSON.stringify(JSON.parse(bodyString))
+        };
+
+    } catch (error) {
+        console.error("Parsing Error: ", error);
+        throw error;
+    }
+  }
 }
 
 module.exports = ConnHelper;
