@@ -163,13 +163,13 @@ async function testSageMakerLLamaCase() {
 
 (async () => {
   console.log('### Openai model ###')
-  //await testOpenaiChatGPTCase1();
-  //await testOpenaiChatGPTCase2();
-  //await testOpenaiChatGPTCase3();
+  await testOpenaiChatGPTCase1();
+  await testOpenaiChatGPTCase2();
+  await testOpenaiChatGPTCase3();
 
   console.log('### Replicate llama model ###')
-  // await testReplicateLLamaCase1();
-  // await testReplicateLLamaCase2();
+  await testReplicateLLamaCase1();
+  await testReplicateLLamaCase2();
 
   console.log('### SageMaker llama model ###')
   await testSageMakerLLamaCase();
