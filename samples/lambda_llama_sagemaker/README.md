@@ -4,11 +4,10 @@ The Llama v2 chatbot is avaialble as part of the Amazon SageMaker JumpStart. Onc
 
 This folder contains a Lambda export which establishes a connection to your Sagemaker Llama deployment.
 
-### Pre request
-Create a SageMaker
- domain.
-Deploy the llama model using SageMaker Jumpstart.
-Copy the endpoint name.
-Create node.js lambda function.
-Create environment variable `llama_endpoint` with the SageMaker endpoint value.
-Import the zip file in your lambda function.
+### Pre-request
+- Create a SageMaker domain.
+- Deploy the llama model using SageMaker Jumpstart.
+- Copy the endpoint name.
+- Create node.js lambda function.
+- Create environment variable `llama_endpoint` with the SageMaker endpoint value.
+- Import the zip file in your lambda function.
