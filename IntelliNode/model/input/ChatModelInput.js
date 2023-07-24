@@ -124,7 +124,6 @@ class ChatLLamaInput extends ChatModelInput {
 
     this.model = options.model || "";
     this.version = options.version || "";
-    this.url = options.url || "";
     this.temperature = options.temperature || 0.5;
     this.max_new_tokens = options.maxTokens || 500;
     this.top_p = options.top_p || 1;
@@ -149,10 +148,13 @@ class ChatLLamaInput extends ChatModelInput {
     }
   }
 
+  cleanMessages() {
+    this.prompt = "";
+  }
+
   getChatInput() {
     return {
       model: this.model,
-      url: this.url,
       inputData: {
           version: this.version,
           input: {
@@ -177,10 +179,76 @@ class LLamaReplicateInput extends ChatLLamaInput {
   }
 }
 
+class LLamaSageInput extends ChatModelInput {
+
+  constructor(systemMessage, parameters = {}) {
+    super();
+    if (systemMessage instanceof ChatGPTMessage && systemMessage.isSystemRole()) {
+      this.messages = [systemMessage];
+    } else if (typeof systemMessage === "string") {
+      this.messages = [new ChatGPTMessage(systemMessage, "system")];
+    } else {
+      throw new Error(
+        "The input type should be system to define the chatbot theme or instructions."
+      );
+    }
+
+    this.parameters = parameters;
+  }
+
+  addMessage(message) {
+    this.messages.push(message);
+  }
+
+  addUserMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, "user"));
+  }
+
+  addAssistantMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, "assistant"));
+  }
+
+  addSystemMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, "system"));
+  }
+
+  cleanMessages() {
+    if (this.messages.length > 1) {
+      const firstMessage = this.messages[0];
+      this.messages = [firstMessage];
+    }
+  }
+
+  deleteLastMessage(message) {
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      const currentMessage = this.messages[i];
+      if (
+        currentMessage.content === message.content &&
+        currentMessage.role === message.role
+      ) {
+        this.messages.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  getChatInput() {
+      return {
+        parameters: this.parameters,
+        inputs: [
+          this.messages.map(msg => ({ role: msg.role, content: msg.content }))
+        ]
+      };
+  }
+}
+
 module.exports = {
   ChatGPTInput,
   ChatModelInput,
   ChatGPTMessage,
   ChatLLamaInput,
-  LLamaReplicateInput
+  LLamaSageInput,
+  LLamaReplicateInput,
+
 };

@@ -4,14 +4,18 @@ const { Chatbot, SupportedChatModels } = require("../../function/Chatbot");
 const { ChatGPTInput,
         ChatGPTMessage,
         ChatLLamaInput,
-        LLamaReplicateInput } = require("../../model/input/ChatModelInput");
+        LLamaReplicateInput,
+        LLamaSageInput } = require("../../model/input/ChatModelInput");
 
 const apiKey = process.env.OPENAI_API_KEY;
 const replicateApiKey = process.env.REPLICATE_API_KEY;
 // openai bot
 const bot = new Chatbot(apiKey, SupportedChatModels.OPENAI);
-// llama bots
+// llama - replicate bot
 const replicateBot = new Chatbot(replicateApiKey, SupportedChatModels.REPLICATE);
+// llama - sagemaker bot (open access)
+const sageBot = new Chatbot(null, SupportedChatModels.SAGEMAKER,
+                        {url: process.env.AWS_API_URL});
 
 async function testOpenaiChatGPTCase1() {
   try {
@@ -136,6 +140,26 @@ async function testReplicateLLamaCase2() {
   }
 }
 
+async function testSageMakerLLamaCase() {
+    try {
+    console.log('\nLLama sagemaker test case 1: \n')
+
+    const input = new LLamaSageInput("you are helpful assistant!");
+    input.addUserMessage("Explain the plot of the Inception movie  in one line");
+    input.addAssistantMessage("The plot of the movie Inception follows a skilled thief who enters people's dreams to steal their secrets and is tasked with implanting an idea into a target's mind to alter their future actions.");
+    input.addUserMessage("Explain the plot of the dark night movie in one line");
+
+    const responses = await sageBot.chat(input);
+
+    responses.forEach((response) => console.log("- " + response));
+
+    assert(responses.length > 0, "testSageMakerLLamaCase response length should be greater than 0");
+
+  } catch (error) {
+    console.error("Test case failed with exception:", error.message);
+  }
+
+}
 
 (async () => {
   console.log('### Openai model ###')
@@ -144,6 +168,10 @@ async function testReplicateLLamaCase2() {
   //await testOpenaiChatGPTCase3();
 
   console.log('### Replicate llama model ###')
-  await testReplicateLLamaCase1();
-  await testReplicateLLamaCase2();
+  // await testReplicateLLamaCase1();
+  // await testReplicateLLamaCase2();
+
+  console.log('### SageMaker llama model ###')
+  await testSageMakerLLamaCase();
+
 })();
