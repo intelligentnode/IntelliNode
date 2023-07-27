@@ -204,7 +204,7 @@ Call for contributors:
 - [x] Add support to cohere generate API.
 - [ ] Add support to Google language models.
 - [x] Add support to Google speech models.
-- [ ] Add support to Amazon language models.
+- [x] Add support to LLaMa AWS private deployment.
 - [ ] Add support to Midjourney image generation.
 - [x] Add support to Stable diffusion.
 - [x] Add support to hugging face inference.
