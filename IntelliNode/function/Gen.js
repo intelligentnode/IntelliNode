@@ -135,7 +135,7 @@ class Gen {
 
   static async save_html_page(text, folder, file_name, openaiKey, model_name='gpt-4', customProxyHelper=null) {
     const htmlCode = await Gen.generate_html_page(text, openaiKey, model_name, customProxyHelper);
-    console.log('html code: ', htmlCode);
+    // console.log('html code: ', htmlCode);
     const folderPath = path.join(folder, file_name + '.html');
     fs.writeFileSync(folderPath, htmlCode['html']);
     return true;
