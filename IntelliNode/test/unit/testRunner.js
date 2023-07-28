@@ -3,6 +3,11 @@ const testGoogleAIWrapper = require('./GoogleAIWrapper.test');
 const testHuggingWrapper = require('./HuggingWrapper.test');
 const {testOpenAIWrapper, testOpenAIOrganization} = require('./OpenAIWrapper.test');
 const testStabilityAIWrapper = require('./StabilityAIWrapper.test');
+const testPrompt = require('./Prompt.test');
+
+
+console.log('Running Prompt unit tests...');
+testPrompt();
 
 console.log('Running CohereAIWrapper unit tests...');
 testCohereAIWrapper();

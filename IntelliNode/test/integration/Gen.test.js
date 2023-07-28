@@ -84,7 +84,7 @@ async function testInstructUpdate() {
 }
 
 (async () => {
-  console.log('test the marketing function');
+  /*console.log('test the marketing function');
   await testGetMarketingDesc();
   console.log('test blog post function');
   await testGetBlogPost();
@@ -95,7 +95,7 @@ async function testInstructUpdate() {
   console.log('test generate html function');
   await testGenerateHtmlPage();
   console.log('test save html function');
-  await testSaveHTML();
+  await testSaveHTML();*/
   console.log('test the dashboard function');
   await testGenerateDashboard();
   console.log('test the instruct function');

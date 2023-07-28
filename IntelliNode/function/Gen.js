@@ -125,8 +125,8 @@ class Gen {
 
     // prepare the bot
     const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
-    const input = new ChatGPTInput('generate only html, css and javascript based on the user request in the following format {"html": "<code>", "message":"<text>"}',
-                                   { maxTokens: tokeSize, model: model_name, temperature:0.6 });
+    const input = new ChatGPTInput('generate html, css and javascript based on the user request. Do not generate any response not following this template {"html": "<code>", "message":"<text>"}',
+                                   { maxTokens: tokeSize, model: model_name, temperature:0.8 });
     // set the user message with the template
     input.addUserMessage(promptTemp.format({'text': text}));
     const responses = await chatbot.chat(input);
@@ -135,6 +135,7 @@ class Gen {
 
   static async save_html_page(text, folder, file_name, openaiKey, model_name='gpt-4', customProxyHelper=null) {
     const htmlCode = await Gen.generate_html_page(text, openaiKey, model_name, customProxyHelper);
+    console.log('html code: ', htmlCode);
     const folderPath = path.join(folder, file_name + '.html');
     fs.writeFileSync(folderPath, htmlCode['html']);
     return true;
