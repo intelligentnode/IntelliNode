@@ -6,16 +6,15 @@ class Prompt {
   }
 
   format(data) {
-    const regex = /{([^}]+)}|\$\{([^}]+)\}/g;
-    const matches = this.template.match(regex);
-
+    const regex = /\$\{([^}]+)\}/g;
     let result = this.template;
-    if (matches) {
-      for (const match of matches) {
-        const key = match.slice(1, -1) || match.slice(2, -1); // Remove braces if present
-        const value = data[key] || '';
-        result = result.replace(match, value);
-      }
+    let match;
+
+    while ((match = regex.exec(this.template)) !== null) {
+      const key = match[1];
+      const value = data.hasOwnProperty(key) ? data[key] : '';
+
+      result = result.replace(match[0], value);
     }
 
     return result;

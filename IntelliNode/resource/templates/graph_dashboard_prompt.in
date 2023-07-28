@@ -1,8 +1,9 @@
-Generate an HTML dashboard with ${count} graphs about the ${topic} topic from the provided CSV data. Each graph should showcase the relationships between selected columns, ensuring the graphs are relevant to the topic.
+Generate an HTML dashboard using chart.js with ${count} graphs about the ${topic} topic from the provided data. Each graph should showcase the relationships between selected columns, ensuring the graphs are relevant to the topic.
 
 Output example:
 [{
-  "html": "<!DOCTYPE html><html><head>[Insert required styles and scripts for Chart.js]</head><body>[Include code for all the ${count} graphs]</body></html>"
+  "html": "<!DOCTYPE html><html><head>[Insert required styles and scripts for Chart.js]</head><body>[Include code for all the ${count} graphs]</body></html>", 
+  "message": "the page ready to render"
 }]
 
 Follow these instructions:
@@ -14,5 +15,6 @@ Follow these instructions:
 5. Make sure the response is a valid JSON containing the complete HTML content.
 6. Ensure the response will not truncate in any circumstance.
 7. Select sample of the data based on the user instructions ensuring it fit in one page.
+8. Reply only with generated code.
 
 User data: ###${text}###
