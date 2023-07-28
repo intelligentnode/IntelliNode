@@ -30,6 +30,7 @@ const Config2 = require('./utils/Config2');
 const ConnHelper = require('./utils/ConnHelper');
 const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
+const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
 
 module.exports = {
@@ -68,5 +69,6 @@ module.exports = {
   ProxyHelper,
   FunctionModelInput,
   AWSEndpointWrapper,
+  Prompt,
   LLamaSageInput
 };

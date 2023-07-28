@@ -6,21 +6,27 @@ class SystemHelper {
     this.systemsPath = path.join(__dirname, "..", "resource", "templates");
   }
 
-  loadPrompt(file_type) {
+  getPromptPath(fileType) {
     let promptPath = '';
-    if (file_type === "sentiment") {
+    if (fileType === "sentiment") {
       promptPath = path.join(this.systemsPath, "sentiment_prompt.in");
-    } else if (file_type === "summary") {
+    } else if (fileType === "summary") {
       promptPath = path.join(this.systemsPath, "summary_prompt.in");
-    } else if (file_type === "html_page") {
+    } else if (fileType === "html_page") {
       promptPath = path.join(this.systemsPath, "html_page_prompt.in");
-    } else if (file_type === "graph_dashboard") {
+    } else if (fileType === "graph_dashboard") {
       promptPath = path.join(this.systemsPath, "graph_dashboard_prompt.in");
-    } else if (file_type === "instruct_update") {
+    } else if (fileType === "instruct_update") {
       promptPath = path.join(this.systemsPath, "instruct_update.in");
     } else {
       throw new Error(`File type '${file_type}' not supported`);
     }
+
+    return promptPath;
+  }
+
+  loadPrompt(fileType) {
+    let promptPath = this.getPromptPath(fileType)
     const promptTemplate = fs.readFileSync(promptPath, "utf8");
 
     return promptTemplate;

@@ -8,23 +8,24 @@ const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
 const { SupportedLangModels } = require('../controller/RemoteLanguageModel');
 const SystemHelper = require("../utils/SystemHelper");
+const Prompt = require("../utils/Prompt");
 const fs = require('fs');
 const path = require('path');
 
 class Gen {
-  static async get_marketing_desc(prompt, apiKey,
+  static async get_marketing_desc(promptString, apiKey,
                             provider = SupportedLangModels.OPENAI, customProxyHelper=null) {
 
     if (provider == SupportedLangModels.OPENAI) {
         const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
         const input = new ChatGPTInput("generate marketing description", { maxTokens: 800 });
-        input.addUserMessage(`Create a marketing description for the following: ${prompt}`);
+        input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
         const responses = await chatbot.chat(input);
 
         return responses[0].trim();
     } else if (provider == SupportedLangModels.COHERE) {
 
-        const langInput = new LanguageModelInput({prompt:`Create a marketing description for the following: ${prompt}`});
+        const langInput = new LanguageModelInput({prompt:`Create a marketing description for the following: ${promptString}`});
         langInput.setDefaultValues(SupportedLangModels.COHERE, 400);
 
         const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
@@ -39,17 +40,17 @@ class Gen {
 
   }
 
-  static async get_blog_post(prompt, apiKey, provider = SupportedLangModels.OPENAI,
+  static async get_blog_post(promptString, apiKey, provider = SupportedLangModels.OPENAI,
                                         customProxyHelper=null) {
     if (provider == SupportedLangModels.OPENAI) {
         const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
         const input = new ChatGPTInput("generate blog posts related to user input", { maxTokens: 1200 });
-        input.addUserMessage(`Write a blog post about ${prompt}`);
+        input.addUserMessage(`Write a blog post about ${promptString}`);
         const responses = await chatbot.chat(input);
 
         return responses[0].trim();
     } else if (provider == SupportedLangModels.COHERE) {
-        const langInput = new LanguageModelInput({prompt:`Write a blog post with sections titles about ${prompt}`});
+        const langInput = new LanguageModelInput({prompt:`Write a blog post with sections titles about ${promptString}`});
         langInput.setDefaultValues(SupportedLangModels.COHERE, 1200);
 
         const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
@@ -64,10 +65,10 @@ class Gen {
 
   }
 
-  static async getImageDescription(prompt, apiKey, customProxyHelper=null) {
+  static async getImageDescription(promptString, apiKey, customProxyHelper=null) {
     const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput("Generate image description to use for image generation models. return only the image description");
-    input.addUserMessage(`Generate image description from the following text: ${prompt}`);
+    input.addUserMessage(`Generate image description from the following text: ${promptString}`);
     const responses = await chatbot.chat(input);
     return responses[0].trim();
   }
@@ -75,7 +76,7 @@ class Gen {
   /**
   * Generates image description from the user prompt then use the image description to generate the image.
   *
-  * @param {string} prompt - The text prompt used for image generation.
+  * @param {string} promptString - The text prompt used for image generation.
   * @param {string} openaiKey - The OpenAI API key to generate the description.
   * @param {string} imageApiKey - The image API key to generate the image based on the received provider.
   * @param {boolean} [is_base64=true] - Set to true for base64 image string, false if it should be returned as a Buffer.
@@ -83,10 +84,10 @@ class Gen {
   *
   * @returns {Promise<string|Buffer>} - The generated image, either as base64 string or Buffer.
   */
-  static async generate_image_from_desc(prompt, openaiKey, imageApiKey, is_base64 = true,
+  static async generate_image_from_desc(promptString, openaiKey, imageApiKey, is_base64 = true,
                                           provider = SupportedImageModels.STABILITY, customProxyHelper=null) {
 
-    const imageDescription = await Gen.getImageDescription(prompt, openaiKey, customProxyHelper);
+    const imageDescription = await Gen.getImageDescription(promptString, openaiKey, customProxyHelper);
     const imgModel = new RemoteImageModel(imageApiKey, provider);
     const images = await imgModel.generateImages(
           new ImageModelInput({ prompt: imageDescription,
@@ -110,8 +111,8 @@ class Gen {
 
   static async generate_html_page(text, openaiKey, model_name='gpt-4', customProxyHelper=null) {
     // load and fill the template
-    const promptTemplate = new SystemHelper().loadPrompt("html_page");
-    const prompt = promptTemplate.replace("${text}", text);
+    const template = new SystemHelper().loadPrompt("html_page");
+    const promptTemp = new Prompt(template);
 
     // prepare the bot
     let tokeSize = 2100;
@@ -127,7 +128,7 @@ class Gen {
     const input = new ChatGPTInput('generate only html, css and javascript based on the user request in the following format {"html": "<code>", "message":"<text>"}',
                                    { maxTokens: tokeSize, model: model_name, temperature:0.6 });
     // set the user message with the template
-    input.addUserMessage(prompt);
+    input.addUserMessage(promptTemp.format({'text': text}));
     const responses = await chatbot.chat(input);
     return JSON.parse(responses[0].trim());
   }
@@ -147,11 +148,8 @@ class Gen {
     }
 
     // load and fill the template
-    const promptTemplate = new SystemHelper().loadPrompt("graph_dashboard");
-
-    let prompt = promptTemplate.replace("${count}", num_graphs);
-    prompt = prompt.replace("${topic}", topic);
-    prompt = prompt.replace("${text}", csvStrData);
+    const template = new SystemHelper().loadPrompt("graph_dashboard");
+    const promptTemp = new Prompt(template);
 
     // prepare the bot
     let tokeSize = 2100;
@@ -164,7 +162,7 @@ class Gen {
     const input = new ChatGPTInput('Generate HTML graphs from the CSV data and ensure the response is a valid JSON to parse with full HTML code.',
                                    { maxTokens: tokeSize, model: model_name, temperature:0.3 });
     // set the user message with the template
-    input.addUserMessage(prompt);
+    input.addUserMessage(promptTemp.format({'count': num_graphs, 'topic': topic, 'text': csvStrData}));
     const responses = await chatbot.chat(input);
 
     return JSON.parse(responses[0].trim())[0];
@@ -175,10 +173,8 @@ class Gen {
                                 model_name='gpt-4', customProxyHelper=null) {
 
     // load and fill the template
-    const promptTemplate = new SystemHelper().loadPrompt("instruct_update");
-
-    let prompt = promptTemplate.replace("${model_output}", modelOutput);
-    prompt = prompt.replace("${user_instruction}", userInstruction).replace("${type}", type);
+    const template = new SystemHelper().loadPrompt("instruct_update");
+    const promptTemp = new Prompt(template);
 
     // prepare the bot
     let tokeSize = 2000;
@@ -191,7 +187,9 @@ class Gen {
                                    { maxTokens: tokeSize, model: model_name, temperature:0.2 });
 
     // set the user message with the template
-    input.addUserMessage(prompt);
+    input.addUserMessage(promptTemp.format({'model_output': modelOutput,
+                                        'user_instruction': userInstruction,
+                                        'type': type}));
     const responses = await chatbot.chat(input);
 
     return responses[0].trim();
