@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
+const SystemHelper = require("../utils/SystemHelper");
 
 class Prompt {
   constructor(template) {
@@ -39,9 +40,12 @@ class Prompt {
 
     const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
 
-    const input = new ChatGPTInput("generate a prompt text for AI models input, following prompt engineering best practices.", 
+    const promptExample = new SystemHelper().loadPrompt("prompt_example");
+
+    const input = new ChatGPTInput("generate a prompt text, following prompt engineering best practices", 
                               { maxTokens: 800, model: model, temperature: 0.7 });
-    input.addUserMessage(`Create a prompt about the following topic as input for the model: ${promptTopic}`);
+    input.addUserMessage(promptExample);
+    input.addUserMessage(`Create a prompt: ${promptTopic}`);
     
     const responses = await chatbot.chat(input);
 

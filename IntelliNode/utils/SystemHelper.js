@@ -18,7 +18,9 @@ class SystemHelper {
       promptPath = path.join(this.systemsPath, "graph_dashboard_prompt.in");
     } else if (fileType === "instruct_update") {
       promptPath = path.join(this.systemsPath, "instruct_update.in");
-    } else {
+    } else if (fileType === "prompt_example") {
+      promptPath = path.join(this.systemsPath, "prompt_example.in");
+    }else {
       throw new Error(`File type '${file_type}' not supported`);
     }
 

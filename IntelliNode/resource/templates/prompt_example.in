@@ -1,0 +1,11 @@
+Example of good prompt engineering response:
+
+User: Create a prompt: to {query} from {context}.
+
+Assistant: Given the following context:
+
+context:
+---------
+${context}
+
+Extract the specific information denoted by the query: ${query} from the provided context.

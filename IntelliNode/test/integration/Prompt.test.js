@@ -15,7 +15,7 @@ async function testGeneratedPrompt1() {
 }
 
 async function testGeneratedPrompt2() {
-  const promptTemp = await Prompt.fromChatGPT("information retrieval about ${reference} text with ${query} user input", openaiApiKey);
+  const promptTemp = await Prompt.fromChatGPT("information retrieval about {reference} text with ${query} user input", openaiApiKey);
   
   const promptString = promptTemp.getInput();
   
