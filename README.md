@@ -69,6 +69,7 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const responses = await chatbot.chat(input);
 ```
 The documentation on how to switch the chatbot between ChatGPT and LLama in this [wiki page](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+
 ### Semantic search
 import:
 ```js
@@ -80,6 +81,13 @@ const search = new SemanticSearch(apiKey);
 // pivotItem is the item to search.
 const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
 const filteredArray = search.filterTopMatches(results, searchArray)
+```
+
+### Prompt engineering
+Generate improved prompts using LLMs:
+```js
+const promptTemp = await Prompt.fromChatGPT("fantasy image with ninja jumping across buildings", openaiApiKey);
+console.log(promptTemp.getInput());
 ```
 
 ### Language models
@@ -143,15 +151,8 @@ To access Openai from a proxy for restricted regions:
 ProxyHelper.getInstance().setOpenaiProxyValues(openaiProxyJson);
 ```
 
-### Prompt engineering
-Generate improved prompts using LLMs:
-```js
-const promptTemp = await Prompt.fromChatGPT("fantasy image with ninja jumping across buildings", openaiApiKey);
-console.log(promptTemp.getInput());
-```
 
-
-For more examples, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
+For more details and in-depth code, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
 
 # The code repository setup
 ## First setup
