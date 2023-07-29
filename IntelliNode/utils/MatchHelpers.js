@@ -17,6 +17,18 @@ class MatchHelpers {
 
     return dotProduct / (magnitudeA * magnitudeB);
   }
+
+  static euclideanDistance(a, b) {
+    if (a.length !== b.length) {
+      throw new Error('Vectors must have the same dimensions');
+    }
+
+    const distance = Math.sqrt(
+      a.reduce((sum, ai, i) => sum + (ai - b[i]) ** 2, 0)
+    );
+
+    return distance;
+  }
 }
 
 module.exports = MatchHelpers;
