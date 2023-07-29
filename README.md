@@ -132,7 +132,6 @@ provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
 
-
 ### Openai advanced access
 To access Openai services from your Azure account, you have to call the following function at the beginning of your application:
 ```js
@@ -143,6 +142,14 @@ To access Openai from a proxy for restricted regions:
 ```js
 ProxyHelper.getInstance().setOpenaiProxyValues(openaiProxyJson);
 ```
+
+### Prompt engineering
+Generate improved prompts using LLMs:
+```js
+const promptTemp = await Prompt.fromChatGPT("fantasy image with ninja jumping across buildings", openaiApiKey);
+console.log(promptTemp.getInput());
+```
+
 
 For more examples, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
 

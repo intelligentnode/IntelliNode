@@ -1,8 +1,15 @@
 const fs = require('fs');
+const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
+const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
+const SystemHelper = require("../utils/SystemHelper");
 
 class Prompt {
   constructor(template) {
     this.template = template;
+  }
+
+  getInput() {
+    return this.template;
   }
 
   format(data) {
@@ -27,6 +34,22 @@ class Prompt {
   static fromFile(filePath) {
     const template = fs.readFileSync(filePath, 'utf-8');
     return new Prompt(template);
+  }
+
+  static async fromChatGPT(promptTopic, apiKey, customProxyHelper=null, model='gpt-4') {
+
+    const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
+
+    const promptExample = new SystemHelper().loadPrompt("prompt_example");
+
+    const input = new ChatGPTInput("generate a prompt text, following prompt engineering best practices", 
+                              { maxTokens: 800, model: model, temperature: 0.7 });
+    input.addUserMessage(promptExample);
+    input.addUserMessage(`Create a prompt: ${promptTopic}`);
+    
+    const responses = await chatbot.chat(input);
+
+    return new Prompt(responses[0].trim());
   }
 }
 

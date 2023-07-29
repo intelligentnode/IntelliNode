@@ -6,7 +6,8 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - Add Gen function, the fastest way to generate text, speech, web pages or images. :bullettrain_side:
 - Update stable diffusion to use XL model engine.
 - Add support for hugging face inference.
-- Update the chatbot to support function calls, empowering automation.
+- Update chatGPT to support function calls, empowering automation.
+- Generate prompt using LLM.
 
 # Examples
 ## Functions
@@ -141,7 +142,14 @@ The available hugging-face functions: `generateText`, `generateImage`, `processI
 
 Check the [samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample) for more code details including automating your daily tasks using AI.
 
-## Custom Settings
+## Utilities
+### Prompt Engineering
+Generate improved prompts using LLMs:
+```js
+const promptTemp = await Prompt.fromChatGPT("fantasy image with ninja jumping across buildings", openaiApiKey);
+console.log(promptTemp.getInput());
+```
+
 ### Azure Openai Access
 To access Openai services from your Azure account, you have to call the following function at the beginning of your application:
 ```js
