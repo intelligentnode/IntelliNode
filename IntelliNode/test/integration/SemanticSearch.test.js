@@ -1,6 +1,6 @@
 require('dotenv').config();
 const assert = require('assert');
-const SemanticSearch = require('../../function/SemanticSearch');
+const { SemanticSearch } = require('../../function/SemanticSearch');
 const { SupportedEmbedModels } = require('../../controller/RemoteEmbedModel');
 
 const openaiApiKey = process.env.OPENAI_API_KEY;
