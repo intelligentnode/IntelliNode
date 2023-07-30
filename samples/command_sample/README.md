@@ -58,12 +58,15 @@ The Llama model is made available by several hosting services, and Replicate is 
 11. Automation sample using the chatbot function call:
 `node automate_s3_bucket.js`
 
-12. LLM evaluator to compare models like chatGPT, Cohere, and LLaMA:
+12. Llama V2 chatbot:
+`node test_llama_chatbot.js`
+
+13. LLM evaluator to compare models like chatGPT, Cohere, and Llama:
 `node test_llm_evaluation.test.js`
 
 
 ## Access Keys
-Generate your access keys from the corresponding websites; You only need to generate keys for the models you'll use. 
+Generate your access keys from the corresponding websites; You only need to generate keys for the models you'll use.
 For instance, if you're using the language model from OpenAI, there's no need for Cohere's keys.
 
 1. openai: https://openai.com
@@ -72,4 +75,3 @@ For instance, if you're using the language model from OpenAI, there's no need fo
 4. stability: https://stability.ai
 5. huggingface: https://huggingface.co
 6. Replicate: https://replicate.com
-
