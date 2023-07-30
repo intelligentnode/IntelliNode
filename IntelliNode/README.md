@@ -159,6 +159,11 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 ### Custom proxy
 Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js)
 
+# :closed_book: Documentation
+- [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki): Check the wiki page for indepeth instructions and practical use cases.
+- [Showcase](https://show.intellinode.ai/): Experience the potential of Intellinode in action, and use your keys to generate content and html pages.
+- [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Explore a code sample with detailed setup documentation to get started with Intellinode.
+- [Model Evaluation](https://github.com/Barqawiz/IntelliNode/wiki/Model-Evaluation): Demonstrate a swift approach to compare the performance of multiple models against designated target answers.
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models
