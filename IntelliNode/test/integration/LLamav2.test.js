@@ -8,7 +8,7 @@ async function testReplicateWrapperLLama() {
   try {
 
     const modelName = config.getProperty('models.replicate.llama.13b');
-    const version = config.getProperty('models.replicate.llama.core-version');
+    const version = config.getProperty('models.replicate.llama.13b-chat-version');
     const inputData = { version: version,
                 input: { prompt: 'Hello, LLama. introduce your self!',
                         system_prompt: 'You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe...',
@@ -30,7 +30,7 @@ async function testReplicateWrapperLLama() {
         clearInterval(poll); // stop polling if prediction has completed or failed
 
         if (status.status === 'succeeded') {
-          console.log('LLama Predict Result:', status.output.join(' '));
+          console.log('LLama Predict Result:', status.output.join(''));
         } else {
           console.error('LLama Prediction Failed:', status.error);
         }

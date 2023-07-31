@@ -55,7 +55,7 @@ class Chatbot {
         return Object.values(SupportedChatModels);
     }
 
-    async chat(modelInput, functions = null, function_call = null, debugMode = false) {
+    async chat(modelInput, functions = null, function_call = null, debugMode = true) {
         if (this.provider === SupportedChatModels.OPENAI) {
             return this._chatGPT(modelInput, functions, function_call);
         } else if (this.provider === SupportedChatModels.REPLICATE) {
@@ -105,7 +105,7 @@ class Chatbot {
 
     async _chatReplicateLLama(modelInput, debugMode) {
         let params;
-        const waitTime = 1000,
+        const waitTime = 2000,
             maxIterate = 100;
         let iteration = 0;
 
