@@ -29,6 +29,7 @@ class ReplicateWrapper {
   async predict(modelVersion, inputData) {
     const url = config.getProperty('url.replicate.predictions');
     const data = inputData;
+
     try {
       const response = await this.httpClient.post(url, data);
       return response.data;

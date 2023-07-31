@@ -55,7 +55,7 @@ class Chatbot {
         return Object.values(SupportedChatModels);
     }
 
-    async chat(modelInput, functions = null, function_call = null, debugMode = true) {
+    async chat(modelInput, functions = null, function_call = null, debugMode = false) {
         if (this.provider === SupportedChatModels.OPENAI) {
             return this._chatGPT(modelInput, functions, function_call);
         } else if (this.provider === SupportedChatModels.REPLICATE) {
@@ -109,7 +109,6 @@ class Chatbot {
             maxIterate = 100;
         let iteration = 0;
 
-        console.log('call')
         if (modelInput instanceof ChatModelInput) {
             params = modelInput.getChatInput();
         } else if (typeof modelInput === "object") {
@@ -136,7 +135,7 @@ class Chatbot {
                         clearInterval(poll);
 
                         if (status.status === 'succeeded') {
-                            resolve([status.output.join(' ')]);
+                            resolve([status.output.join('')]);
                         } else {
                             console.error('LLama prediction failed:', status.error);
                             reject(new Error('LLama prediction failed.'));

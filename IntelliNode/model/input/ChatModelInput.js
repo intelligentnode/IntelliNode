@@ -156,7 +156,6 @@ class ChatLLamaInput extends ChatModelInput {
     return {
       model: this.model,
       inputData: {
-          version: this.version,
           input: {
             prompt: this.prompt,
             system_prompt: this.system_prompt,
@@ -174,8 +173,31 @@ class ChatLLamaInput extends ChatModelInput {
 class LLamaReplicateInput extends ChatLLamaInput {
   constructor(systemMessage, options = {}) {
     options.model = options.model || config.getProperty('models.replicate.llama.13b');
-    options.version = options.version || config.getProperty('models.replicate.llama.core-version');
+    options.version = options.version;
     super(systemMessage, options);
+  }
+
+  getChatInput() {
+
+    if (this.version == null || this.version == "") {
+        this.version = config.getProperty(`models.replicate.llama.${this.model}-version`);
+    }
+
+    return {
+      model: this.model,
+      inputData: {
+          version: this.version,
+          input: {
+            prompt: this.prompt,
+            system_prompt: this.system_prompt,
+            max_new_tokens: this.max_new_tokens,
+            temperature: this.temperature,
+            top_p: this.top_p,
+            repetition_penalty: this.repetition_penalty,
+            debug: this.debug
+          }
+      }
+    };
   }
 }
 
