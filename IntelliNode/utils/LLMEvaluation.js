@@ -115,7 +115,7 @@ class LLMEvaluation extends ModelEvaluation {
         score_euclidean_distance: avg_euclidean
       });
 
-      results[provider.provider] = predictions;
+      results[provider.provider + '/' + provider.model] = predictions;
     }
 
     results['lookup'] = {
