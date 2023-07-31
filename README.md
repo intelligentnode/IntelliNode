@@ -1,12 +1,14 @@
 
-<p align="center">
+<!-- <p align="center">
 <img src="images/multi-model-small-v2.png" width="88%">
-</p>
+</p> -->
 
 <p align="center">
 <img src="images/intelligent_node_header.png" width="500em">
 </p>
-
+<h3 align="center">
+Unified prompt, evaluation, and production integration to any large model
+</h3>
 
 <p align="center">
 
@@ -19,15 +21,15 @@
 </a>
 
 
-
-<img src="https://img.shields.io/badge/builder-intelliCode-green?style=flat-square" />
+<a href="https://discord.gg/R32P7jkA" alt="licenses tag">
+    <img src="https://img.shields.io/badge/Discord-Community-light?style=flat-square" />
+</a>
 
 </p>
 
 # Intelligent Node
 
-IntelliNode is a javascript module that integrates cutting-edge AI into your project. With its intuitive functions, you can easily feed data to models like ChatGPT, WaveNet, and Stable diffusion and receive generated text, speech, or images. It also offers high-level functions such as semantic search and chatbot capabilities.
-<br> What sets IntelliNode apart is its lightning-fast access to the latest deep learning models with just a few lines of code.
+IntelliNode is a javascript module that integrates cutting-edge AI into your project. With its intuitive functions, you can easily feed data to models like **ChatGPT**, **LLaMA**, **WaveNet**, and **Stable diffusion** and receive generated text, speech, or images. It also offers high-level functions such as semantic search, multi-model evaluation, and chatbot capabilities.
 
 # Access the module
 ## Install
