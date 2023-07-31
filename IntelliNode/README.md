@@ -1,4 +1,19 @@
+
 # Intelligent Node (IntelliNode)
+
+<p>
+
+<a href="https://github.com/Barqawiz/IntelliNode/blob/main/LICENSE" alt="licenses tag" target="_blank">
+    <img src="https://img.shields.io/github/license/Barqawiz/IntelliJava?style=flat-square" />
+</a>
+
+
+<a href="https://discord.gg/R32P7jkA" alt="discord invite" target="_blank">
+    <img src="https://img.shields.io/badge/Discord-Community-light?style=flat-square" />
+</a>
+
+</p>
+
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
