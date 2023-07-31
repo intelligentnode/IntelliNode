@@ -46,9 +46,12 @@
   "models": {
     "replicate": {
       "llama": {
-        "70b": "replicate/llama70b-v2-chat",
-        "13b": "replicate/llama13b-v2-chat",
-        "core-version": "2d19859030ff705a87c746f7e96eea03aefb71f166725aee39692f1476566d48"
+        "70b": "70b-chat",
+        "13b": "13b-chat",
+        "70b-chat": "70b-chat",
+        "13b-chat": "13b-chat",
+        "70b-chat-version": "2d19859030ff705a87c746f7e96eea03aefb71f166725aee39692f1476566d48",
+        "13b-chat-version": "d5da4236b006f967ceb7da037be9cfc3924b20d21fed88e1e94f19d56e2d3111"
       }
     }
   }

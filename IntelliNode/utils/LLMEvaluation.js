@@ -2,7 +2,7 @@ const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/Remote
 const LanguageModelInput = require('../model/input/LanguageModelInput');
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { RemoteLanguageModel, SupportedLangModels } = require("../controller/RemoteLanguageModel");
-const { ChatGPTInput } = require("../model/input/ChatModelInput");
+const { ChatGPTInput, LLamaReplicateInput, LLamaSageInput } = require("../model/input/ChatModelInput");
 const MatchHelpers = require('../utils/MatchHelpers');
 const EmbedInput = require('../model/input/EmbedInput');
 const { ModelEvaluation } = require('./ModelEvaluation');
@@ -26,12 +26,24 @@ class LLMEvaluation extends ModelEvaluation {
   }
 
   async generateText(apiKey, inputString, provider, modelName, type,
-                            maxTokens = 400) {
+                            maxTokens = 400, custom_url = null) {
 
     if (type == 'chat' && Object.values(SupportedChatModels).includes(provider.toLowerCase())) {
 
-        const chatbot = new Chatbot(apiKey, provider);
-        const input = new ChatGPTInput("you are a helpful assistant", { model: modelName, maxTokens: maxTokens});
+        const customProxy = (custom_url != undefined && custom_url != null && custom_url != '') ? {url: custom_url } : null;
+
+        const chatbot = new Chatbot(apiKey, provider, customProxy);
+
+        // define the chat input
+        let input;
+        if (SupportedChatModels.REPLICATE == provider.toLowerCase()) {
+            input = new LLamaReplicateInput("provide direct answer", { model: modelName, maxTokens: maxTokens});
+        } else if (SupportedChatModels.SAGEMAKER == provider.toLowerCase()) {
+            input = new LLamaSageInput("provide direct answer", {maxTokens: maxTokens});
+        } else {
+            input = new ChatGPTInput("provide direct answer", { model: modelName, maxTokens: maxTokens});
+        }
+
         input.addUserMessage(inputString);
         const responses = await chatbot.chat(input);
 
@@ -79,10 +91,13 @@ class LLMEvaluation extends ModelEvaluation {
       targetEmbeddings.push(embedding);
     }
 
-    for(let provider of providerSets){
+    for(let provider of providerSets) {
+      console.log(`- start ${provider.model} evaluation`)
+
       let predictions = [];
       let prediction = await this.generateText(provider.apiKey, inputString, provider.provider,
-                                                provider.model, provider.type, provider.maxTokens);
+                                                provider.model, provider.type,
+                                                provider.maxTokens, provider.url);
       const predictionEmbedding = await this.generateEmbedding(prediction);
 
       let cosine_sum = 0, euclidean_sum = 0;
@@ -100,7 +115,7 @@ class LLMEvaluation extends ModelEvaluation {
         score_euclidean_distance: avg_euclidean
       });
 
-      results[provider.provider] = predictions;
+      results[provider.provider + '/' + provider.model] = predictions;
     }
 
     results['lookup'] = {

@@ -105,11 +105,10 @@ class Chatbot {
 
     async _chatReplicateLLama(modelInput, debugMode) {
         let params;
-        const waitTime = 1000,
+        const waitTime = 2000,
             maxIterate = 100;
         let iteration = 0;
 
-        console.log('call')
         if (modelInput instanceof ChatModelInput) {
             params = modelInput.getChatInput();
         } else if (typeof modelInput === "object") {
@@ -136,7 +135,7 @@ class Chatbot {
                         clearInterval(poll);
 
                         if (status.status === 'succeeded') {
-                            resolve([status.output.join(' ')]);
+                            resolve([status.output.join('')]);
                         } else {
                             console.error('LLama prediction failed:', status.error);
                             reject(new Error('LLama prediction failed.'));

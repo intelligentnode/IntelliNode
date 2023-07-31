@@ -17,6 +17,7 @@ class ReplicateWrapper {
   constructor(apiKey) {
     this.API_BASE_URL = config.getProperty('url.replicate.base');
     this.API_KEY = apiKey;
+
     this.httpClient = axios.create({
       baseURL: this.API_BASE_URL,
       headers: {
@@ -29,6 +30,7 @@ class ReplicateWrapper {
   async predict(modelVersion, inputData) {
     const url = config.getProperty('url.replicate.predictions');
     const data = inputData;
+
     try {
       const response = await this.httpClient.post(url, data);
       return response.data;
