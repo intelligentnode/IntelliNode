@@ -4,8 +4,13 @@
 </p> -->
 
 <p align="center">
-<img src="images/intelligent_node_header.png" width="500em">
+<img src="images/intelligent_node_header.png" width="400em">
 </p>
+
+<p align="center">
+<img src="images/multi-model-small-v2.png" width="650em">
+</p>
+
 <h3 align="center">
 Unified prompt, evaluation, and production integration to any large model
 </h3>
