@@ -1,6 +1,6 @@
 
 # Intelligent Node (IntelliNode)
-### Unified prompt, evaluation, and production integration to any large model
+### Unified prompt, evaluation, and production integration to any AI model
 
 
 <p>
