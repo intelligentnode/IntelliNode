@@ -1,5 +1,7 @@
 
 # Intelligent Node (IntelliNode)
+### Unified prompt, evaluation, and production integration to any large model
+
 
 <p>
 
@@ -8,7 +10,7 @@
 </a>
 
 
-<a href="https://discord.gg/R32P7jkA" alt="discord invite" target="_blank">
+<a href="https://discord.gg/VYgCh2p3Ww" alt="discord invite" target="_blank">
     <img src="https://img.shields.io/badge/Discord-Community-light?style=flat-square" />
 </a>
 

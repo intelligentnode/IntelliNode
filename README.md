@@ -26,7 +26,7 @@ Unified prompt, evaluation, and production integration to any large model
 </a>
 
 
-<a href="https://discord.gg/n33N2ZGw" alt="licenses tag">
+<a href="https://discord.gg/VYgCh2p3Ww" alt="licenses tag">
     <img src="https://img.shields.io/badge/Discord-Community-light?style=flat-square" />
 </a>
 
