@@ -23,11 +23,10 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - Add Gen function, the fastest way to generate text, speech, web pages or images. :bullettrain_side:
 - Update stable diffusion to use XL model engine.
 - Add support for hugging face inference.
-- Update chatGPT to support function calls, empowering automation.
 - Generate prompt using LLM.
 - Add support for huge data memory semantic search using `SemanticSearchPaging`.
 
-Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support. 
+Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
 # Examples
 ## Functions
@@ -184,7 +183,7 @@ Check the code to access the chatbot through a proxy: [proxy chatbot](https://gi
 - [Showcase](https://show.intellinode.ai/): Experience the potential of Intellinode in action, and use your keys to generate content and html pages.
 - [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Explore a code sample with detailed setup documentation to get started with Intellinode.
 - [Model Evaluation](https://github.com/Barqawiz/IntelliNode/wiki/Model-Evaluation): Demonstrate a swift approach to compare the performance of multiple models against designated target answers.
-- [Articles](https://www.intellinode.ai/articles): Tutorials and articles about intelliNode and data science topics. 
+- [Articles](https://www.intellinode.ai/articles): Tutorials and articles about intelliNode and data science topics.
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models
