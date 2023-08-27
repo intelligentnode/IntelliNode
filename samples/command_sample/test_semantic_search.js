@@ -7,7 +7,7 @@ async function callSemanticSearch(apiKey, provider) {
   const pivotItem = 'Hello from OpenAI!';
   const searchArray = ['Greetings from OpenAI!', 'Bonjour de OpenAI!', 'Hola desde OpenAI!'];
   const numberOfMatches = 2;
-  console.log('print semantic search: ', SemanticSearch)
+  
   const search = new SemanticSearch(apiKey, provider);
 
   const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatches);
@@ -16,6 +16,13 @@ async function callSemanticSearch(apiKey, provider) {
 }
 
 (async () => {
-  // Test the search using OpenAI
+  
+  // Test the search using openAI
+  console.log('### Openai semantic search ###')
   await callSemanticSearch(process.env.OPENAI_API_KEY, 'openai');
+
+  // Test the search using cohere
+  console.log('\n### Cohere semantic search ###')
+  await callSemanticSearch(process.env.COHERE_API_KEY, 'cohere');
+
 })();

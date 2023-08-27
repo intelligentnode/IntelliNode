@@ -121,25 +121,6 @@ async function testReplicateLLamaCase1() {
   }
 }
 
-
-async function testReplicateLLamaCase2() {
-  try {
-    console.log('\nLLama test case 2: \n')
-    const input = new LLamaReplicateInput("you are helpful assistant!");
-    input.addUserMessage("Explain the plot of the Inception movie");
-    input.addAssistantMessage("The plot of the movie Inception follows a skilled thief who enters people's dreams to steal their secrets and is tasked with implanting an idea into a target's mind to alter their future actions.");
-    input.addUserMessage("Explain the plot of the dark night movie");
-
-    const responses = await replicateBot.chat(input);
-
-    responses.forEach((response) => console.log("- " + response));
-
-    assert(responses.length > 0, "testReplicateLLamaCase1 response length should be greater than 0");
-  } catch (error) {
-    console.error("Test case failed with exception:", error.message);
-  }
-}
-
 async function testSageMakerLLamaCase() {
     try {
     console.log('\nLLama sagemaker test case 1: \n')
@@ -161,6 +142,23 @@ async function testSageMakerLLamaCase() {
 
 }
 
+async function testReplicateLLamaCase3() {
+  try {
+    console.log('\nLLama test case 3: \n')
+    const input = new LLamaReplicateInput("you are helpful coding assistant!",
+                                          {model: '34b-code'});
+    input.addUserMessage("how to develop micro service using node js");
+
+    const responses = await replicateBot.chat(input);
+
+    responses.forEach((response) => console.log("- " + response));
+
+    assert(responses.length > 0, "testReplicateLLamaCase1 response length should be greater than 0");
+  } catch (error) {
+    console.error("Test case failed with exception:", error.message);
+  }
+}
+
 (async () => {
   console.log('### Openai model ###')
   await testOpenaiChatGPTCase1();
@@ -170,8 +168,9 @@ async function testSageMakerLLamaCase() {
   console.log('### Replicate llama model ###')
   await testReplicateLLamaCase1();
   await testReplicateLLamaCase2();
+  await testReplicateLLamaCase3();
 
   console.log('### SageMaker llama model ###')
-  await testSageMakerLLamaCase();
+  //await testSageMakerLLamaCase();
 
 })();

@@ -27,7 +27,7 @@ class ReplicateWrapper {
     });
   }
 
-  async predict(modelVersion, inputData) {
+  async predict(modelTag, inputData) {
     const url = config.getProperty('url.replicate.predictions');
     const data = inputData;
 

@@ -18,6 +18,7 @@ class SemanticSearch {
   }
 
   async getTopMatches(pivotItem, searchArray, numberOfMatches) {
+
       if (numberOfMatches > searchArray.length) {
         throw new Error('numberOfMatches should not be greater than the searchArray');
       }

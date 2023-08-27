@@ -1,6 +1,6 @@
 {
   "name": "intellinode",
-  "version": "1.3.4",
+  "version": "1.3.7",
   "description": "Access various AI models, such as ChatGPT, Llama, Diffusion, Cohere, WaveNet, and others",
   "main": "index.js",
   "keywords": [
@@ -17,7 +17,7 @@
     "prompt",
     "automation"
   ],
-  "author": "Intellinode",
+  "author": "IntelliNode",
   "license": "Apache",
   "repository": {
     "type": "git",
