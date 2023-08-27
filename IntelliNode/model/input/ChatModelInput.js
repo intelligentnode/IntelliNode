@@ -175,6 +175,11 @@ class LLamaReplicateInput extends ChatLLamaInput {
     options.model = options.model || config.getProperty('models.replicate.llama.13b');
     options.version = options.version;
     super(systemMessage, options);
+    this.top_k = options.top_k || null;
+    this.top_p = options.top_p || null;
+    this.min_new_tokens = options.min_new_tokens || null;
+    this.system_prompt = options.system_prompt || null;
+    this.repetition_penalty = options.repetition_penalty || null;
   }
 
   getChatInput() {
@@ -183,21 +188,26 @@ class LLamaReplicateInput extends ChatLLamaInput {
         this.version = config.getProperty(`models.replicate.llama.${this.model}-version`);
     }
 
-    return {
+    var myData = {
       model: this.model,
       inputData: {
           version: this.version,
           input: {
             prompt: this.prompt,
-            system_prompt: this.system_prompt,
             max_new_tokens: this.max_new_tokens,
             temperature: this.temperature,
-            top_p: this.top_p,
-            repetition_penalty: this.repetition_penalty,
             debug: this.debug
           }
       }
     };
+
+    if (this.top_k) myData.input.top_k = this.top_k;
+    if (this.top_p) myData.input.top_p = this.top_p;
+    if (this.system_prompt) myData.input.system_prompt = this.system_prompt;
+    if (this.min_new_tokens) myData.input.min_new_tokens = this.min_new_tokens;
+    if (this.repetition_penalty) myData.input.repetition_penalty = this.repetition_penalty;
+
+    return myData;
   }
 }
 

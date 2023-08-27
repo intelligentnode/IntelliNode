@@ -50,13 +50,13 @@ async function testReplicateLLamaCoder() {
     const version = config.getProperty('models.replicate.llama.34b-python-version');
     const inputData = { version: version,
                 input: { prompt: '# function that adds 2 number inputs.',
-                        system_prompt: 'response with code',
-                        max_new_tokens: 256,
+                        max_new_tokens: 128,
                         top_k: 50,
-                        top_p: 0.9
-                        temperature: 0.75,
+                        top_p: 0.9,
+                        temperature: 0.1,
                         min_new_tokens: -1,
-                        debug: false } };
+                        debug: false,
+                         stop_sequences: '<end>'} };
 
     const prediction = await replicateWrapper.predict(modelName, inputData);
 
@@ -84,7 +84,7 @@ async function testReplicateLLamaCoder() {
 
 (async () => {
   // test LLama v2 from Replicate host
-  // await testReplicateWrapperLLama();
+  await testReplicateWrapperLLama();
 
   // test LLama v2 coder
   await testReplicateLLamaCoder();
