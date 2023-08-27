@@ -201,7 +201,7 @@ HUGGING_API_KEY=<key_value>
 - [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki): Check the wiki page for indepeth instructions and practical use cases.
 - [Showcase](https://show.intellinode.ai/): Experience the potential of Intellinode in action, and use your keys to generate content and html pages.
 - [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Explore a code sample with detailed setup documentation to get started with Intellinode.
-- [Model Evaluation](https://github.com/Barqawiz/IntelliNode/wiki/Model-Evaluation): Demonstrate a swift approach to compare the performance of multiple models against designated target answers.
+- [Model Evaluation](https://www.intellinode.ai/articles/automate-evaluating-language-models): Demonstrate a swift approach to compare the performance of multiple models against designated target answers.
 
 # Pillars
 The module foundation:
