@@ -25,7 +25,7 @@ The Llama model is made available by several hosting services, and Replicate is 
 
 ## Samples Execution
 
-1. E-commerce sample to generate products description and images:
+1. E-commerce sample to product descriptions description and images:
 `node ecommerce_tool.js`
 
 2. Language model using openai and cohere:
@@ -46,22 +46,25 @@ The Llama model is made available by several hosting services, and Replicate is 
 7. Semantic search:
 `node test_semantic_search.js`
 
-8. Text analyzer (summary & sentiment analysis):
+8. Semantic search pagination to work with huge data:
+`node test_semantic_search.js`
+
+9. Text analyzer (summary & sentiment analysis):
 `node test_text_analyzer.js`
 
-9. Huggingface simplified inference access:
+10. Huggingface simplified inference access:
 `node test_hugging_face.js`
 
-10. Azure openai sample
+11. Azure openai sample
 `node test_azure_chatbot.js <resource_name> <deployment_name>`
 
-11. Automation sample using the chatbot function call:
+12. Automation sample using the chatbot code call, it works by providing the model with your function details, and it decides to execute the code based on the user conversation:
 `node automate_s3_bucket.js`
 
-12. Llama V2 chatbot:
+13. Llama V2 chatbot:
 `node test_llama_chatbot.js`
 
-13. LLM evaluator to compare models like chatGPT, Cohere, and Llama:
+14. LLM evaluator to compare models like chatGPT, Cohere, and Llama:
 `node test_llm_evaluation.test.js`
 
 

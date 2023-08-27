@@ -56,7 +56,7 @@ async function testReplicateLLamaCoder() {
                         temperature: 0.1,
                         min_new_tokens: -1,
                         debug: false,
-                         stop_sequences: '<end>'} };
+                        stop_sequences: '<end>'} };
 
     const prediction = await replicateWrapper.predict(modelName, inputData);
 

@@ -6,6 +6,7 @@ const { RemoteEmbedModel, SupportedEmbedModels } = require('./controller/RemoteE
 // functions
 const { Chatbot, SupportedChatModels } = require('./function/Chatbot');
 const { SemanticSearch } = require('./function/SemanticSearch');
+const { SemanticSearchPaging } = require('./function/SemanticSearchPaging');
 const { TextAnalyzer } = require('./function/TextAnalyzer');
 const { Gen } = require('./function/Gen');
 
@@ -72,5 +73,6 @@ module.exports = {
   AWSEndpointWrapper,
   Prompt,
   LLamaSageInput,
-  LLMEvaluation
+  LLMEvaluation,
+  SemanticSearchPaging
 };

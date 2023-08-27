@@ -201,11 +201,11 @@ class LLamaReplicateInput extends ChatLLamaInput {
       }
     };
 
-    if (this.top_k) myData.input.top_k = this.top_k;
-    if (this.top_p) myData.input.top_p = this.top_p;
-    if (this.system_prompt) myData.input.system_prompt = this.system_prompt;
-    if (this.min_new_tokens) myData.input.min_new_tokens = this.min_new_tokens;
-    if (this.repetition_penalty) myData.input.repetition_penalty = this.repetition_penalty;
+    if (this.top_k) myData.inputData.input.top_k = this.top_k;
+    if (this.top_p) myData.inputData.input.top_p = this.top_p;
+    if (this.system_prompt) myData.inputData.input.system_prompt = this.system_prompt;
+    if (this.min_new_tokens) myData.inputData.input.min_new_tokens = this.min_new_tokens;
+    if (this.repetition_penalty) myData.inputData.input.repetition_penalty = this.repetition_penalty;
 
     return myData;
   }
