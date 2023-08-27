@@ -42,7 +42,51 @@ async function testReplicateWrapperLLama() {
   }
 }
 
+
+async function testReplicateLLamaCoder() {
+  try {
+
+    const modelName = config.getProperty('models.replicate.llama.34b-python');
+    const version = config.getProperty('models.replicate.llama.34b-python-version');
+    const inputData = { version: version,
+                input: { prompt: '# function that adds 2 number inputs.',
+                        system_prompt: 'response with code',
+                        max_new_tokens: 256,
+                        top_k: 50,
+                        top_p: 0.9
+                        temperature: 0.75,
+                        min_new_tokens: -1,
+                        debug: false } };
+
+    const prediction = await replicateWrapper.predict(modelName, inputData);
+
+    // check for the response every second
+    const poll = setInterval(async () => {
+      const status = await replicateWrapper.getPredictionStatus(prediction.id);
+
+      console.log('the current status: ', status.status)
+
+      if (status.status === 'succeeded' || status.status === 'failed') {
+        clearInterval(poll); // stop polling if prediction has completed or failed
+
+        if (status.status === 'succeeded') {
+          console.log('LLama Predict Result:', status.output.join(''));
+        } else {
+          console.error('LLama Prediction Failed:', status.error);
+        }
+      }
+    }, 1000);
+
+  } catch (error) {
+    console.error('LLama Error:', error);
+  }
+}
+
 (async () => {
   // test LLama v2 from Replicate host
-  await testReplicateWrapperLLama();
+  // await testReplicateWrapperLLama();
+
+  // test LLama v2 coder
+  await testReplicateLLamaCoder();
+
 })();

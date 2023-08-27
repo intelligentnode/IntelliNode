@@ -50,8 +50,12 @@
         "13b": "13b-chat",
         "70b-chat": "70b-chat",
         "13b-chat": "13b-chat",
+        "34b-code": "34b-code",
+        "34b-python": "34b-python",
         "70b-chat-version": "2d19859030ff705a87c746f7e96eea03aefb71f166725aee39692f1476566d48",
-        "13b-chat-version": "d5da4236b006f967ceb7da037be9cfc3924b20d21fed88e1e94f19d56e2d3111"
+        "13b-chat-version": "d5da4236b006f967ceb7da037be9cfc3924b20d21fed88e1e94f19d56e2d3111",
+        "34b-code-version": "0666717e5ead8557dff55ee8f11924b5c0309f5f1ca52f64bb8eec405fdb38a7",
+        "34b-python-version": "9048743d22a7b19cd0abb018066809ea6af4f2b4717bef9aad3c5ae21ceac00d"
       }
     }
   }
