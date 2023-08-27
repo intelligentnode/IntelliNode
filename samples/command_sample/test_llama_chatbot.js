@@ -60,7 +60,7 @@ async function callSageMakerChatbot(apiKey, provider, url) {
 (async () => {
   // Test chatbot using Llama
   console.log('### execute the llama chatbot ###')
-  // await callReplicaChatbot(process.env.REPLICATE_API_KEY, SupportedChatModels.REPLICATE);
+  await callReplicaChatbot(process.env.REPLICATE_API_KEY, SupportedChatModels.REPLICATE);
 
   // Test chatbot using Llama codeer
   console.log('\n### execute the llama-code chatbot ###')
