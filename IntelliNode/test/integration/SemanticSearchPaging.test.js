@@ -33,6 +33,6 @@ async function addToSessionAndTest(semanticSearch, newSearchItems) {
   openaiSemanticSearch.clean();
 
   // semantic search with cohere embedding
-  // await addToSessionAndTest(cohereSemanticSearch,  ['Greetings from IntelliNode!', 'Bonjour de IntelliNode!']);
-  // await addToSessionAndTest(cohereSemanticSearch, ['Hola desde IntelliNode!', 'Saluti da IntelliNode!']);
+  await addToSessionAndTest(cohereSemanticSearch,  ['Greetings from IntelliNode!', 'Bonjour de IntelliNode!']);
+  await addToSessionAndTest(cohereSemanticSearch, ['Hola desde IntelliNode!', 'Saluti da IntelliNode!']);
 })();
