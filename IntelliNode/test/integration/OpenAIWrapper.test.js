@@ -1,7 +1,8 @@
 require('dotenv').config();
 const assert = require('assert');
+const FormData = require("form-data");
 const OpenAIWrapper = require('../../wrappers/OpenAIWrapper');
-const proxyHelper = require('../../utils/ProxyHelper').getInstance();
+const { createReadStream } = require('fs');
 
 const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
 
@@ -63,6 +64,22 @@ async function testImageModel() {
   }
 }
 
+async function testSpeechToText() {
+  try {
+    const audioFilePath =  'samples/audios/audio-one.mp3'
+    const form = new FormData();
+    form.append('file', createReadStream(audioFilePath));
+    form.append('model', 'whisper-1');
+
+    const result = await openAI.speechToText(form);
+    const responseUrl = result['data'][0]['url'].trim();
+    console.log('Image Model Result:\n', responseUrl, '\n');
+    assert(responseUrl.length > 0, 'testImageModel response length should be greater than 0');
+  } catch (error) {
+    console.error('Image Model Error:', error);
+  }
+}
+
 async function testEmbeddings() {
   try {
     const params = {
@@ -84,4 +101,5 @@ async function testEmbeddings() {
   await testChatGPT();
   await testImageModel();
   await testEmbeddings();
+  await testSpeechToText();
 })();

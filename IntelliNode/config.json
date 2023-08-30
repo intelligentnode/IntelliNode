@@ -5,14 +5,16 @@
       "completions": "/v1/completions",
       "chatgpt": "/v1/chat/completions",
       "imagegenerate": "/v1/images/generations",
-      "embeddings": "/v1/embeddings"
+      "embeddings": "/v1/embeddings",
+      "audiotranscriptions": "/v1/audio/transcriptions"
     },
     "azure_openai": {
       "base": "https://{resource-name}.openai.azure.com/openai",
       "completions": "/deployments/{deployment-id}/completions?api-version={api-version}",
       "chatgpt": "/deployments/{deployment-id}/chat/completions?api-version={api-version}",
       "imagegenerate": "/images/generations:submit?api-version={api-version}",
-      "embeddings": "/deployments/{deployment-id}/embeddings?api-version={api-version}"
+      "embeddings": "/deployments/{deployment-id}/embeddings?api-version={api-version}",
+      "audiotranscriptions": "/deployments/{deployment-id}/audio/transcriptions?api-version={api-version}"
     },
     "cohere": {
       "base": "https://api.cohere.ai",
