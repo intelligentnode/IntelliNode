@@ -111,6 +111,7 @@ class ProxyHelper {
     this._openaiImage = config.getProperty('url.openai.imagegenerate');
     this._openaiEmbed = config.getProperty('url.openai.embeddings');
     this._openaiOrg = config.getProperty('url.openai.organization');
+    this._openaiAudioTranscriptions = config.getProperty('url.openai.audiotranscriptions');
     this._openai_type = 'openai';
     this._resourceName = '';
   }

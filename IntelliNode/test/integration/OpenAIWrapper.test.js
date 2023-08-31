@@ -66,13 +66,15 @@ async function testImageModel() {
 
 async function testSpeechToText() {
   try {
-    const audioFilePath =  'samples/audios/audio-one.mp3'
+    const audioFilePath =  'audios/audio-one.mp3'
     const form = new FormData();
     form.append('file', createReadStream(audioFilePath));
     form.append('model', 'whisper-1');
 
-    const result = await openAI.speechToText(form);
-    const responseUrl = result['data'][0]['url'].trim();
+    const result = await openAI.speechToText(form, {
+      ...form.getHeaders()
+    });
+    const responseUrl = result.text;
     console.log('Image Model Result:\n', responseUrl, '\n');
     assert(responseUrl.length > 0, 'testImageModel response length should be greater than 0');
   } catch (error) {

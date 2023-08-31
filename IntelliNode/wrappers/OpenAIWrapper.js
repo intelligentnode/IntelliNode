@@ -123,10 +123,16 @@ class OpenAIWrapper {
     }
   }
 
-  async speechToText(params) {
+  async speechToText(params, headers) {
     const url = this.proxyHelper.getOpenaiAudioTranscriptions();
     try {
-      const response = await this.httpClient.post(url, params);
+      const config = {
+        method: 'post',
+        url,
+        headers,
+        data: params
+      }
+      const response = await this.httpClient.request(config);
       return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
