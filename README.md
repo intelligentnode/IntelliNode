@@ -4,12 +4,12 @@
 </p> -->
 
 <p align="center">
-<img src="images/intelligent_node_header.png" width="400em">
-</p>
+<img src="images/intellinode_new_header.png" width="400em">
+</p> 
 
-<p align="center">
+<!--  <p align="center">
 <img src="images/multi-model-small-v2.png" width="650em">
-</p>
+</p> -->
 
 <h3 align="center">
 Unified prompt, evaluation, and production integration to any large model
@@ -52,16 +52,16 @@ const { Gen } = require('intellinode');
 ```
 call:
 ```js
-// one line to generate html page code
+// one line to generate html page code (using openai)
 text = 'a registration page with flat modern theme.'
 await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
 ```js
-// or generate blog post
+// or generate blog post (using cohere)
 const blogPost = await Gen.get_blog_post(prompt, apiKey, provider='cohere');
 ```
 
-### Chatbot (chatGPT)
+### Chatbot
 import:
 ```js
 const { Chatbot, ChatGPTInput } = require('intellinode');
@@ -75,7 +75,7 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 // get the responses from the chatbot
 const responses = await chatbot.chat(input);
 ```
-The documentation on how to switch the chatbot between ChatGPT and LLama in this [wiki page](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+The documentation on how to switch the chatbot between **ChatGPT** and **LLama** in this [wiki page](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
 
 ### Semantic search
 import:
@@ -202,6 +202,7 @@ HUGGING_API_KEY=<key_value>
 - [Showcase](https://show.intellinode.ai/): Experience the potential of Intellinode in action, and use your keys to generate content and html pages.
 - [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Explore a code sample with detailed setup documentation to get started with Intellinode.
 - [Model Evaluation](https://www.intellinode.ai/articles/automate-evaluating-language-models): Demonstrate a swift approach to compare the performance of multiple models against designated target answers.
+- [Semantic Search](https://github.com/intelligentnode/IntelliNode/wiki/Semantic-Search): In-memory semantic search with iterator over large data.
 
 # Pillars
 The module foundation:
