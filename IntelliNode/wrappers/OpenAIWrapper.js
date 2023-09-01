@@ -122,6 +122,22 @@ class OpenAIWrapper {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
+
+  async speechToText(params, headers) {
+    const url = this.proxyHelper.getOpenaiAudioTranscriptions();
+    try {
+      const config = {
+        method: 'post',
+        url,
+        headers,
+        data: params
+      }
+      const response = await this.httpClient.request(config);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
 }
 
 module.exports = OpenAIWrapper;

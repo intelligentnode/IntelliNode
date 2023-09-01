@@ -40,6 +40,14 @@ class ProxyHelper {
         return this._openaiImage;
     }
   }
+  
+  getOpenaiAudioTranscriptions() {
+    if (this._openai_type == 'azure') {
+        return this._openaiAudioTranscriptions.replace('{api-version}', '2023-06-01-preview');
+    } else {
+        return this._openaiAudioTranscriptions;
+    }
+  }
 
   getOpenaiEmbed(model='') {
     if (this._openai_type == 'azure') {
@@ -77,6 +85,7 @@ class ProxyHelper {
     this._openaiImage = proxySettings.imagegenerate || config.getProperty('url.openai.imagegenerate');
     this._openaiEmbed = proxySettings.embeddings || config.getProperty('url.openai.embeddings');
     this._openaiOrg = proxySettings.organization || config.getProperty('url.openai.organization');
+    this._openaiAudioTranscriptions = proxySettings.audiotranscriptions || config.getProperty('url.openai.audiotranscriptions');
     this._openai_type = 'openai';
     this._resourceName = '';
   }
@@ -102,6 +111,7 @@ class ProxyHelper {
     this._openaiImage = config.getProperty('url.openai.imagegenerate');
     this._openaiEmbed = config.getProperty('url.openai.embeddings');
     this._openaiOrg = config.getProperty('url.openai.organization');
+    this._openaiAudioTranscriptions = config.getProperty('url.openai.audiotranscriptions');
     this._openai_type = 'openai';
     this._resourceName = '';
   }

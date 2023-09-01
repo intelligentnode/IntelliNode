@@ -9,7 +9,8 @@ const openaiProxyJson = {
   "completions":"/v1/completions",
   "chatgpt":"/v1/chat/completions",
   "imagegenerate":"/v1/images/generations",
-  "embeddings": "/v1/embeddings"
+  "embeddings": "/v1/embeddings",
+  "audiotranscriptions": "/v1/audio/transcriptions"
 }
 
 const proxyHelper = new ProxyHelper();
