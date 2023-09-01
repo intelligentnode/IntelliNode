@@ -139,8 +139,8 @@ class Chatbot {
 
     async _chatReplicateLLama(modelInput, debugMode) {
         let params;
-        const waitTime = 2000,
-            maxIterate = 100;
+        const waitTime = 2500,
+            maxIterate = 200;
         let iteration = 0;
 
         if (modelInput instanceof ChatModelInput) {

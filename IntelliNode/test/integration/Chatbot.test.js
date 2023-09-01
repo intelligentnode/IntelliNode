@@ -177,7 +177,6 @@ async function testStreamOpenaiChatGPTCase1() {
 
 (async () => {
 
-
   console.log('### Openai model ###')
   await testOpenaiChatGPTCase1();
   await testOpenaiChatGPTCase2();
