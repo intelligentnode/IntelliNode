@@ -92,7 +92,7 @@ async function testSpeechToText() {
       ...form.getHeaders()
     });
     const responseUrl = result.text;
-    console.log('Image Model Result:\n', responseUrl, '\n');
+    console.log('Speech Model Result:\n', responseUrl, '\n');
     assert(responseUrl.length > 0, 'testImageModel response length should be greater than 0');
   } catch (error) {
     console.error('Image Model Error:', error);
