@@ -8,6 +8,8 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('../wrappers/AWSEndpointWrapper');
+const GPTStreamParser = require('../utils/StreamParser');
+
 const {
     ChatGPTInput,
     ChatModelInput,
@@ -78,6 +80,38 @@ class Chatbot {
         }
     }
 
+    async *stream(modelInput) {
+        if (this.provider === SupportedChatModels.OPENAI) {
+            yield* this._chatGPTStream(modelInput);
+        } else {
+            throw new Error("The stream function support only chatGPT, for other providers use chat function.");
+        }
+    }
+
+    async *_chatGPTStream(modelInput) {
+        let params;
+
+        if (modelInput instanceof ChatModelInput) {
+            params = modelInput.getChatInput();
+            params.stream = true;
+        } else if (typeof modelInput === "object") {
+            params = modelInput;
+            params.stream = true;
+        } else {
+            throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
+        }
+
+        const streamParser = new GPTStreamParser();
+
+        const stream = await this.openaiWrapper.generateChatText(params);
+
+        // Collect data from the stream
+        for await (const chunk of stream) {
+            const chunkText = chunk.toString('utf8');
+            yield* streamParser.feed(chunkText);
+        }
+    }
+
     async _chatGPT(modelInput, functions = null, function_call = null) {
         let params;
 
@@ -105,8 +139,8 @@ class Chatbot {
 
     async _chatReplicateLLama(modelInput, debugMode) {
         let params;
-        const waitTime = 2000,
-            maxIterate = 100;
+        const waitTime = 2500,
+            maxIterate = 200;
         let iteration = 0;
 
         if (modelInput instanceof ChatModelInput) {
