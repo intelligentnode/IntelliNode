@@ -52,7 +52,7 @@ const { Gen } = require('intellinode');
 ```
 call:
 ```js
-// one line to generate html page code (using openai)
+// one line to generate html page code (openai gpt4 is default)
 text = 'a registration page with flat modern theme.'
 await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
@@ -215,17 +215,18 @@ The module foundation:
 Call for contributors:
 [registration form ](https://forms.gle/2JsEHAMaj2eMQHYc9).
 
-- [x] Add support to OpenAI Completion.
+- [x] Add support to OpenAI completion & GPT4.
 - [x] Add support to OpenAI DALL·E 2.
 - [ ] Add support to other OpenAI functions.
-- [x] Add support to cohere generate API.
+- [x] Add support to cohere generate models.
 - [ ] Add support to Google language models.
 - [x] Add support to Google speech models.
 - [x] Add support to LLaMa AWS private deployment.
+- [ ] Add support to Anthropic claude.
 - [ ] Add support to Midjourney image generation.
 - [x] Add support to Stable diffusion.
 - [x] Add support to hugging face inference.
-- [x] Add more high-level functions like semantic search, etc.
+- [x] Add more high-level functions like semantic search, evaluation, etc.
 
 
 # License
