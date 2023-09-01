@@ -93,7 +93,7 @@ async function testSpeechToText() {
     });
     const responseUrl = result.text;
     console.log('Speech Model Result:\n', responseUrl, '\n');
-    assert(responseUrl.length > 0, 'testImageModel response length should be greater than 0');
+    assert(responseUrl.length > 0, 'testSpeechToText response length should be greater than 0');
   } catch (error) {
     console.error('Image Model Error:', error);
   }
