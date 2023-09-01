@@ -101,9 +101,9 @@ async function testSpeechToText() {
 
 
 (async () => {
-  //await testLanguageModel();
-  //await testChatGPT();
-  //await testImageModel();
-  //await testEmbeddings();
+  await testLanguageModel();
+  await testChatGPT();
+  await testImageModel();
+  await testEmbeddings();
   await testSpeechToText();
 })();
