@@ -1,7 +1,7 @@
 {
   "name": "intellinode",
-  "version": "1.3.8",
-  "description": "Access various AI models, such as ChatGPT, Llama, Diffusion, Cohere, WaveNet, and others",
+  "version": "1.3.9",
+  "description": "Access various AI models, such as ChatGPT, Llama, Diffusion, Cohere, Hugging face, and others",
   "main": "index.js",
   "keywords": [
     "ai",
@@ -21,7 +21,7 @@
   "license": "Apache",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Barqawiz/IntelliNode.git"
+    "url": "https://github.com/intelligentnode/IntelliNode.git"
   },
   "scripts": {
     "test": "node test/unit/testRunner"
