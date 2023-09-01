@@ -125,27 +125,22 @@ async function testChatGPTStream() {
             stream: true
         };
 
-        // Example usage of your EventStreamParser
-        let responseChunks = ''
-        const streamParser = new GPTStreamParser((eventData) => {
-            //
-            const contentText = eventData.choices[0]?.delta?.content;
-            if (contentText) {
-                console.log('result chunk:', contentText);
-                responseChunks += contentText;
-            }
-        });
+        let responseChunks = '';
+        const streamParser = new GPTStreamParser();
 
         const stream = await openAI.generateChatText(params);
 
         // Collect data from the stream
         for await (const chunk of stream) {
             const chunkText = chunk.toString('utf8');
-            streamParser.feed(chunkText);
+            for await (const contentText of streamParser.feed(chunkText)) {
+                console.log('result chunk:', contentText);
+                responseChunks += contentText;
+            }
         }
 
         console.log('Concatenated text: ', responseChunks);
-         assert(responseChunks.length > 0, 'testChatGPTStream response length should be greater than 0');
+        assert(responseChunks.length > 0, 'testChatGPTStream response length should be greater than 0');
     } catch (error) {
         console.error('ChatGPTStream Error:', error);
     }

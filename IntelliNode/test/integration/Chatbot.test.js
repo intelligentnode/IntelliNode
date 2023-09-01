@@ -121,6 +121,23 @@ async function testReplicateLLamaCase1() {
   }
 }
 
+async function testReplicateLLamaCase2() {
+  try {
+    console.log('\nLLama test case 3: \n')
+    const input = new LLamaReplicateInput("you are helpful coding assistant!",
+                                          {model: '34b-code'});
+    input.addUserMessage("how to develop micro service using node js");
+
+    const responses = await replicateBot.chat(input);
+
+    responses.forEach((response) => console.log("- " + response));
+
+    assert(responses.length > 0, "testReplicateLLamaCase1 response length should be greater than 0");
+  } catch (error) {
+    console.error("Test case failed with exception:", error.message);
+  }
+}
+
 async function testSageMakerLLamaCase() {
     try {
     console.log('\nLLama sagemaker test case 1: \n')
@@ -142,33 +159,35 @@ async function testSageMakerLLamaCase() {
 
 }
 
-async function testReplicateLLamaCase3() {
-  try {
-    console.log('\nLLama test case 3: \n')
-    const input = new LLamaReplicateInput("you are helpful coding assistant!",
-                                          {model: '34b-code'});
-    input.addUserMessage("how to develop micro service using node js");
+async function testStreamOpenaiChatGPTCase1() {
+    console.log('\nchat test case 1: \n')
+    const mode = "You are a helpful astronomy assistant.";
+    const input = new ChatGPTInput(mode);
+    input.addUserMessage("what is the story if batman the dark night than 10 words");
 
-    const responses = await replicateBot.chat(input);
+    let fullText = '';
+    for await (const contentText of bot.stream(input)) {
+        fullText += contentText;
+        console.log('Received chunk:', contentText);
+    }
 
-    responses.forEach((response) => console.log("- " + response));
-
-    assert(responses.length > 0, "testReplicateLLamaCase1 response length should be greater than 0");
-  } catch (error) {
-    console.error("Test case failed with exception:", error.message);
-  }
+    console.log('full stream text: ', fullText)
+    assert(fullText.length > 0, "testStreamOpenaiChatGPTCase1 response length should be greater than 0");
 }
 
 (async () => {
+
+
   console.log('### Openai model ###')
   await testOpenaiChatGPTCase1();
   await testOpenaiChatGPTCase2();
   await testOpenaiChatGPTCase3();
+  // streaming
+  await testStreamOpenaiChatGPTCase1();
 
   console.log('### Replicate llama model ###')
   await testReplicateLLamaCase1();
   await testReplicateLLamaCase2();
-  await testReplicateLLamaCase3();
 
   console.log('### SageMaker llama model ###')
   //await testSageMakerLLamaCase();

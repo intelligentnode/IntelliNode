@@ -6,13 +6,12 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 class GPTStreamParser {
-    constructor(handler, isLog = false) {
-        this.handler = handler;
+    constructor(isLog = false) {
         this.buffer = '';
-        this.isLog = isLog;
+        this.isLog = false;
     }
 
-    feed(data) {
+    async *feed(data) {
         this.buffer += data;
 
         if (this.buffer.startsWith("data: [DONE]")) {
@@ -34,7 +33,10 @@ class GPTStreamParser {
             }
             // remove initial "data: " from rawData.
             const jsonData = JSON.parse(rawData.slice(6));
-            this.handler(jsonData);
+            const contentText = jsonData.choices[0]?.delta?.content;
+            if (contentText) {
+                yield contentText;
+            }
             this.buffer = this.buffer.slice(eventEndIndex + 2);
         }
     }
