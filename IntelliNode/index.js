@@ -34,7 +34,7 @@ const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
-GPTStreamParser = require('./utils/StreamParser');
+const GPTStreamParser = require('./utils/StreamParser');
 
 module.exports = {
   RemoteLanguageModel,

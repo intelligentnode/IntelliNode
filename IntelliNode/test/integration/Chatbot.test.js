@@ -163,7 +163,7 @@ async function testStreamOpenaiChatGPTCase1() {
     console.log('\nchat test case 1: \n')
     const mode = "You are a helpful astronomy assistant.";
     const input = new ChatGPTInput(mode);
-    input.addUserMessage("what is the story if batman the dark night than 10 words");
+    input.addUserMessage("what is the story of batman the dark night with less than 10 words");
 
     let fullText = '';
     for await (const contentText of bot.stream(input)) {

@@ -25,6 +25,7 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - Add support for hugging face inference.
 - Generate prompt using LLM.
 - Add support for huge data memory semantic search using `SemanticSearchPaging`.
+- Update the chatbot with `stream` function.
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
