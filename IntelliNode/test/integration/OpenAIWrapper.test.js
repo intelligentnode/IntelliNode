@@ -153,10 +153,10 @@ async function testChatGPTStream() {
 
 
 (async () => {
-    /*await testLanguageModel();
+    await testLanguageModel();
     await testChatGPT();
     await testImageModel();
     await testEmbeddings();
-    await testSpeechToText();*/
+    await testSpeechToText();
     await testChatGPTStream();
 })();
