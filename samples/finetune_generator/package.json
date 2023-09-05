@@ -1,0 +1,15 @@
+{
+  "devDependencies": {
+    "dotenv": "^16.3.1"
+  },
+  "name": "finetune_generator",
+  "version": "1.0.0",
+  "main": "fine_tune_tool.js",
+  "scripts": {
+    "dev" : "node fine_tune_tool.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
