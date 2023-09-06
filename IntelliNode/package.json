@@ -1,6 +1,6 @@
 {
   "name": "intellinode",
-  "version": "1.3.9",
+  "version": "1.4.0",
   "description": "Access various AI models, such as ChatGPT, Llama, Diffusion, Cohere, Hugging face, and others",
   "main": "index.js",
   "keywords": [
