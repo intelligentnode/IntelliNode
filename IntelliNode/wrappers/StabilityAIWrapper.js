@@ -9,15 +9,15 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
        http://www.apache.org/licenses/LICENSE-2.0
 */
-const axios = require("axios");
-const FormData = require("form-data");
-const fs = require("fs");
-const config = require("../utils/Config2").getInstance();
-const connHelper = require("../utils/ConnHelper");
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs');
+const config = require('../config.json');
+const connHelper = require('../utils/ConnHelper');
 
 class StabilityAIWrapper {
   constructor(apiKey) {
-    this.API_BASE_URL = config.getProperty("url.stability.base");
+    this.API_BASE_URL = config.url.stability.base;
     this.API_KEY = apiKey;
     this.httpClient = axios.create({
       baseURL: this.API_BASE_URL,
@@ -27,13 +27,19 @@ class StabilityAIWrapper {
     });
   }
 
-  async generateTextToImage(params, engine = "stable-diffusion-xl-beta-v2-2-2") {
-    const url = config.getProperty("url.stability.text_to_image").replace("{1}", engine);
+  async generateTextToImage(
+    params,
+    engine = 'stable-diffusion-xl-beta-v2-2-2'
+  ) {
+    const url = config.url.stability.text_to_image.replace(
+      '{1}',
+      engine
+    );
     try {
       const response = await this.httpClient.post(url, params, {
         headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
       });
       return response.data;
@@ -42,18 +48,23 @@ class StabilityAIWrapper {
     }
   }
 
-  async upscaleImage(imagePath, width, height, engine = "esrgan-v1-x2plus") {
-    const url = config.getProperty("url.stability.upscale").replace("{1}", engine);
+  async upscaleImage(
+    imagePath,
+    width,
+    height,
+    engine = 'esrgan-v1-x2plus'
+  ) {
+    const url = config.url.stability.upscale.replace('{1}', engine);
     const formData = new FormData();
-    formData.append("image", fs.createReadStream(imagePath));
-    formData.append("width", width);
-    formData.append("height", height);
+    formData.append('image', fs.createReadStream(imagePath));
+    formData.append('width', width);
+    formData.append('height', height);
 
     try {
       const response = await this.httpClient.post(url, formData, {
         headers: {
           ...formData.getHeaders(),
-          Accept: "image/png",
+          Accept: 'image/png',
         },
       });
       return response.data;
@@ -80,37 +91,48 @@ class StabilityAIWrapper {
    * @returns {Promise<object>} the generated image data.
    * @throws {Error} if there is an error during the request.
    */
-  async generateImageToImage(params, engine = "stable-diffusion-xl-beta-v2-2-2") {
-      const url = config
-        .getProperty("url.stability.image_to_image")
-        .replace("{1}", engine);
-      const formData = new FormData();
-      params.text_prompts.forEach((prompt, index) => {
-        formData.append(`text_prompts[${index}][text]`, prompt.text);
-        formData.append(`text_prompts[${index}][weight]`, prompt.weight);
-      });
-      formData.append("init_image", fs.readFileSync(params.imagePath), {
-        filename: params.imagePath.split('/').pop(),
-        contentType: "image/png",
-      });
-      Object.keys(params).forEach((key) => {
-        if (key !== "text_prompts" && key !== "init_image" && key !== "imagePath") {
-          formData.append(key, params[key]);
-        }
-      });
-
-      try {
-        const response = await this.httpClient.post(url, formData, {
-          headers: {
-            ...formData.getHeaders(),
-            Accept: "application/json",
-          },
-        });
-        return response.data;
-      } catch (error) {
-        throw new Error(connHelper.getErrorMessage(error));
+  async generateImageToImage(
+    params,
+    engine = 'stable-diffusion-xl-beta-v2-2-2'
+  ) {
+    const url = config.url.stability.image_to_image.replace(
+      '{1}',
+      engine
+    );
+    const formData = new FormData();
+    params.text_prompts.forEach((prompt, index) => {
+      formData.append(`text_prompts[${index}][text]`, prompt.text);
+      formData.append(
+        `text_prompts[${index}][weight]`,
+        prompt.weight
+      );
+    });
+    formData.append('init_image', fs.readFileSync(params.imagePath), {
+      filename: params.imagePath.split('/').pop(),
+      contentType: 'image/png',
+    });
+    Object.keys(params).forEach((key) => {
+      if (
+        key !== 'text_prompts' &&
+        key !== 'init_image' &&
+        key !== 'imagePath'
+      ) {
+        formData.append(key, params[key]);
       }
+    });
+
+    try {
+      const response = await this.httpClient.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          Accept: 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
     }
+  }
 }
 
 module.exports = StabilityAIWrapper;

@@ -1,17 +1,24 @@
 const assert = require('assert');
 const CohereAIWrapper = require('../../wrappers/CohereAIWrapper');
-const config = require('../../utils/Config2').getInstance();
+const config = require('../../config.json');
 
 function testCohereAIWrapper() {
   const apiKey = 'your-api-key';
   const cohereAIWrapper = new CohereAIWrapper(apiKey);
 
-  assert.strictEqual(cohereAIWrapper.API_KEY, apiKey, 'API key should be set');
-  assert.ok(cohereAIWrapper.httpClient, 'httpClient should be created');
+  assert.strictEqual(
+    cohereAIWrapper.API_KEY,
+    apiKey,
+    'API key should be set'
+  );
+  assert.ok(
+    cohereAIWrapper.httpClient,
+    'httpClient should be created'
+  );
 
   // Test httpClient configuration
-  const expectedBaseURL = config.getProperty('url.cohere.base');
-  const expectedCohereVersion = config.getProperty('url.cohere.version');
+  const expectedBaseURL = config.url.cohere.base;
+  const expectedCohereVersion = config.url.cohere.version;
   const expectedContentType = 'application/json';
   const expectedAuthHeader = `Bearer ${apiKey}`;
 

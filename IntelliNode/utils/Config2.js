@@ -8,6 +8,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const fs = require('fs');
 const path = require('path');
 
+// WARNING: This file is deprecated
 class Config2 {
   constructor() {
     const configPath = path.join(__dirname, '..', 'config.json');

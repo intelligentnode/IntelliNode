@@ -10,18 +10,18 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
        http://www.apache.org/licenses/LICENSE-2.0
 */
 const axios = require('axios');
-const config = require('../utils/Config2').getInstance();
+const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 
 class HuggingWrapper {
   constructor(apiKey) {
-    this.API_BASE_URL = config.getProperty('url.huggingface.base');
+    this.API_BASE_URL = config.url.huggingface.base;
     this.API_KEY = apiKey;
     this.httpClient = axios.create({
       baseURL: this.API_BASE_URL,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.API_KEY}`,
+        Authorization: `Bearer ${this.API_KEY}`,
       },
     });
   }
@@ -39,7 +39,9 @@ class HuggingWrapper {
   async generateImage(modelId, data) {
     const url = `/${modelId}`;
     try {
-      const response = await this.httpClient.post(url, data, { responseType: 'arraybuffer' });
+      const response = await this.httpClient.post(url, data, {
+        responseType: 'arraybuffer',
+      });
       return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
@@ -49,7 +51,9 @@ class HuggingWrapper {
   async processImage(modelId, data) {
     const url = `/${modelId}`;
     try {
-      const response = await this.httpClient.post(url, data, { responseType: 'arraybuffer' });
+      const response = await this.httpClient.post(url, data, {
+        responseType: 'arraybuffer',
+      });
       return JSON.parse(response.data.toString());
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));

@@ -6,14 +6,15 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 const axios = require('axios');
-const config = require('../utils/Config2').getInstance();
+const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 
 class GoogleAIWrapper {
   constructor(apiKey) {
-    this.API_SPEECH_URL = config
-      .getProperty('url.google.base')
-      .replace('{1}', config.getProperty('url.google.speech.prefix'));
+    this.API_SPEECH_URL = config.url.google.base.replace(
+      '{1}',
+      config.url.google.speech.prefix
+    );
     this.API_KEY = apiKey;
     this.httpClient = axios.create({
       baseURL: this.API_SPEECH_URL,
@@ -25,8 +26,10 @@ class GoogleAIWrapper {
   }
 
   async generateSpeech(params) {
-    const url = this.API_SPEECH_URL + config.getProperty('url.google.speech.synthesize.postfix');
-    
+    const url =
+      this.API_SPEECH_URL +
+      config.url.google.speech.synthesize.postfix;
+
     const json = this.getSynthesizeInput(params);
 
     try {
