@@ -1,18 +1,26 @@
 const assert = require('assert');
 const GoogleAIWrapper = require('../../wrappers/GoogleAIWrapper');
-const config = require('../../utils/Config2').getInstance();
+const config = require('../../config.json');
 
 function testGoogleAIWrapper() {
   const apiKey = 'your-api-key';
   const googleAIWrapper = new GoogleAIWrapper(apiKey);
 
-  assert.strictEqual(googleAIWrapper.API_KEY, apiKey, 'API key should be set');
-  assert.ok(googleAIWrapper.httpClient, 'httpClient should be created');
+  assert.strictEqual(
+    googleAIWrapper.API_KEY,
+    apiKey,
+    'API key should be set'
+  );
+  assert.ok(
+    googleAIWrapper.httpClient,
+    'httpClient should be created'
+  );
 
   // Test httpClient configuration
-  const expectedBaseURL = config
-    .getProperty('url.google.base')
-    .replace('{1}', config.getProperty('url.google.speech.prefix'));
+  const expectedBaseURL = config.url.google.base.replace(
+    '{1}',
+    config.url.google.speech.prefix
+  );
   const expectedContentType = 'application/json; charset=utf-8';
 
   assert.strictEqual(

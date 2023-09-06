@@ -1,16 +1,23 @@
 const assert = require('assert');
 const StabilityAIWrapper = require('../../wrappers/StabilityAIWrapper');
-const config = require('../../utils/Config2').getInstance();
+const config = require('../../config.json');
 
 function testStabilityAIWrapper() {
   const apiKey = 'your-api-key';
   const stabilityAIWrapper = new StabilityAIWrapper(apiKey);
 
-  assert.strictEqual(stabilityAIWrapper.API_KEY, apiKey, 'API key should be set');
-  assert.ok(stabilityAIWrapper.httpClient, 'httpClient should be created');
+  assert.strictEqual(
+    stabilityAIWrapper.API_KEY,
+    apiKey,
+    'API key should be set'
+  );
+  assert.ok(
+    stabilityAIWrapper.httpClient,
+    'httpClient should be created'
+  );
 
   // Test httpClient configuration
-  const expectedBaseURL = config.getProperty('url.stability.base');
+  const expectedBaseURL = config.url.stability.base;
   const expectedAuthHeader = `Bearer ${apiKey}`;
 
   assert.strictEqual(

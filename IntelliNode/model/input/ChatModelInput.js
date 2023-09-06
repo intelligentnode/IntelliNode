@@ -5,7 +5,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
-const config = require('../../utils/Config2').getInstance();
+const config = require('../../config.json');
 
 class ChatGPTMessage {
   constructor(content, role, name = null) {
@@ -15,27 +15,32 @@ class ChatGPTMessage {
   }
 
   isSystemRole() {
-    return this.role === "system";
+    return this.role === 'system';
   }
 }
 
 class ChatModelInput {
-    getChatInput() {return null}
+  getChatInput() {
+    return null;
+  }
 }
 
 class ChatGPTInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super();
-    if (systemMessage instanceof ChatGPTMessage && systemMessage.isSystemRole()) {
+    if (
+      systemMessage instanceof ChatGPTMessage &&
+      systemMessage.isSystemRole()
+    ) {
       this.messages = [systemMessage];
-    } else if (typeof systemMessage === "string") {
-      this.messages = [new ChatGPTMessage(systemMessage, "system")];
+    } else if (typeof systemMessage === 'string') {
+      this.messages = [new ChatGPTMessage(systemMessage, 'system')];
     } else {
       throw new Error(
-        "The input type should be system to define the chatbot theme or instructions."
+        'The input type should be system to define the chatbot theme or instructions.'
       );
     }
-    this.model = options.model || "gpt-3.5-turbo";
+    this.model = options.model || 'gpt-3.5-turbo';
     this.temperature = options.temperature || 1;
     this.maxTokens = options.maxTokens || null;
     this.numberOfOutputs = 1;
@@ -46,15 +51,15 @@ class ChatGPTInput extends ChatModelInput {
   }
 
   addUserMessage(prompt) {
-    this.messages.push(new ChatGPTMessage(prompt, "user"));
+    this.messages.push(new ChatGPTMessage(prompt, 'user'));
   }
 
   addAssistantMessage(prompt) {
-    this.messages.push(new ChatGPTMessage(prompt, "assistant"));
+    this.messages.push(new ChatGPTMessage(prompt, 'assistant'));
   }
 
   addSystemMessage(prompt) {
-    this.messages.push(new ChatGPTMessage(prompt, "system"));
+    this.messages.push(new ChatGPTMessage(prompt, 'system'));
   }
 
   cleanMessages() {
@@ -80,25 +85,26 @@ class ChatGPTInput extends ChatModelInput {
 
   getChatInput() {
     const messages = this.messages.map((message) => {
-    if (message.name) {
-      return {
-        role: message.role,
-        name: message.name,
-        content: message.content,
-      };
-    } else {
-      return {
-        role: message.role,
-        content: message.content,
-      };
-    }});
+      if (message.name) {
+        return {
+          role: message.role,
+          name: message.name,
+          content: message.content,
+        };
+      } else {
+        return {
+          role: message.role,
+          content: message.content,
+        };
+      }
+    });
 
     const params = {
       model: this.model,
       messages: messages,
-      ...this.temperature && { temperature: this.temperature },
-      ...this.numberOfOutputs && { n: this.numberOfOutputs },
-      ...this.maxTokens && { max_tokens: this.maxTokens },
+      ...(this.temperature && { temperature: this.temperature }),
+      ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
+      ...(this.maxTokens && { max_tokens: this.maxTokens }),
     };
 
     return params;
@@ -108,71 +114,77 @@ class ChatGPTInput extends ChatModelInput {
 class ChatLLamaInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super();
-    if (systemMessage instanceof ChatGPTMessage && systemMessage.isSystemRole()) {
+    if (
+      systemMessage instanceof ChatGPTMessage &&
+      systemMessage.isSystemRole()
+    ) {
       this.system_prompt = systemMessage.content;
-    } else if (typeof systemMessage === "string") {
+    } else if (typeof systemMessage === 'string') {
       this.system_prompt = systemMessage;
     } else {
       throw new Error(
-        "The input type should be system to define the bot theme or instructions."
+        'The input type should be system to define the bot theme or instructions.'
       );
     }
 
     if (!options.model) {
-        console.log("warning: send the model name or use the tuned llama inputs (LLamaReplicateInput, LLamaAWSInput)");
+      console.log(
+        'warning: send the model name or use the tuned llama inputs (LLamaReplicateInput, LLamaAWSInput)'
+      );
     }
 
-    this.model = options.model || "";
-    this.version = options.version || "";
+    this.model = options.model || '';
+    this.version = options.version || '';
     this.temperature = options.temperature || 0.5;
     this.max_new_tokens = options.maxTokens || 500;
     this.top_p = options.top_p || 1;
-    this.prompt = options.prompt || "";
+    this.prompt = options.prompt || '';
     this.repetition_penalty = options.repetition_penalty || 1;
     this.debug = options.debug || false;
   }
 
   addUserMessage(prompt) {
     if (this.prompt) {
-        this.prompt += `\nUser: ${prompt}`;
+      this.prompt += `\nUser: ${prompt}`;
     } else {
-        this.prompt = `User: ${prompt}`;
+      this.prompt = `User: ${prompt}`;
     }
   }
 
   addAssistantMessage(prompt) {
     if (this.prompt) {
-        this.prompt += `\nAssistant: ${prompt}`;
+      this.prompt += `\nAssistant: ${prompt}`;
     } else {
-        this.prompt = `Assistant: ${prompt}`;
+      this.prompt = `Assistant: ${prompt}`;
     }
   }
 
   cleanMessages() {
-    this.prompt = "";
+    this.prompt = '';
   }
 
   getChatInput() {
     return {
       model: this.model,
       inputData: {
-          input: {
-            prompt: this.prompt,
-            system_prompt: this.system_prompt,
-            max_new_tokens: this.max_new_tokens,
-            temperature: this.temperature,
-            top_p: this.top_p,
-            repetition_penalty: this.repetition_penalty,
-            debug: this.debug
-          }
-      }
+        input: {
+          prompt: this.prompt,
+          system_prompt: this.system_prompt,
+          max_new_tokens: this.max_new_tokens,
+          temperature: this.temperature,
+          top_p: this.top_p,
+          repetition_penalty: this.repetition_penalty,
+          debug: this.debug,
+        },
+      },
     };
   }
 }
 
 class LLamaReplicateInput extends ChatLLamaInput {
   constructor(systemMessage, options = {}) {
-    options.model = options.model || config.getProperty('models.replicate.llama.13b');
+    options.model =
+      options.model || config.models.replicate.llama['13b'];
     options.version = options.version;
     super(systemMessage, options);
     this.top_k = options.top_k || null;
@@ -183,45 +195,51 @@ class LLamaReplicateInput extends ChatLLamaInput {
   }
 
   getChatInput() {
-
-    if (this.version == null || this.version == "") {
-        this.version = config.getProperty(`models.replicate.llama.${this.model}-version`);
+    if (this.version == null || this.version == '') {
+      this.version =
+        config.models.replicate.llama[`${this.model}-version`];
     }
 
     var myData = {
       model: this.model,
       inputData: {
-          version: this.version,
-          input: {
-            prompt: this.prompt,
-            max_new_tokens: this.max_new_tokens,
-            temperature: this.temperature,
-            debug: this.debug
-          }
-      }
+        version: this.version,
+        input: {
+          prompt: this.prompt,
+          max_new_tokens: this.max_new_tokens,
+          temperature: this.temperature,
+          debug: this.debug,
+        },
+      },
     };
 
     if (this.top_k) myData.inputData.input.top_k = this.top_k;
     if (this.top_p) myData.inputData.input.top_p = this.top_p;
-    if (this.system_prompt) myData.inputData.input.system_prompt = this.system_prompt;
-    if (this.min_new_tokens) myData.inputData.input.min_new_tokens = this.min_new_tokens;
-    if (this.repetition_penalty) myData.inputData.input.repetition_penalty = this.repetition_penalty;
+    if (this.system_prompt)
+      myData.inputData.input.system_prompt = this.system_prompt;
+    if (this.min_new_tokens)
+      myData.inputData.input.min_new_tokens = this.min_new_tokens;
+    if (this.repetition_penalty)
+      myData.inputData.input.repetition_penalty =
+        this.repetition_penalty;
 
     return myData;
   }
 }
 
 class LLamaSageInput extends ChatModelInput {
-
   constructor(systemMessage, parameters = {}) {
     super();
-    if (systemMessage instanceof ChatGPTMessage && systemMessage.isSystemRole()) {
+    if (
+      systemMessage instanceof ChatGPTMessage &&
+      systemMessage.isSystemRole()
+    ) {
       this.messages = [systemMessage];
-    } else if (typeof systemMessage === "string") {
-      this.messages = [new ChatGPTMessage(systemMessage, "system")];
+    } else if (typeof systemMessage === 'string') {
+      this.messages = [new ChatGPTMessage(systemMessage, 'system')];
     } else {
       throw new Error(
-        "The input type should be system to define the chatbot theme or instructions."
+        'The input type should be system to define the chatbot theme or instructions.'
       );
     }
 
@@ -233,15 +251,15 @@ class LLamaSageInput extends ChatModelInput {
   }
 
   addUserMessage(prompt) {
-    this.messages.push(new ChatGPTMessage(prompt, "user"));
+    this.messages.push(new ChatGPTMessage(prompt, 'user'));
   }
 
   addAssistantMessage(prompt) {
-    this.messages.push(new ChatGPTMessage(prompt, "assistant"));
+    this.messages.push(new ChatGPTMessage(prompt, 'assistant'));
   }
 
   addSystemMessage(prompt) {
-    this.messages.push(new ChatGPTMessage(prompt, "system"));
+    this.messages.push(new ChatGPTMessage(prompt, 'system'));
   }
 
   cleanMessages() {
@@ -266,12 +284,15 @@ class LLamaSageInput extends ChatModelInput {
   }
 
   getChatInput() {
-      return {
-        parameters: this.parameters,
-        inputs: [
-          this.messages.map(msg => ({ role: msg.role, content: msg.content }))
-        ]
-      };
+    return {
+      parameters: this.parameters,
+      inputs: [
+        this.messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+      ],
+    };
   }
 }
 
@@ -282,5 +303,4 @@ module.exports = {
   ChatLLamaInput,
   LLamaSageInput,
   LLamaReplicateInput,
-
 };

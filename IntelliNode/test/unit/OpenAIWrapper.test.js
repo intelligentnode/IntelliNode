@@ -1,14 +1,17 @@
 const assert = require('assert');
 const OpenAIWrapper = require('../../wrappers/OpenAIWrapper');
 const ProxyHelper = require('../../utils/ProxyHelper');
-const config = require('../../utils/Config2').getInstance();
 
 function testOpenAIWrapper() {
   const apiKey = 'your-api-key';
   const proxyHelper = ProxyHelper.getInstance();
   const openAIWrapper = new OpenAIWrapper(apiKey);
 
-  assert.strictEqual(openAIWrapper.API_KEY, apiKey, 'API key should be set');
+  assert.strictEqual(
+    openAIWrapper.API_KEY,
+    apiKey,
+    'API key should be set'
+  );
   assert.ok(openAIWrapper.httpClient, 'httpClient should be created');
 
   // Test httpClient configuration
@@ -34,25 +37,25 @@ function testOpenAIWrapper() {
 }
 
 function testOpenAIOrganization() {
-    const proxyHelper = ProxyHelper.getInstance();
+  const proxyHelper = ProxyHelper.getInstance();
 
-    // test null organization
-    let organization = proxyHelper.getOpenaiOrg()
+  // test null organization
+  let organization = proxyHelper.getOpenaiOrg();
 
-    assert.strictEqual(
-        organization,
-        null,
-        'openai organization should be null'
+  assert.strictEqual(
+    organization,
+    null,
+    'openai organization should be null'
   );
 
   // test organization with value
   proxyHelper.setOpenaiOrg('test');
-  organization = proxyHelper.getOpenaiOrg()
+  organization = proxyHelper.getOpenaiOrg();
   assert.strictEqual(
-        organization,
-        'test',
-        'openai organization value not correct'
+    organization,
+    'test',
+    'openai organization value not correct'
   );
 }
 
-module.exports = {testOpenAIWrapper, testOpenAIOrganization};
+module.exports = { testOpenAIWrapper, testOpenAIOrganization };
