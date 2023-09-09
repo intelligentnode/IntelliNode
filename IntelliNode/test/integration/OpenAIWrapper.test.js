@@ -32,7 +32,6 @@ async function testLanguageModel() {
 
 async function testFineTuneModel(){
     try {
-        
         const filePath = path.join(__dirname, 'Path_to_your_traning_file.jsonl'); // formated jsonl file supported by openai
         const upload = await openAI.uploadFile(filePath);
         console.log('Upload File Result:\n', upload, '\n');
