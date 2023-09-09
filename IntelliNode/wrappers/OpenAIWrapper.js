@@ -154,7 +154,6 @@ class OpenAIWrapper {
       openAiHelper.formatErrorChecks();
       openAiHelper.checkDataFormatting();
       openAiHelper.estimatePricing();
-      //  https://api.openai.com/v1/files
       const url = `${this.API_BASE_URL}/v1/files`;
       const formData = new FormData();
       formData.append('purpose', 'fine-tune');
@@ -165,19 +164,15 @@ class OpenAIWrapper {
           Authorization: `Bearer ${this.API_KEY}`,
         },
       });
-      console.log('---- Response upload file -> ', response.data);
       return response.data;
     } catch (error) {
-      // console.log('---- Error upload file -> ', error.response.data);
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
   async getFile(fileId) {
     try {
-      // https://api.openai.com/v1/files/{file_id}
       const url = `${this.API_BASE_URL}/v1/files/${fileId}`;
       const response = await this.httpClient.get(url);
-      console.log('---- Response retrieve file -> ', response.data);
       return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
@@ -185,23 +180,18 @@ class OpenAIWrapper {
   }
   async deleteFile(fileId) {
     try {
-      // https://api.openai.com/v1/files/{file_id}
       const url = `${this.API_BASE_URL}/v1/files/${fileId}`;
       const response = await this.httpClient.delete(url);
-      console.log('---- Response delete file -> ', response.data);
       return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
-
   async listFiles() {
     try {
-      // https://api.openai.com/v1/files
       const url = `${this.API_BASE_URL}/v1/files`;
       const response = await this.httpClient.get(url);
-      console.log('---- Response list files -> ', response.data);
       return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
@@ -210,22 +200,17 @@ class OpenAIWrapper {
 
   async createFineTuneJob(params) {
     try {
-      // https://api.openai.com/v1/fine_tuning/jobs
       const url = `${this.API_BASE_URL}/v1/fine_tuning/jobs`;
       const response = await this.httpClient.post(url, params);
-      console.log('---- Response fine tune model -> ', response.data);
       return response.data;
     } catch (error) {
-      // console.log('---- Error fine tune model -> ', error.response.data);
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
   async getFineTuneJob(jobId) {
     try {
-      // GET https://api.openai.com/v1/fine_tuning/jobs/{fine_tuning_job_id}
       const url = `${this.API_BASE_URL}/v1/fine_tuning/jobs/${jobId}`;
       const response = await this.httpClient.get(url);
-      console.log('---- Response retrieve fine tune job -> ', response.data);
       return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
@@ -236,7 +221,16 @@ class OpenAIWrapper {
     try {
       const url = `${this.API_BASE_URL}/v1/fine_tuning/jobs`;
       const response = await this.httpClient.get(url);
-      console.log('---- Response get all fine tune jobs -> ', response.data);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async generateTextChatCompletion(params) {
+    const url = `${this.API_BASE_URL}/v1/chat/completions`;
+    try {
+      const response = await this.httpClient.post(url, params);
       return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
