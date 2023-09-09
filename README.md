@@ -1,6 +1,6 @@
-<p align="center">
+<!-- <p align="center">
 <img src="images/intellinode_new_header.png" width="400em">
-</p> 
+</p> -->
 
 <p align="center">
 <img src="images/multimodel-banner.png" width="650em">
