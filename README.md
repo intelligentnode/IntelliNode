@@ -1,15 +1,10 @@
-
 <!-- <p align="center">
-<img src="images/multi-model-small-v2.png" width="88%">
+<img src="images/intellinode_new_header.png" width="400em">
 </p> -->
 
 <p align="center">
-<img src="images/intellinode_new_header.png" width="400em">
-</p> 
-
-<!--  <p align="center">
-<img src="images/multi-model-small-v2.png" width="650em">
-</p> -->
+<img src="images/multimodel-banner.png" width="650em">
+</p>
 
 <h3 align="center">
 Unified prompt, evaluation, and production integration to any large model
