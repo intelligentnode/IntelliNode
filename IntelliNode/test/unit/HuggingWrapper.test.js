@@ -1,16 +1,23 @@
 const assert = require('assert');
 const HuggingWrapper = require('../../wrappers/HuggingWrapper');
-const config = require('../../utils/Config2').getInstance();
+const config = require('../../config.json');
 
 function testHuggingWrapper() {
   const apiKey = 'your-api-key';
   const huggingWrapper = new HuggingWrapper(apiKey);
 
-  assert.strictEqual(huggingWrapper.API_KEY, apiKey, 'API key should be set');
-  assert.ok(huggingWrapper.httpClient, 'httpClient should be created');
+  assert.strictEqual(
+    huggingWrapper.API_KEY,
+    apiKey,
+    'API key should be set'
+  );
+  assert.ok(
+    huggingWrapper.httpClient,
+    'httpClient should be created'
+  );
 
   // Test httpClient configuration
-  const expectedBaseURL = config.getProperty('url.huggingface.base');
+  const expectedBaseURL = config.url.huggingface.base;
   const expectedContentType = 'application/json';
   const expectedAuthHeader = `Bearer ${apiKey}`;
 
