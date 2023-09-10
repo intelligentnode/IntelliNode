@@ -11,7 +11,6 @@ const ProxyHelper = require('../utils/ProxyHelper');
 const connHelper = require('../utils/ConnHelper');
 const fs = require('fs');
 const FormData = require('form-data');
-const { OpenAIHelper } = require('../utils/OpenAiHelper');
 
 class OpenAIWrapper {
   proxyHelper = ProxyHelper.getInstance();
@@ -148,12 +147,6 @@ class OpenAIWrapper {
 
   async uploadFile(filePath) {
     try {
-      const openAiHelper = new OpenAIHelper(filePath);
-      await openAiHelper.loadData();
-      openAiHelper.printDataStats();
-      openAiHelper.formatErrorChecks();
-      openAiHelper.checkDataFormatting();
-      openAiHelper.estimatePricing();
       const url = `${this.API_BASE_URL}/v1/files`;
       const formData = new FormData();
       formData.append('purpose', 'fine-tune');
