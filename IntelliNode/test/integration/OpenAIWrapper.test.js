@@ -1,4 +1,3 @@
-require('dotenv').config();
 const assert = require('assert');
 const FormData = require("form-data");
 const GPTStreamParser = require('../../utils/StreamParser');
@@ -8,7 +7,8 @@ const {
 } = require('fs');
 const path = require('path');
 
-const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
+// const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
+const openAI = new OpenAIWrapper('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');
 
 async function testLanguageModel() {
     try {
@@ -32,7 +32,8 @@ async function testLanguageModel() {
 
 async function testFineTuneModel(){
     try {
-        const filePath = path.join('../temp', 'traning_file.jsonl');  // formated jsonl file supported by openai
+        
+        const filePath =  path.join('../temp', 'traning_file.jsonl');  // formated jsonl file supported by openai
         const upload = await openAI.uploadFile(filePath);
         console.log('Upload File Result:\n', upload, '\n');
         assert(upload.id.length > 0, 'testFineTuneUploadFile response length should be greater than 0');

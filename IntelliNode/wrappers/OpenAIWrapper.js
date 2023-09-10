@@ -10,7 +10,7 @@ const config = require('../utils/Config2').getInstance();
 const ProxyHelper = require('../utils/ProxyHelper');
 const connHelper = require('../utils/ConnHelper');
 const fs = require('fs');
-const FormData = require('form-data');
+const https = require('https');
 
 class OpenAIWrapper {
   proxyHelper = ProxyHelper.getInstance();
@@ -148,20 +148,51 @@ class OpenAIWrapper {
   async uploadFile(filePath) {
     try {
       const url = `${this.API_BASE_URL}/v1/files`;
-      const formData = new FormData();
-      formData.append('purpose', 'fine-tune');
-      formData.append('file', fs.createReadStream(filePath));
-      const response = await this.httpClient.post(url, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${this.API_KEY}`,
-        },
+      const boundary = '--------------------------' + Date.now().toString(16);
+      const headers = {
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        Authorization: `Bearer ${this.API_KEY}`,
+      };
+      const fileStream = fs.createReadStream(filePath);
+      const options = {
+        method: 'POST',
+        headers: headers,
+      };
+      const req = https.request(url, options, null);
+      // Write the multipart/form-data content
+      req.write(`--${boundary}\r\n`);
+      req.write(`Content-Disposition: form-data; name="purpose"\r\n\r\n`);
+      req.write('fine-tune\r\n');
+      req.write(`--${boundary}\r\n`);
+      req.write(`Content-Disposition: form-data; name="file"; filename="${filePath}"\r\n`);
+      req.write('Content-Type: application/octet-stream\r\n\r\n');
+
+      fileStream.on('data', (chunk) => {
+        req.write(chunk);
       });
-      return response.data;
+      fileStream.on('end', () => {
+        req.end(`\r\n--${boundary}--`);
+      });
+      req.on('error', (error) => {
+        throw new Error(connHelper.getErrorMessage(error));
+      });
+      return new Promise((resolve, reject) => {
+        req.on('response', (res) => {
+          let data = '';
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            data = JSON.parse(data);
+            resolve(data);
+          });
+        });
+      });
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
+
   async getFile(fileId) {
     try {
       const url = `${this.API_BASE_URL}/v1/files/${fileId}`;
