@@ -7,8 +7,7 @@ const {
 } = require('fs');
 const path = require('path');
 
-// const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
-const openAI = new OpenAIWrapper('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');
+const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
 
 async function testLanguageModel() {
     try {
