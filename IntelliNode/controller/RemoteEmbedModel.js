@@ -8,7 +8,7 @@ const SupportedEmbedModels = {
 };
 
 class RemoteEmbedModel {
-  constructor(keyValue, provider) {
+  constructor(keyValue, provider, customProxyHelper = null) {
     if (!provider) {
       provider = SupportedEmbedModels.OPENAI;
     }
@@ -16,18 +16,18 @@ class RemoteEmbedModel {
     const supportedModels = this.getSupportedModels();
 
     if (supportedModels.includes(provider)) {
-      this.initiate(keyValue, provider);
+      this.initiate(keyValue, provider, customProxyHelper);
     } else {
       const models = supportedModels.join(' - ');
       throw new Error(`The received keyValue is not supported. Send any model from: ${models}`);
     }
   }
 
-  initiate(keyValue, keyType) {
+  initiate(keyValue, keyType, customProxyHelper = null) {
     this.keyType = keyType;
 
     if (keyType === SupportedEmbedModels.OPENAI) {
-      this.openaiWrapper = new OpenAIWrapper(keyValue);
+      this.openaiWrapper = new OpenAIWrapper(keyValue, customProxyHelper);
     } else if (keyType === SupportedEmbedModels.COHERE) {
       this.cohereWrapper = new CohereAIWrapper(keyValue);
     } else {

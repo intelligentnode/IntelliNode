@@ -10,14 +10,14 @@ const EmbedInput = require('../model/input/EmbedInput');
 const MatchHelpers = require('../utils/MatchHelpers');
 
 class SemanticSearch {
-  constructor(keyValue, provider = SupportedEmbedModels.OPENAI) {
+  constructor(keyValue, provider = SupportedEmbedModels.OPENAI, customProxyHelper = null) {
     this.keyValue = keyValue;
     this.provider = provider;
 
-    this.remoteEmbedModel = new RemoteEmbedModel(keyValue, provider);
+    this.remoteEmbedModel = new RemoteEmbedModel(keyValue, provider, customProxyHelper);
   }
 
-  async getTopMatches(pivotItem, searchArray, numberOfMatches) {
+  async getTopMatches(pivotItem, searchArray, numberOfMatches, modelName = null) {
 
       if (numberOfMatches > searchArray.length) {
         throw new Error('numberOfMatches should not be greater than the searchArray');
@@ -25,9 +25,12 @@ class SemanticSearch {
 
       const embedInput = new EmbedInput({
         texts: [pivotItem, ...searchArray],
+        model: modelName
       });
 
-      embedInput.setDefaultValues(this.provider);
+      if (modelName == null) {
+        embedInput.setDefaultValues(this.provider);
+      }
 
       const embeddingsResponse = await this.remoteEmbedModel.getEmbeddings(embedInput);
 
