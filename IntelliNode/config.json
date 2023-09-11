@@ -56,11 +56,11 @@
         "34b-code": "34b-code",
         "34b-python": "34b-python",
         "13b-code-instruct": "13b-code-instruct",
-        "70b-chat-version": "2d19859030ff705a87c746f7e96eea03aefb71f166725aee39692f1476566d48",
-        "13b-chat-version": "d5da4236b006f967ceb7da037be9cfc3924b20d21fed88e1e94f19d56e2d3111",
-        "34b-code-version": "0666717e5ead8557dff55ee8f11924b5c0309f5f1ca52f64bb8eec405fdb38a7",
+        "70b-chat-version": "35042c9a33ac8fd5e29e27fb3197f33aa483f72c2ce3b0b9d201155c7fd2a287",
+        "13b-chat-version": "de18b8b68ef78f4f52c87eb7e3a0244d18b45b3c67affef2d5055ddc9c2fb678",
+        "34b-code-version": "a393d61e6dff99d04f2963ed827ddc9878cabed32c35cd11e364b153def1a85f",
         "34b-python-version": "9048743d22a7b19cd0abb018066809ea6af4f2b4717bef9aad3c5ae21ceac00d",
-        "13b-code-instruct-version": "da5676342de1a5a335b848383af297f592b816b950a43d251a0a9edd0113604b"
+        "13b-code-instruct-version": "be553392065353425e0f0193d2a896d6a5ff201549f5d7cd9180c8dfdeac39ed"
       }
     }
   }

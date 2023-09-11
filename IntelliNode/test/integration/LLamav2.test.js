@@ -8,7 +8,7 @@ const replicateWrapper = new ReplicateWrapper(
 
 async function testReplicateWrapperLLama() {
   try {
-    const modelName = config.models.replicate.llama['13b'];
+    const modelName = config.models.replicate.llama['13b-chat'];
     const version = config.models.replicate.llama['13b-chat-version'];
     const inputData = {
       version: version,
