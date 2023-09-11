@@ -11,8 +11,8 @@ class ChatContext {
      * @param {string} - The apiKey the model Key.
      * @param {string} - The provider the provider of the embedding model.
      */
-    constructor(apiKey, provider = SupportedEmbedModels.OPENAI) {
-        this.semanticSearch = new SemanticSearch(apiKey, provider);
+    constructor(apiKey, provider = SupportedEmbedModels.OPENAI, customProxyHelper = null) {
+        this.semanticSearch = new SemanticSearch(apiKey, provider, customProxyHelper);
     }
 
     /**
@@ -23,7 +23,7 @@ class ChatContext {
      * @param {number} n - The number of messages to return.
      * @returns {string[]} - The most relevant n messages.
      */
-    async getStringContext(userMessage, historyMessages, n) {
+    async getStringContext(userMessage, historyMessages, n, modelName = null) {
         let returnMessages;
         if (n >= historyMessages.length) {
             returnMessages = historyMessages.slice(-n);
@@ -32,7 +32,7 @@ class ChatContext {
 
             if (relevantMessages.length > 0) {
                 let semanticSearchResult =
-                    await this.semanticSearch.getTopMatches(userMessage, relevantMessages, n - 2);
+                    await this.semanticSearch.getTopMatches(userMessage, relevantMessages, n - 2, modelName);
 
                 const topMatches = this.semanticSearch.filterTopMatches(semanticSearchResult, relevantMessages);
 
@@ -55,7 +55,7 @@ class ChatContext {
      * @param {number} n - The number of context messages to return.
      * @returns {Array} - The most relevant n message objects with 'role' and 'content' fields.
      */
-    async getRoleContext(userMessage, historyMessages, n) {
+    async getRoleContext(userMessage, historyMessages, n, modelName = null) {
         const historyMessageContents = historyMessages.map(msg => msg.content);
         let returnMessages;
 
@@ -66,7 +66,7 @@ class ChatContext {
 
             if (relevantMessages.length > 0) {
                 let semanticSearchResult =
-                    await this.semanticSearch.getTopMatches(userMessage, relevantMessages, n - 2);
+                    await this.semanticSearch.getTopMatches(userMessage, relevantMessages, n - 2, modelName);
 
                 const semanticSearchTopMatches = semanticSearchResult.map(result => result.index);
                 const topMatches = historyMessages.filter((value, index) => semanticSearchTopMatches.includes(index));
