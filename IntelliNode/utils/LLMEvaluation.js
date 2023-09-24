@@ -81,7 +81,7 @@ class LLMEvaluation extends ModelEvaluation {
   *
   * If invalid 'apiKey' or 'provider' is supplied, it may result in runtime exception or error.
   */
-  async compareModels(inputString, targetAnswers, providerSets) {
+  async compareModels(inputString, targetAnswers, providerSets, isJson = false) {
     let results = {};
     let targetEmbeddings = [];
 
@@ -100,28 +100,33 @@ class LLMEvaluation extends ModelEvaluation {
                                                 provider.maxTokens, provider.url);
       const predictionEmbedding = await this.generateEmbedding(prediction);
 
-      let cosine_sum = 0, euclidean_sum = 0;
+      let cosineSum = 0, euclideanSum = 0;
       for(let targetEmbedding of targetEmbeddings) {
-        cosine_sum += MatchHelpers.cosineSimilarity(predictionEmbedding, targetEmbedding);
-        euclidean_sum += MatchHelpers.euclideanDistance(predictionEmbedding, targetEmbedding);
+        cosineSum += MatchHelpers.cosineSimilarity(predictionEmbedding, targetEmbedding);
+        euclideanSum += MatchHelpers.euclideanDistance(predictionEmbedding, targetEmbedding);
       }
 
-      const avg_cosine = cosine_sum / targetEmbeddings.length;
-      const avg_euclidean = euclidean_sum / targetEmbeddings.length;
+      const avgCosine = cosineSum / targetEmbeddings.length;
+      const avgEuclidean = euclideanSum / targetEmbeddings.length;
 
       predictions.push({
         prediction: prediction,
-        score_cosine_similarity: avg_cosine,
-        score_euclidean_distance: avg_euclidean
+        score_cosine_similarity: avgCosine,
+        score_euclidean_distance: avgEuclidean
       });
 
-      results[provider.provider + '/' + provider.model] = predictions;
+      results[`${provider.provider}/${provider.model}`] = predictions;
     }
 
     results['lookup'] = {
         'cosine_similarity': 'a value closer to 1 indicates a higher degree of similarity between two vectors',
         'euclidean_distance': 'the lower the value, the closer the two points'
     }
+
+    if (isJson) {
+      results = JSON.stringify(results);
+    }
+
     return results;
   }
 }
