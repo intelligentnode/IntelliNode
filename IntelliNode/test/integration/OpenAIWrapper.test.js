@@ -1,3 +1,4 @@
+require('dotenv').config();
 const assert = require('assert');
 const FormData = require("form-data");
 const GPTStreamParser = require('../../utils/StreamParser');
