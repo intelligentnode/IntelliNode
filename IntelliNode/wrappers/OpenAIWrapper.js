@@ -5,8 +5,8 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+
 const axios = require('axios');
-const config = require('../utils/Config2').getInstance();
 const ProxyHelper = require('../utils/ProxyHelper');
 const connHelper = require('../utils/ConnHelper');
 const fs = require('fs');
