@@ -100,27 +100,31 @@ class LLMEvaluation extends ModelEvaluation {
                                                 provider.maxTokens, provider.url);
       const predictionEmbedding = await this.generateEmbedding(prediction);
 
-      let cosineSum = 0, euclideanSum = 0;
+      let cosineSum = 0, euclideanSum = 0, manhattanSum = 0;
       for(let targetEmbedding of targetEmbeddings) {
         cosineSum += MatchHelpers.cosineSimilarity(predictionEmbedding, targetEmbedding);
         euclideanSum += MatchHelpers.euclideanDistance(predictionEmbedding, targetEmbedding);
+        manhattanSum += MatchHelpers.manhattanDistance(predictionEmbedding, targetEmbedding);
       }
 
       const avgCosine = cosineSum / targetEmbeddings.length;
       const avgEuclidean = euclideanSum / targetEmbeddings.length;
+      const avgManhattan = manhattanSum / targetEmbeddings.length;
 
       predictions.push({
         prediction: prediction,
         score_cosine_similarity: avgCosine,
-        score_euclidean_distance: avgEuclidean
+        score_euclidean_distance: avgEuclidean,
+        score_manhattan_distance: avgManhattan
       });
 
       results[`${provider.provider}/${provider.model}`] = predictions;
     }
 
     results['lookup'] = {
-        'cosine_similarity': 'a value closer to 1 indicates a higher degree of similarity between two vectors',
-        'euclidean_distance': 'the lower the value, the closer the two points'
+        'cosine_similarity': 'a value closer to 1 indicates a higher degree of similarity between two vectors.',
+        'euclidean_distance': 'the lower the value, the closer the two points.',
+        'manhattan_distance': 'the lower the value, the closer the two vectors.' 
     }
 
     if (isJson) {
