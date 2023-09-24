@@ -68,6 +68,7 @@ const input = new ChatGPTInput('You are a helpful assistant.');
 input.addUserMessage('What is the distance between the Earth and the Moon?');
 
 // get the responses from the chatbot
+const chatbot = new Chatbot(OPENAI_API_KEY, 'openai');
 const responses = await chatbot.chat(input);
 ```
 The documentation on how to switch the chatbot between **ChatGPT** and **LLama** in this [wiki page](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).

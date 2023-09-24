@@ -19,14 +19,14 @@
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
-- Update the chatbot to support Llama v2 chat and code. 🦙
-- Add Gen function, the fastest way to generate text, speech, web pages or images. :bullettrain_side:
-- Update stable diffusion to use XL model engine.
-- Add support for hugging face inference.
-- Generate prompt using LLM.
-- Add support for huge data memory semantic search using `SemanticSearchPaging`.
-- Update the chatbot with `stream` function.
+- Upgrade Llama v2 to the latest version and support chat and code. 🦙
+- Add Gen function, the fastest way to generate text, speech, code, or images. :bullettrain_side:
+- Update stable diffusion to use the XL model engine. 🎨
+- Add support for hugging face inference. 🤗
+- Generate tuned prompts using LLM.
+- Add support for huge data semantic search. 🔍
 - Update the module to support next integration.
+- Update chatGPT to support function calls (empowering automation). 🤖
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
@@ -185,7 +185,8 @@ Check the code to access the chatbot through a proxy: [proxy chatbot](https://gi
 - [Showcase](https://show.intellinode.ai/): Experience the potential of Intellinode in action, and use your keys to generate content and html pages.
 - [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Explore a code sample with detailed setup documentation to get started with Intellinode.
 - [Model Evaluation](https://github.com/Barqawiz/IntelliNode/wiki/Model-Evaluation): Demonstrate a swift approach to compare the performance of multiple models against designated target answers.
-- [Articles](https://www.intellinode.ai/articles): Tutorials and articles about intelliNode and data science topics.
+- [Articles](https://www.intellinode.ai/articles): Tutorials about intelliNode and data science topics.
+- [LLM as Microservice](https://www.kdnuggets.com/building-microservice-for-multichat-backends-using-llama-and-chatgpt): For scalable production.
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models

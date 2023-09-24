@@ -57,6 +57,7 @@ const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
 const GPTStreamParser = require('./utils/StreamParser');
+const ChatContext = require('./utils/ChatContext');
 
 module.exports = {
   RemoteLanguageModel,
@@ -98,4 +99,5 @@ module.exports = {
   LLMEvaluation,
   SemanticSearchPaging,
   GPTStreamParser,
+  ChatContext
 };
