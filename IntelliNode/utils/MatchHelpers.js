@@ -6,6 +6,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 class MatchHelpers {
+  
   static cosineSimilarity(a, b) {
     if (a.length !== b.length) {
       throw new Error('Vectors must have the same dimensions');
@@ -28,6 +29,17 @@ class MatchHelpers {
 
     return distance;
   }
+
+  static manhattanDistance(a, b) {
+    if (a.length !== b.length) {
+      throw new Error('Vectors must have the same dimensions');
+    }
+
+    const distance = a.reduce((sum, ai, i) => sum + Math.abs(ai - b[i]), 0);
+
+    return distance;
+  }
+
 }
 
 module.exports = MatchHelpers;
