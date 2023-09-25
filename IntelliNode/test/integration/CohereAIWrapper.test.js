@@ -24,6 +24,26 @@ async function testCohereGenerateModel() {
   }
 }
 
+async function testCohereWebChat() {
+  try {
+    const params = {
+      model: 'command-nightly',
+      message: 'what is the command to install intellinode npm module ?',
+      temperature: 0.3,
+      chat_history: [],
+      prompt_truncation: 'auto',
+      stream: false,
+      citation_quality: 'accurate',
+      connectors: [{'id': 'web-search'}],
+    };
+    const result = await cohere.generateChatText(params);
+
+    console.log('Cohere Chat Result:', JSON.stringify(result, null, 2));
+  } catch (error) {
+    console.error('Cohere Chat Error:', error);
+  }
+}
+
 async function testCohereEmbeddings() {
   try {
     const params = {
@@ -52,6 +72,9 @@ async function testCohereEmbeddings() {
 }
 
 (async () => {
-  await testCohereGenerateModel();
-  await testCohereEmbeddings();
+  // await testCohereGenerateModel();
+
+  await testCohereWebChat();
+
+  // await testCohereEmbeddings();
 })();

@@ -38,6 +38,18 @@ class CohereAIWrapper {
     }
   }
 
+  async generateChatText(params) {
+    const url = '/chat';
+    try {
+      const response = await this.httpClient.post(url, params, {
+        responseType: params.stream ? 'stream' : 'json',
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
   async getEmbeddings(params) {
     const url = config.url.cohere.embed;
     try {
