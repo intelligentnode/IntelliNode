@@ -8,7 +8,9 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('../wrappers/AWSEndpointWrapper');
-const GPTStreamParser = require('../utils/StreamParser');
+const { GPTStreamParser } = require('../utils/StreamParser');
+const { CohereStreamParser } = require('../utils/StreamParser');
+const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 
 const {
     ChatGPTInput,
@@ -16,13 +18,15 @@ const {
     ChatGPTMessage,
     ChatLLamaInput,
     LLamaReplicateInput,
+    CohereInput,
     LLamaSageInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
     OPENAI: "openai",
     REPLICATE: "replicate",
-    SAGEMAKER: "sagemaker"
+    SAGEMAKER: "sagemaker",
+    COHERE: "cohere"
 };
 
 class Chatbot {
@@ -48,6 +52,8 @@ class Chatbot {
             this.replicateWrapper = new ReplicateWrapper(keyValue);
         } else if (provider === SupportedChatModels.SAGEMAKER) {
             this.sagemakerWrapper = new AWSEndpointWrapper(customProxyHelper.url, keyValue);
+        } else if (provider === SupportedChatModels.COHERE) {
+            this.cohereWrapper = new CohereAIWrapper(keyValue);
         } else {
             throw new Error("Invalid provider name");
         }
@@ -75,6 +81,8 @@ class Chatbot {
             }
 
             return this._chatSageMaker(modelInput);
+        } else if (this.provider === SupportedChatModels.COHERE) { 
+            return this._chatCohere(modelInput);
         } else {
             throw new Error("The provider is not supported");
         }
@@ -83,6 +91,8 @@ class Chatbot {
     async *stream(modelInput) {
         if (this.provider === SupportedChatModels.OPENAI) {
             yield* this._chatGPTStream(modelInput);
+        } else  if (this.provider === SupportedChatModels.COHERE) {
+            yield* this._streamCohere(modelInput)
         } else {
             throw new Error("The stream function support only chatGPT, for other providers use chat function.");
         }
@@ -202,6 +212,49 @@ class Chatbot {
         const results = await this.sagemakerWrapper.predict(params);
 
         return results.map(result => result.generation ? result.generation.content : result);
+    }
+
+    async _chatCohere(modelInput) {
+        let params;
+    
+        if (modelInput instanceof CohereInput) {
+            params = modelInput.getChatInput();
+    
+        } else if (typeof modelInput === "object") {
+            params = modelInput;
+        } else {
+            throw new Error("Invalid input: Must be an instance of ChatGPTInput or an object");
+        }
+    
+        const results = await this.cohereWrapper.generateChatText(params);
+
+        const responseText = results.text;
+        return [responseText];
+    }
+
+    async *_streamCohere(modelInput) {
+
+        let params;
+    
+        if (modelInput instanceof CohereInput) {
+            params = modelInput.getChatInput();
+            params.stream = true;
+        } else if (typeof modelInput === "object") {
+            params = modelInput;
+            params.stream = true;
+        } else {
+            throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
+        }
+    
+        const streamParser = new CohereStreamParser();
+    
+        const stream = await this.cohereWrapper.generateChatText(params);
+    
+        // Collect data from the stream
+        for await (const chunk of stream) {
+            const chunkText = chunk.toString('utf8');
+            yield* streamParser.feed(chunkText);
+        }
     }
 
 } /*chatbot class*/

@@ -23,10 +23,9 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - Add Gen function, the fastest way to generate text, speech, code, or images. :bullettrain_side:
 - Update stable diffusion to use the XL model engine. 🎨
 - Add support for hugging face inference. 🤗
-- Generate tuned prompts using LLM.
 - Add support for huge data semantic search. 🔍
 - Update the module to support next integration.
-- Update chatGPT to support function calls (empowering automation). 🤖
+- Update chatbot with cohere websearch and chatGPT functions (empowering automation).
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 

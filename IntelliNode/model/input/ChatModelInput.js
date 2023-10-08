@@ -111,6 +111,42 @@ class ChatGPTInput extends ChatModelInput {
   }
 }
 
+class CohereInput extends ChatGPTInput {
+  constructor(systemMessage, options = {}) {
+    super(systemMessage, options);
+    this.web = options.web || false;
+    this.model = options.model || 'command';
+  }
+
+  getChatInput() {
+    if (this.messages.length < 1) {
+        throw new Error("At least one message is required for Cohere API");
+    }
+
+    const chatHistory = [];
+    const latestMessage = this.messages[this.messages.length - 1];
+
+    for (let i = 0; i < this.messages.length - 1; i++) {
+        const message = this.messages[i];
+        chatHistory.push({
+            'id': i,
+            'role': message.role,
+            'message': message.content
+        });
+    }
+
+    const params = {
+        'model': this.model,
+        'message': latestMessage.content,
+        'chat_history': chatHistory,
+        ...(this.web && {'connectors': [{id: 'web-search'}]}),
+    };
+
+    return params;
+  }
+
+}
+
 class ChatLLamaInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super();
@@ -303,4 +339,5 @@ module.exports = {
   ChatLLamaInput,
   LLamaSageInput,
   LLamaReplicateInput,
+  CohereInput,
 };
