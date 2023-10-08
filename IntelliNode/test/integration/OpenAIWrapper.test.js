@@ -1,7 +1,7 @@
 require('dotenv').config();
 const assert = require('assert');
 const FormData = require("form-data");
-const GPTStreamParser = require('../../utils/StreamParser');
+const {GPTStreamParser} = require('../../utils/StreamParser');
 const OpenAIWrapper = require('../../wrappers/OpenAIWrapper');
 const {
     createReadStream

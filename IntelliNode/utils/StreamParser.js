@@ -41,4 +41,28 @@ class GPTStreamParser {
         }
     }
 }
-module.exports = GPTStreamParser;
+class CohereStreamParser {
+    constructor(isLog = false) {
+      this.buffer = '';
+      this.isLog = false;
+    }
+  
+    async *feed(data) {
+      this.buffer += data;
+  
+      if (this.buffer.includes('\n')) {
+        const eventEndIndex = this.buffer.indexOf('\n');
+        const rawData = this.buffer.slice(0, eventEndIndex + 1).trim();
+  
+        // Convert the rawData into JSON format
+        const jsonData = JSON.parse(rawData);
+        const contentText = jsonData.text;
+        if (contentText) {
+          yield contentText;
+        }
+        this.buffer = this.buffer.slice(eventEndIndex + 1);
+      }
+    }
+  }
+
+module.exports = {GPTStreamParser, CohereStreamParser};

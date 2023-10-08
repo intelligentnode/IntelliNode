@@ -8,7 +8,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('../wrappers/AWSEndpointWrapper');
-const GPTStreamParser = require('../utils/StreamParser');
+const { GPTStreamParser } = require('../utils/StreamParser');
 
 const {
     ChatGPTInput,

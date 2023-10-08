@@ -56,7 +56,7 @@ const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
-const GPTStreamParser = require('./utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser} = require('./utils/StreamParser');
 const ChatContext = require('./utils/ChatContext');
 
 module.exports = {
@@ -99,5 +99,6 @@ module.exports = {
   LLMEvaluation,
   SemanticSearchPaging,
   GPTStreamParser,
+  CohereStreamParser,
   ChatContext
 };
