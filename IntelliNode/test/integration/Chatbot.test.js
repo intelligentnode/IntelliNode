@@ -1,6 +1,7 @@
 require("dotenv").config();
 const assert = require("assert");
 const { Chatbot, SupportedChatModels } = require("../../function/Chatbot");
+const { CohereStreamParser } = require('../../utils/StreamParser');
 const { ChatGPTInput,
         ChatGPTMessage,
         ChatLLamaInput,
@@ -190,6 +191,23 @@ async function testCohereChatCase() {
   assert(responses.length > 0, "Cohere chat response length should be greater than 0");
 }
 
+async function testCohereChatStream() {
+  console.log('\nStream test case 1 for Cohere: \n');
+  const bot = new Chatbot(process.env.COHERE_API_KEY, SupportedChatModels.COHERE); 
+
+  const input = new CohereInput("You are a helpful computer programming assistant.", {web: true, stream: true});
+  input.addUserMessage("What is the difference between Python and Java?");
+
+  let fullText = '';
+  for await (const contentText of bot.stream(input)) {
+      fullText += contentText;
+      console.log('Received chunk:', contentText);
+  }
+
+  console.log('full stream text: ', fullText)
+  assert(fullText.length > 0, "Cohere chat stream response length should be greater than 0");
+}
+
 (async () => {
   
   console.log('### Openai model ###')
@@ -204,7 +222,8 @@ async function testCohereChatCase() {
   await testReplicateLLamaCase2();
 
   console.log('### Cohere model ###')
-  testCohereChatCase();
+  await testCohereChatCase();
+  await testCohereChatStream();
 
   console.log('### SageMaker llama model ###')
   //await testSageMakerLLamaCase();
