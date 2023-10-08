@@ -25,7 +25,7 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - Add support for hugging face inference. 🤗
 - Add support for huge data semantic search. 🔍
 - Update the module to support next integration.
-- Update the chatbot to support Cohere websearch and chatGPT functions (empowering automation).
+- Update chatbot with cohere websearch and chatGPT functions (empowering automation).
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
