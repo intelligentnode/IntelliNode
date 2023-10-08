@@ -48,11 +48,10 @@ async function testCohereChatStram() {
   try {
     const params = {
       model: 'command',
-      message: 'what is the command to install intellinode npm module ?',
+      message: 'how to use intellinode npm module ?',
       stream: true,
       chat_history: [],
       prompt_truncation: 'auto',
-      connectors: [],
       citation_quality: 'accurate',
       temperature: 0.3
     };
