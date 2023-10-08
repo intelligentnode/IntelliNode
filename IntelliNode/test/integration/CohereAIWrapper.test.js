@@ -72,9 +72,9 @@ async function testCohereEmbeddings() {
 }
 
 (async () => {
-  // await testCohereGenerateModel();
+  await testCohereGenerateModel();
 
   await testCohereWebChat();
 
-  // await testCohereEmbeddings();
+  await testCohereEmbeddings();
 })();
