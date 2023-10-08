@@ -4,6 +4,7 @@ const { Chatbot, SupportedChatModels } = require("../../function/Chatbot");
 const { ChatGPTInput,
         ChatGPTMessage,
         ChatLLamaInput,
+        CohereInput,
         LLamaReplicateInput,
         LLamaSageInput } = require("../../model/input/ChatModelInput");
 
@@ -175,8 +176,22 @@ async function testStreamOpenaiChatGPTCase1() {
     assert(fullText.length > 0, "testStreamOpenaiChatGPTCase1 response length should be greater than 0");
 }
 
-(async () => {
+async function testCohereChatCase() {
+  console.log('\nchat test case 1 for Cohere: \n');
+  const bot = new Chatbot(process.env.COHERE_API_KEY, SupportedChatModels.COHERE); 
 
+  const input = new CohereInput("You are a helpful computer programming assistant.", {web: true});
+  input.addUserMessage("What is the difference between Python and Java?");
+  
+  const responses = await bot.chat(input);
+
+  responses.forEach((response) => console.log("- " + response));
+
+  assert(responses.length > 0, "Cohere chat response length should be greater than 0");
+}
+
+(async () => {
+  
   console.log('### Openai model ###')
   await testOpenaiChatGPTCase1();
   await testOpenaiChatGPTCase2();
@@ -187,6 +202,9 @@ async function testStreamOpenaiChatGPTCase1() {
   console.log('### Replicate llama model ###')
   await testReplicateLLamaCase1();
   await testReplicateLLamaCase2();
+
+  console.log('### Cohere model ###')
+  testCohereChatCase();
 
   console.log('### SageMaker llama model ###')
   //await testSageMakerLLamaCase();

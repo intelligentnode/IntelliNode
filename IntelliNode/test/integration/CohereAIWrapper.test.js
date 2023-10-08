@@ -105,11 +105,11 @@ async function testCohereEmbeddings() {
 }
 
 (async () => {
-  // await testCohereGenerateModel();
+  await testCohereGenerateModel();
 
-  // await testCohereEmbeddings();
+  await testCohereEmbeddings();
 
-  // await testCohereWebChat();
+  await testCohereWebChat();
 
   await testCohereChatStram();
 
