@@ -37,6 +37,7 @@ const {
   LLamaReplicateInput,
   ChatGPTMessage,
   LLamaSageInput,
+  CohereInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
@@ -100,5 +101,6 @@ module.exports = {
   SemanticSearchPaging,
   GPTStreamParser,
   CohereStreamParser,
-  ChatContext
+  ChatContext,
+  CohereInput
 };
