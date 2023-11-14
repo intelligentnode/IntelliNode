@@ -56,11 +56,13 @@
         "34b-code": "34b-code",
         "34b-python": "34b-python",
         "13b-code-instruct": "13b-code-instruct",
+        "llama-2-13b-embeddings": "llama-2-13b-embeddings",
         "70b-chat-version": "02e509c789964a7ea8736978a43525956ef40397be9033abf9fd2badfe68c9e3",
         "13b-chat-version": "f4e2de70d66816a838a89eeeb621910adffb0dd0baba3976c96980970978018d",
         "34b-code-version": "efbd2ef6feefb242f359030fa6fe08ce32bfced18f3868b2915db41d41251b46",
         "34b-python-version": "482ba325daab209d121f45a0030f2f3ed942df98b185d41635ab3f19165a3547",
-        "13b-code-instruct-version": "ca8c51bf3c1aaf181f9df6f10f31768f065c9dddce4407438adc5975a59ce530"
+        "13b-code-instruct-version": "ca8c51bf3c1aaf181f9df6f10f31768f065c9dddce4407438adc5975a59ce530",
+        "llama-2-13b-embeddings-version": "7115a4c65b86815e31412e53de1211c520164c190945a84c425b59dccbc47148"
       }
     }
   }
