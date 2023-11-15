@@ -19,13 +19,13 @@
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
-- Upgrade Llama v2 to the latest version and support chat and code. 🦙
+- Improve Llama v2 chat speed and support llama code models. 🦙
 - Add Gen function, the fastest way to generate text, speech, code, or images. :bullettrain_side:
 - Update stable diffusion to use the XL model engine. 🎨
 - Add support for hugging face inference. 🤗
 - Add support for huge data semantic search. 🔍
-- Update the module to support next integration.
-- Update chatbot with cohere websearch and chatGPT functions (empowering automation).
+- Update the module to support next and react integration.
+- Add cohere chatbot with web search and chatGPT automation functions.
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
@@ -180,11 +180,10 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js)
 
 # :closed_book: Documentation
-- [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki): Check the wiki page for indepth instructions and practical use cases.
-- [Showcase](https://show.intellinode.ai/): Experience the potential of Intellinode in action, and use your keys to generate content and html pages.
+- [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki).
+- [Showcase](https://show.intellinode.ai/).
 - [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Explore a code sample with detailed setup documentation to get started with Intellinode.
-- [Model Evaluation](https://github.com/Barqawiz/IntelliNode/wiki/Model-Evaluation): Demonstrate a swift approach to compare the performance of multiple models against designated target answers.
-- [Articles](https://www.intellinode.ai/articles): Tutorials about intelliNode and data science topics.
+- [Model Evaluation](https://github.com/Barqawiz/IntelliNode/wiki/Model-Evaluation): Demonstrate a swift approach to compare the performance of multiple models like gpt4, llama and cohere.
 - [LLM as Microservice](https://www.kdnuggets.com/building-microservice-for-multichat-backends-using-llama-and-chatgpt): For scalable production.
 
 # Pillars
@@ -192,19 +191,12 @@ Check the code to access the chatbot through a proxy: [proxy chatbot](https://gi
 - **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
+Intellicode compatible with third party libraries integration like langchain and vector DBs.
+
 # License
 Apache License
 
-Copyright 2023 Github.com/Barqawiz/IntelliNode
+Copyright 2023 IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.

@@ -1,3 +1,5 @@
+const config = require('../../config.json');
+
 class EmbedInput {
   constructor({
     texts,
@@ -25,11 +27,23 @@ class EmbedInput {
     return inputs;
   }
 
+  getLlamaReplicateInput() {
+    return {
+      version: this.model,
+      input: {
+        prompts: this.texts.join("\n\n"),
+        prompt_separator: "\n\n",
+      }
+    };
+  }
+
   setDefaultValues(provider) {
     if (provider === "openai") {
       this.model = "text-embedding-ada-002";
     } else if (provider === "cohere") {
       this.model = "embed-multilingual-v2.0";
+    } else if (provider === "replicate") {
+      this.model = config.models.replicate.llama['llama-2-13b-embeddings-version'];
     } else {
       throw new Error("Invalid provider name");
     }
