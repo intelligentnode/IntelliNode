@@ -15,6 +15,10 @@ class GoogleAIWrapper {
       '{1}',
       config.url.google.speech.prefix
     );
+    this.API_VISION_URL = config.url.google.base.replace(
+      '{1}',
+      config.url.google.speech.prefix
+    );
     this.API_KEY = apiKey;
     this.httpClient = axios.create({
       baseURL: this.API_SPEECH_URL,
@@ -22,6 +26,12 @@ class GoogleAIWrapper {
         'Content-Type': 'application/json; charset=utf-8',
         'X-Goog-Api-Key': this.API_KEY,
       },
+    });
+    this.httpVisionClient = axios.create({
+      baseURL: this.API_VISION_URL,
+      params: {
+        key: apiKey
+      }
     });
   }
 
@@ -61,6 +71,30 @@ class GoogleAIWrapper {
     };
 
     return JSON.stringify(modelInput);
+  }
+
+  async imageToText(params) {
+    const url =
+      this.API_VISION_URL +
+      config.url.google.vision.synthesize.postfix;
+
+    const json = {
+      requests: [
+        {
+          image: {
+            content: params.buffer.toString('base64'),
+          },
+          features: [{ type: 'TEXT_DETECTION' }],
+        },
+      ],
+    }
+
+    try {
+      const response = await this.httpVisionClient.post(url, json);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
   }
 }
 module.exports = GoogleAIWrapper;

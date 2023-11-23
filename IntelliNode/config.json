@@ -25,6 +25,12 @@
     },
     "google": {
       "base": "https://{1}.googleapis.com/v1/",
+      "vision": {
+        "prefix": "vision",
+        "synthesize": {
+          "postfix": "images:annotate"
+        }
+      },
       "speech": {
         "prefix": "texttospeech",
         "synthesize": {
