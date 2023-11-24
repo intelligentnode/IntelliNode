@@ -17,7 +17,7 @@ class GoogleAIWrapper {
     );
     this.API_VISION_URL = config.url.google.base.replace(
       '{1}',
-      config.url.google.speech.prefix
+      config.url.google.vision.prefix
     );
     this.API_KEY = apiKey;
     this.httpClient = axios.create({
@@ -82,7 +82,7 @@ class GoogleAIWrapper {
       requests: [
         {
           image: {
-            content: params.buffer.toString('base64'),
+            content: params.content,
           },
           features: [{ type: 'TEXT_DETECTION' }],
         },
@@ -91,7 +91,7 @@ class GoogleAIWrapper {
 
     try {
       const response = await this.httpVisionClient.post(url, json);
-      return response.data;
+      return response.data.responses;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
