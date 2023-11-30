@@ -67,7 +67,16 @@ class RemoteEmbedModel {
       return results.data;
     } else if (this.keyType === SupportedEmbedModels.COHERE) {
       const results = await this.cohereWrapper.getEmbeddings(inputs);
-      return results.embeddings;
+      
+      let embeddings = results.embeddings;
+      embeddings = embeddings.map((embedding, index) => ({
+        object: "embedding",
+        index: index,
+        embedding: embedding
+      }));
+
+      return embeddings;
+
     } if (this.keyType === SupportedEmbedModels.REPLICATE) {
 
       const prediction = await this.replicateWrapper.predict('replicate', inputs);
