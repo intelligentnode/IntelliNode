@@ -89,7 +89,15 @@ class RemoteEmbedModel {
             if (status.status === 'succeeded' || status.status === 'failed') {
               clearInterval(poll); // Stop polling
               if (status.status === 'succeeded') {
-                resolve(status.output);
+
+                let embeddings = status.output;
+                embeddings = embeddings.map((embedding, index) => ({
+                  object: "embedding",
+                  index: index,
+                  embedding: embedding
+                }));
+                
+                resolve(embeddings);
               } else {
                 reject(new Error('Replicate prediction failed: ' + status.error));
               }
