@@ -148,7 +148,7 @@ async function testChatGPTStream() {
 
 async function testVisionImageToText() {
     try {
-        const filePath = '../temp/s1_sagemaker.png'
+        const filePath = '../temp/test_image_desc.png'
         const data = readFileSync(filePath, {encoding: 'base64'});
         // Convert data to base64
         const params = {
