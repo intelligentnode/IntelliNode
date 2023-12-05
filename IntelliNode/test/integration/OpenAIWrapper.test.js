@@ -4,7 +4,7 @@ const FormData = require("form-data");
 const {GPTStreamParser} = require('../../utils/StreamParser');
 const OpenAIWrapper = require('../../wrappers/OpenAIWrapper');
 const {
-    createReadStream
+    createReadStream, readFileSync
 } = require('fs');
 
 const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
@@ -146,6 +146,42 @@ async function testChatGPTStream() {
     }
 }
 
+async function testVisionImageToText() {
+    try {
+        const filePath = '../temp/test_image_desc.png'
+        const data = readFileSync(filePath, {encoding: 'base64'});
+        // Convert data to base64
+        const params = {
+            "model": "gpt-4-vision-preview",
+            "messages": [
+              {
+                "role": "user",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "What's in this image?"
+                  },
+                  {
+                    "type": "image_url",
+                    "image_url": {
+                      "url": `data:image/png;base64,${data}`
+                    }
+                  }
+                ]
+              }
+            ],
+            "max_tokens": 300
+          };
+
+        const result = await openAI.imageToText(params);
+        const value = result.choices[0].message.content
+        console.log('Vision Model Result:\n', value, '\n');
+        assert(value.length > 0, 'testVisionImageToText response length should be greater than 0');
+    } catch (error) {
+        console.error('testVisionImageToText Error:', error);
+    }
+}
+
 
 (async () => {
     await testLanguageModel();
@@ -154,4 +190,5 @@ async function testChatGPTStream() {
     await testEmbeddings();
     await testSpeechToText();
     await testChatGPTStream();
+    await testVisionImageToText();
 })();
