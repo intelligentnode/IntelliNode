@@ -6,10 +6,12 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 const GoogleAIWrapper = require('../wrappers/GoogleAIWrapper');
+const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const Text2SpeechInput = require('../model/input/Text2SpeechInput');
 
 const SupportedSpeechModels = {
   GOOGLE: 'google',
+  OPEN_AI: 'openAi',
 };
 
 class RemoteSpeechModel {
@@ -33,6 +35,8 @@ class RemoteSpeechModel {
 
     if (keyType === SupportedSpeechModels.GOOGLE) {
       this.googleWrapper = new GoogleAIWrapper(keyValue);
+    } else if (keyType === SupportedSpeechModels.OPEN_AI) {
+      this.openAIWrapper = new OpenAIWrapper(keyValue);
     } else {
       throw new Error('Invalid provider name');
     }
@@ -56,7 +60,20 @@ class RemoteSpeechModel {
 
       const response = await this.googleWrapper.generateSpeech(params);
       return response.audioContent;
-    } else {
+    } else if (this.keyType === SupportedSpeechModels.OPEN_AI) {
+      let params;
+
+      if (input instanceof Text2SpeechInput) {
+        params = input.getOpenAIInput();
+      } else if (typeof input === 'object') {
+        params = input;
+      } else {
+        throw new Error('Invalid input: Must be an instance of Text2SpeechInput or a dictionary');
+      }
+
+      const response = await this.openAIWrapper.textToSpeech(params);
+      return response.audioContent;
+    }  else {
       throw new Error('The keyType is not supported');
     }
   }

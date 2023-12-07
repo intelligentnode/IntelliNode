@@ -6,10 +6,12 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 class Text2SpeechInput {
-  constructor({text, language = "en-gb", gender = "FEMALE"}) {
+  constructor({text, language = "en-gb", gender = "FEMALE", voice, model = 'tts-1'}) {
     this.text = text;
     this.language = language.toLowerCase();
     this.gender = gender;
+    this.voice = voice;
+    this.model = model;
   }
 
   getGoogleInput() {
@@ -37,6 +39,15 @@ class Text2SpeechInput {
       throw new Error("Unsupported language code: " + this.language);
     }
 
+    return params;
+  }
+
+  getOpenAIInput(){
+    const params = {
+      input: this.text,
+      voice: this.voice,
+      model: this.model,
+    };
     return params;
   }
 }
