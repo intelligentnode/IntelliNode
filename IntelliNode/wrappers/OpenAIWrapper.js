@@ -152,6 +152,7 @@ class OpenAIWrapper {
         url,
         headers,
         data: params,
+        responseType: params.stream ? 'stream' : 'json'
       };
       const response = await this.httpClient.request(config);
       return response.data;

@@ -4,7 +4,7 @@ const FormData = require("form-data");
 const { GPTStreamParser } = require('../../utils/StreamParser');
 const OpenAIWrapper = require('../../wrappers/OpenAIWrapper');
 const {
-    createReadStream, readFileSync
+    createReadStream, readFileSync, createWriteStream, existsSync
 } = require('fs');
 
 const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
@@ -186,12 +186,27 @@ async function testTextToSpeech() {
         const payload = {
             model: 'tts-1',
             input: "The quick brown fox jumped over the lazy dog.",
-            voice: "alloy"
+            voice: "alloy",
+            stream: true
         }
+        const filePath = 'downloaded_audio.mp3'; // Replace with the desired file name and extension
+
         const result = await openAI.textToSpeech(payload);
-        const responseUrl = result.text;
-        console.log('Speech Model Result:\n', responseUrl, '\n');
-        assert(responseUrl.length > 0, 'testSpeechToText response length should be greater than 0');
+        // Create a writable stream and pipe the response data to the stream
+        const writer = createWriteStream(filePath);
+        result.pipe(writer);
+
+        // Handle the completion of writing the file
+        writer.on('finish', () => {
+            const fileExists =  existsSync(filePath);
+            assert(fileExists === true, 'file should be generated on finish')
+            console.log('Audio file downloaded successfully!');
+        });
+
+        // Handle any errors that may occur during the download process
+        writer.on('error', (err) => {
+            console.error('Error downloading the audio file:', err);
+        });
     } catch (error) {
         console.error('Image Model Error:', error);
     }

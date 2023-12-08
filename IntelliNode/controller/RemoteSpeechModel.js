@@ -72,7 +72,7 @@ class RemoteSpeechModel {
       }
 
       const response = await this.openAIWrapper.textToSpeech(params);
-      return response.audioContent;
+      return response;
     }  else {
       throw new Error('The keyType is not supported');
     }
