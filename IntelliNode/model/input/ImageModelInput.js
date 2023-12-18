@@ -15,7 +15,8 @@ class ImageModelInput {
     height = null,
     diffusion_cfgScale = null,
     diffusion_style_preset = null,
-    engine = null
+    engine = null,
+    model = null,
   }) {
     this.prompt = prompt;
     this.numberOfImages = numberOfImages;
@@ -26,9 +27,10 @@ class ImageModelInput {
     this.diffusion_cfgScale = diffusion_cfgScale;
     this.diffusion_style_preset = diffusion_style_preset;
     this.engine = engine;
+    this.model = model;
     if (width != null && height != null && imageSize == null) {
         this.imageSize = width+'x'+height;
-    } else if (width == null && height == null && imageSize == null) {
+    } else if (width == null && height == null && imageSize != null) {
         const sizesParts = imageSize.split('x').map(Number);
         this.width = sizesParts[0];
         this.height = sizesParts[1];
@@ -42,6 +44,7 @@ class ImageModelInput {
       ...this.numberOfImages && { n: this.numberOfImages },
       ...this.imageSize && { size: this.imageSize },
       ...this.responseFormat && { response_format: this.responseFormat },
+      ...this.model && { model: this.model }
     };
 
     return inputs;
