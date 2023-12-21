@@ -97,8 +97,43 @@ async function testStabilityImageRemoteModel() {
   }
 }
 
+async function testOpenaiDallE3() {
+  console.log('### Openai test case 3 ### \n');
+
+  const prompt = "teddy writing a blog in times square";
+
+  try {
+    const wrapper = new RemoteImageModel(openaiKey, "openai");
+
+    if (openaiKey === "") return;
+
+    const images = await wrapper.generateImages(new ImageModelInput({
+      prompt,
+      model: 'dall-e-3'
+    }));
+
+    for (const image of images) {
+      console.log("- ", image, "\n");
+    }
+
+    assert(
+      images.length > 0,
+      "testOpenaiImageRemoteModel response length should be greater than 0"
+    );
+  } catch (error) {
+    if (openaiKey === "") {
+      console.log(
+        "testOpenaiImageRemoteModel: set the API key to run the test case."
+      );
+    } else {
+      console.error("Test case failed with exception:", error);
+    }
+  }
+}
+
 (async () => {
   await testOpenaiImageRemoteModel();
   await testBase64IOpenaimageRemoteModel();
   await testStabilityImageRemoteModel();
+  await testOpenaiDallE3();
 })();
