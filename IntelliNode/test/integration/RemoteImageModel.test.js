@@ -97,7 +97,9 @@ async function testStabilityImageRemoteModel() {
   }
 }
 
-async function testOpenaiDallEImageRemoteModel() {
+async function testOpenaiDallE3() {
+  console.log('### Openai test case 3 ### \n');
+
   const prompt = "teddy writing a blog in times square";
 
   try {
@@ -133,5 +135,5 @@ async function testOpenaiDallEImageRemoteModel() {
   await testOpenaiImageRemoteModel();
   await testBase64IOpenaimageRemoteModel();
   await testStabilityImageRemoteModel();
-  await testOpenaiDallEImageRemoteModel();
+  await testOpenaiDallE3();
 })();
