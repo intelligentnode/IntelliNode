@@ -50,7 +50,7 @@ async function testOpenAiGenerateSpeech() {
     const result = await openAiRemoteSpeechModel.generateSpeech(input);
 
     // Create a writable stream and pipe the response data to the stream
-    const filePath = 'downloaded_audio.mp3'; // Replace with the desired file name and extension
+    const filePath = '../temp/downloaded_audio.mp3'; // Replace with the desired file name and extension
 
     const writer = fs.createWriteStream(filePath);
     result.pipe(writer);
@@ -73,6 +73,6 @@ async function testOpenAiGenerateSpeech() {
 }
 
 (async () => {
-  await testGenerateSpeech();
+  // await testGenerateSpeech();
   await testOpenAiGenerateSpeech();
 })();
