@@ -189,7 +189,7 @@ async function testTextToSpeech() {
             voice: "alloy",
             stream: true
         }
-        const filePath = 'downloaded_audio.mp3'; // Replace with the desired file name and extension
+        const filePath = '../temp/downloaded_audio.mp3'; // Replace with the desired file name and extension
 
         const result = await openAI.textToSpeech(payload);
         // Create a writable stream and pipe the response data to the stream
