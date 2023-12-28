@@ -8,6 +8,8 @@
       "embeddings": "/v1/embeddings",
       "audiotranscriptions": "/v1/audio/transcriptions",
       "audiospeech": "/v1/audio/speech",
+      "files": "/v1/files",
+      "finetuning": "/v1/fine_tuning/jobs",
       "organization": null
     },
     "azure_openai": {
@@ -17,7 +19,8 @@
       "imagegenerate": "/images/generations:submit?api-version={api-version}",
       "embeddings": "/deployments/{deployment-id}/embeddings?api-version={api-version}",
       "audiotranscriptions": "/deployments/{deployment-id}/audio/transcriptions?api-version={api-version}",
-      "audiospeech": "/deployments/{deployment-id}/audio/speech?api-version={api-version}"
+      "audiospeech": "/deployments/{deployment-id}/audio/speech?api-version={api-version}",
+      "finetuning": "/deployments/{deployment-id}/fine_tuning/jobs?api-version={api-version}"
     },
     "cohere": {
       "base": "https://api.cohere.ai",

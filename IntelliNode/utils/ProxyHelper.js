@@ -69,6 +69,28 @@ class ProxyHelper {
     }
   }
 
+  getOpenaiFiles() {
+    if (this._openai_type == 'azure') {
+      return this._openaiFiles.replace(
+        '{api-version}',
+        '2023-06-01-preview'
+      );
+    } else {
+      return this._openaiFiles;
+    }
+  }
+
+  getOpenaiFineTuningJob() {
+    if (this._openai_type == 'azure') {
+      return this._openaiFineTuningJob.replace(
+        '{api-version}',
+        '2023-06-01-preview'
+      );
+    } else {
+      return this._openaiFineTuningJob;
+    }
+  }
+
   getOpenaiEmbed(model = '') {
     if (this._openai_type == 'azure') {
       return this._openaiEmbed
@@ -117,6 +139,12 @@ class ProxyHelper {
     this._openaiAudioToSpeech =
       proxySettings.audiospeech ||
       config.url.openai.audiospeech;
+    this._openaiFineTuningJob =
+      proxySettings.finetuning ||
+      config.url.openai.finetuning;
+    this._openaiFiles =
+      proxySettings.files ||
+      config.url.openai.files;
     this._openai_type = 'openai';
     this._resourceName = '';
   }
@@ -146,6 +174,8 @@ class ProxyHelper {
     this._openaiEmbed = config.url.openai.embeddings;
     this._openaiOrg = config.url.openai.organization;
     this._openaiAudioTranscriptions = config.url.openai.audiotranscriptions;
+    this._openaiFineTuningJob = config.url.openai.finetuning;
+    this._openaiFiles = config.url.openai.files;
     this._openaiAudioToSpeech = config.url.openai.audiospeech;
     this._openai_type = 'openai';
     this._resourceName = '';

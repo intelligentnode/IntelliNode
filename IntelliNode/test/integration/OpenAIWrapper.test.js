@@ -198,7 +198,7 @@ async function testTextToSpeech() {
 
         // Handle the completion of writing the file
         writer.on('finish', () => {
-            const fileExists =  existsSync(filePath);
+            const fileExists = existsSync(filePath);
             assert(fileExists === true, 'file should be generated on finish')
             console.log('Audio file downloaded successfully!');
         });
@@ -212,6 +212,30 @@ async function testTextToSpeech() {
     }
 }
 
+async function testFineTuning() {
+    try {
+        const filePath = 'IntelliNode/test/temp/training_data.jsonl'
+
+        const filePayload = new FormData();
+        filePayload.append('file', createReadStream(filePath));
+        filePayload.append('purpose', 'fine-tune');
+
+        const file = await openAI.uploadFile(filePayload)
+        const payload = {
+            model: 'gpt-3.5-turbo',
+            training_file: file.id
+        }
+        const result = await openAI.storeFineTuningData(payload);
+        const allFineTuneObjects = await openAI.listFineTuningData();
+        const value = allFineTuneObjects.data.filter(b => b.id === result.id)
+        console.log('Fine tuning Model Result:\n', value, '\n');
+        assert(value.length > 0, 'testFineTuning response length should be greater than 0');
+
+    } catch (error) {
+        console.error('testFineTuning Error:', error);
+    }
+}
+
 (async () => {
     await testLanguageModel();
     await testChatGPT();
@@ -221,4 +245,5 @@ async function testTextToSpeech() {
     await testChatGPTStream();
     await testVisionImageToText();
     await testTextToSpeech();
+    await testFineTuning()
 })();
