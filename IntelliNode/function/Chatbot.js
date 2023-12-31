@@ -32,12 +32,12 @@ const SupportedChatModels = {
 };
 
 class Chatbot {
-    constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null, oneKey = null) {
+    constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null, options = {}) {
         
         const supportedModels = this.getSupportedModels();
 
         if (supportedModels.includes(provider)) {
-            this.initiate(keyValue, provider, customProxyHelper, oneKey);
+            this.initiate(keyValue, provider, customProxyHelper, options);
         } else {
             const models = supportedModels.join(" - ");
             throw new Error(
