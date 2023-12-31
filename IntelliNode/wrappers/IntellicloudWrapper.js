@@ -12,28 +12,36 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const axios = require('axios');
 const FormData = require('form-data');
 const config = require('../config.json');
+const connHelper = require('../utils/ConnHelper');
 
 class IntellicloudWrapper {
-  constructor(apiKey, apiBase = config.semantic_search_api) {
+  constructor(apiKey, apiBase = null) {
+    
     this.ONE_KEY = apiKey;
-    this.API_BASE_URL = apiBase;
+    if (apiBase) {
+        this.API_BASE_URL = apiBase;
+    } else {
+        this.API_BASE_URL = config.url.intellicloud.base;
+    }
+    
+    this.httpClient = axios.create({
+      baseURL: this.API_BASE_URL
+    });
   }
 
-  async semanticSearch(query, k = 3) {
+  async semanticSearch(queryText, k = 3) {
+    const url = config.url.intellicloud.semantic_search;
     const form = new FormData();
     form.append('one_key', this.ONE_KEY);
-    form.append('query_text', query);
+    form.append('query_text', queryText);
     form.append('k', k.toString());
-
+    
     try {
-      const response = await axios.post(this.API_BASE_URL + 'semantic_search/', form, {
-        headers: form.getHeaders(),
-      });
-      return response.data;
+      const response = await this.httpClient.post(url, form);
+      
+      return response.data.data;
     } catch (error) {
-      // Handle error appropriately, perhaps by throwing a custom error or returning null
-      console.error('Semantic Search API Error:', error);
-      throw error;
+      throw new Error(connHelper.getErrorMessage(error));
     }
   }
 }
