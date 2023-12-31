@@ -30,11 +30,16 @@ class IntellicloudWrapper {
   }
 
   async semanticSearch(queryText, k = 3) {
+    // validate k value
+    if (!k || k == undefined) {
+      k = 3;
+    }
+
     const url = config.url.intellicloud.semantic_search;
     const form = new FormData();
     form.append('one_key', this.ONE_KEY);
     form.append('query_text', queryText);
-    form.append('k', k.toString());
+    form.append('k', k);
     
     try {
       const response = await this.httpClient.post(url, form);

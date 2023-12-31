@@ -49,6 +49,7 @@ const StabilityAIWrapper = require('./wrappers/StabilityAIWrapper');
 const HuggingWrapper = require('./wrappers/HuggingWrapper');
 const ReplicateWrapper = require('./wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('./wrappers/AWSEndpointWrapper');
+const IntellicloudWrapper = require('./wrappers/IntellicloudWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -102,5 +103,6 @@ module.exports = {
   GPTStreamParser,
   CohereStreamParser,
   ChatContext,
-  CohereInput
+  CohereInput,
+  IntellicloudWrapper
 };

@@ -11,6 +11,8 @@ const AWSEndpointWrapper = require('../wrappers/AWSEndpointWrapper');
 const { GPTStreamParser } = require('../utils/StreamParser');
 const { CohereStreamParser } = require('../utils/StreamParser');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
+const IntellicloudWrapper = require("../wrappers/IntellicloudWrapper");
+const SystemHelper = require("../utils/SystemHelper");
 
 const {
     ChatGPTInput,
@@ -30,20 +32,22 @@ const SupportedChatModels = {
 };
 
 class Chatbot {
-    constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null) {
+    constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null, oneKey = null) {
+        
         const supportedModels = this.getSupportedModels();
 
         if (supportedModels.includes(provider)) {
-            this.initiate(keyValue, provider, customProxyHelper);
+            this.initiate(keyValue, provider, customProxyHelper, oneKey);
         } else {
             const models = supportedModels.join(" - ");
             throw new Error(
                 `The received keyValue is not supported. Send any model from: ${models}`
             );
         }
+        
     }
 
-    initiate(keyValue, provider, customProxyHelper = null) {
+    initiate(keyValue, provider, customProxyHelper = null, options = {}) {
         this.provider = provider;
 
         if (provider === SupportedChatModels.OPENAI) {
@@ -57,6 +61,13 @@ class Chatbot {
         } else {
             throw new Error("Invalid provider name");
         }
+
+        // initiate the optional search feature
+        if (options && options.oneKey) {
+            const apiBase = options.intelliBase ? options.intelliBase : null;
+            this.extendedController = options.oneKey.startsWith("in") ? new IntellicloudWrapper(options.oneKey, apiBase) : null;
+        }
+        
     }
 
     getSupportedModels() {
@@ -64,6 +75,9 @@ class Chatbot {
     }
 
     async chat(modelInput, functions = null, function_call = null, debugMode = true) {
+
+        await this.getSemanticSearchContext(modelInput);
+
         if (this.provider === SupportedChatModels.OPENAI) {
             return this._chatGPT(modelInput, functions, function_call);
         } else if (this.provider === SupportedChatModels.REPLICATE) {
@@ -89,12 +103,113 @@ class Chatbot {
     }
 
     async *stream(modelInput) {
+
+        await this.getSemanticSearchContext(modelInput);
+
         if (this.provider === SupportedChatModels.OPENAI) {
             yield* this._chatGPTStream(modelInput);
         } else  if (this.provider === SupportedChatModels.COHERE) {
             yield* this._streamCohere(modelInput)
         } else {
             throw new Error("The stream function support only chatGPT, for other providers use chat function.");
+        }
+    }
+
+    async getSemanticSearchContext(modelInput) {
+        
+        // verify the chatbot loaded with semantic search key
+        if (!this.extendedController) {
+            return;
+        }
+        
+        let messages = modelInput.messages;
+        
+        // verify the data include messages
+        if (!messages || messages.length === 0) {
+            return;
+        }
+        
+        let lastMessage = messages[messages.length - 1];
+
+        if (lastMessage && lastMessage.role === "user") {
+
+            const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
+
+            if (semanticResult && semanticResult.length > 0) {
+
+                let contextData = semanticResult.map(doc => doc.data.map(dataItem => dataItem.text).join('\n')).join('\n').trim();
+
+                const templateWrapper = new SystemHelper().loadPrompt("augmented_chatbot");
+                const augmentedMessage  = templateWrapper.replace('${semantic_search}', contextData).replace('${user_query}', lastMessage.content);
+
+                if (modelInput instanceof ChatModelInput) {
+                    modelInput.deleteLastMessage(lastMessage);
+                    modelInput.addUserMessage(augmentedMessage);
+                    
+                } else if (typeof modelInput === "object" && Array.isArray(messages) && messages.length > 0) {
+                    // replace the user message directly in the array
+                    if (lastMessage.content) {
+                        lastMessage.content = augmentedMessage;
+                    }
+                }
+            }
+            
+        }
+    }
+
+    async getSemanticSearchContext(modelInput) {
+        if (!this.extendedController) {
+            return;
+        }
+        
+        // Initialize variables for messages or prompt
+        let messages, lastMessage;
+
+        if (modelInput instanceof ChatLLamaInput && typeof modelInput.prompt === "string") {
+            messages = modelInput.prompt.split('\n').map(line => {
+                const role = line.startsWith('User:') ? 'user' : 'assistant';
+                const content = line.replace(/^(User|Assistant): /, '');
+                return { role, content };
+            });
+        } else if (Array.isArray(modelInput.messages)) {
+            messages = modelInput.messages;
+        } else {
+            console.log('The input format does not support augmented search.');
+            return;
+        }
+        
+        lastMessage = messages[messages.length - 1];
+    
+        if (lastMessage && lastMessage.role === "user") {
+
+            const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
+
+            if (semanticResult && semanticResult.length > 0) {
+
+                let contextData = semanticResult.map(doc => doc.data.map(dataItem => dataItem.text).join('\n')).join('\n').trim();
+                const templateWrapper = new SystemHelper().loadPrompt("augmented_chatbot");
+                const augmentedMessage = templateWrapper.replace('${semantic_search}', contextData).replace('${user_query}', lastMessage.content);
+    
+                if (modelInput instanceof ChatLLamaInput && modelInput.prompt) {
+                    const promptLines = modelInput.prompt.trim().split('\n');
+                    promptLines.pop();
+                    promptLines.push(`User: ${augmentedMessage}`); 
+                    modelInput.prompt = promptLines.join('\n');
+
+                    console.log('----> prompt after update: ', modelInput.prompt);
+                } else if (modelInput instanceof ChatModelInput) {
+                    modelInput.deleteLastMessage(lastMessage);
+                    modelInput.addUserMessage(augmentedMessage);
+
+                    console.log('----> modelInput after update: ', modelInput);
+                } else if (typeof modelInput === "object" && Array.isArray(modelInput.messages) && messages.length > 0) {
+                    // replace the user message directly in the array
+                    if (lastMessage.content) {
+                        lastMessage.content = augmentedMessage;
+                    }
+                    console.log('----> messages after update: ', messages[messages.length - 1]);
+                }
+            }
         }
     }
 

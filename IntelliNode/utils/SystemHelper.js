@@ -20,7 +20,9 @@ class SystemHelper {
       promptPath = path.join(this.systemsPath, "instruct_update.in");
     } else if (fileType === "prompt_example") {
       promptPath = path.join(this.systemsPath, "prompt_example.in");
-    }else {
+    } else if (fileType === "augmented_chatbot") {
+      promptPath = path.join(this.systemsPath, "augmented_chatbot.in");
+    } else {
       throw new Error(`File type '${file_type}' not supported`);
     }
 
