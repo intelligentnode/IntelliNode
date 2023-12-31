@@ -1,5 +1,8 @@
 {
   "url": {
+    "intellicloud": {
+      "semantic_search": "https://ue8sdr9bij.execute-api.us-east-2.amazonaws.com/semantic_search/"
+    },
     "openai": {
       "base": "https://api.openai.com",
       "completions": "/v1/completions",
