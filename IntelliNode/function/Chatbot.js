@@ -116,48 +116,6 @@ class Chatbot {
     }
 
     async getSemanticSearchContext(modelInput) {
-        
-        // verify the chatbot loaded with semantic search key
-        if (!this.extendedController) {
-            return;
-        }
-        
-        let messages = modelInput.messages;
-        
-        // verify the data include messages
-        if (!messages || messages.length === 0) {
-            return;
-        }
-        
-        let lastMessage = messages[messages.length - 1];
-
-        if (lastMessage && lastMessage.role === "user") {
-
-            const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
-
-            if (semanticResult && semanticResult.length > 0) {
-
-                let contextData = semanticResult.map(doc => doc.data.map(dataItem => dataItem.text).join('\n')).join('\n').trim();
-
-                const templateWrapper = new SystemHelper().loadPrompt("augmented_chatbot");
-                const augmentedMessage  = templateWrapper.replace('${semantic_search}', contextData).replace('${user_query}', lastMessage.content);
-
-                if (modelInput instanceof ChatModelInput) {
-                    modelInput.deleteLastMessage(lastMessage);
-                    modelInput.addUserMessage(augmentedMessage);
-                    
-                } else if (typeof modelInput === "object" && Array.isArray(messages) && messages.length > 0) {
-                    // replace the user message directly in the array
-                    if (lastMessage.content) {
-                        lastMessage.content = augmentedMessage;
-                    }
-                }
-            }
-            
-        }
-    }
-
-    async getSemanticSearchContext(modelInput) {
         if (!this.extendedController) {
             return;
         }
@@ -196,18 +154,18 @@ class Chatbot {
                     promptLines.push(`User: ${augmentedMessage}`); 
                     modelInput.prompt = promptLines.join('\n');
 
-                    console.log('----> prompt after update: ', modelInput.prompt);
+                    // console.log('----> prompt after update: ', modelInput.prompt);
                 } else if (modelInput instanceof ChatModelInput) {
                     modelInput.deleteLastMessage(lastMessage);
                     modelInput.addUserMessage(augmentedMessage);
 
-                    console.log('----> modelInput after update: ', modelInput);
+                    // console.log('----> modelInput after update: ', modelInput);
                 } else if (typeof modelInput === "object" && Array.isArray(modelInput.messages) && messages.length > 0) {
                     // replace the user message directly in the array
                     if (lastMessage.content) {
                         lastMessage.content = augmentedMessage;
                     }
-                    console.log('----> messages after update: ', messages[messages.length - 1]);
+                    // console.log('----> messages after update: ', messages[messages.length - 1]);
                 }
             }
         }
