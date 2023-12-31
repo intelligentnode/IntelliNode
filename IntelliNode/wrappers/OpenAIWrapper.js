@@ -12,7 +12,7 @@ const connHelper = require('../utils/ConnHelper');
 class OpenAIWrapper {
 
   constructor(apiKey, customProxyHelper = null) {
-
+    
     this.proxyHelper = customProxyHelper || ProxyHelper.getInstance();
 
     let axios_config;

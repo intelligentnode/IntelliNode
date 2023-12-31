@@ -20,6 +20,10 @@ class ChatGPTMessage {
 }
 
 class ChatModelInput {
+  constructor(options = {}) { 
+    this.searchK = options.searchK || 3;
+  }
+  
   getChatInput() {
     return null;
   }
@@ -27,7 +31,7 @@ class ChatModelInput {
 
 class ChatGPTInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
-    super();
+    super(options);
     if (
       systemMessage instanceof ChatGPTMessage &&
       systemMessage.isSystemRole()
@@ -149,7 +153,7 @@ class CohereInput extends ChatGPTInput {
 
 class ChatLLamaInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
-    super();
+    super(options);
     if (
       systemMessage instanceof ChatGPTMessage &&
       systemMessage.isSystemRole()
@@ -264,8 +268,8 @@ class LLamaReplicateInput extends ChatLLamaInput {
 }
 
 class LLamaSageInput extends ChatModelInput {
-  constructor(systemMessage, parameters = {}) {
-    super();
+  constructor(systemMessage, parameters = {}, options = {}) {
+    super(options);
     if (
       systemMessage instanceof ChatGPTMessage &&
       systemMessage.isSystemRole()
