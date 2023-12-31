@@ -145,7 +145,7 @@ class Chatbot {
             if (semanticResult && semanticResult.length > 0) {
 
                 let contextData = semanticResult.map(doc => doc.data.map(dataItem => dataItem.text).join('\n')).join('\n').trim();
-                const templateWrapper = new SystemHelper().loadPrompt("augmented_chatbot");
+                const templateWrapper = new SystemHelper().loadStaticPrompt("augmented_chatbot");
                 const augmentedMessage = templateWrapper.replace('${semantic_search}', contextData).replace('${user_query}', lastMessage.content);
     
                 if (modelInput instanceof ChatLLamaInput && modelInput.prompt) {

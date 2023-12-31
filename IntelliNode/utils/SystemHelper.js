@@ -36,6 +36,21 @@ class SystemHelper {
     return promptTemplate;
 
   }
+
+  loadStaticPrompt(fileType) { 
+
+    if (fileType === "augmented_chatbot") { 
+      return "Using the provided context, craft a  cohesive response that directly addresses the user's query. " +
+      "If the context lacks relevance or is absent, focus on generating a knowledgeable and accurate answer based on the user's question alone. " +
+      "Aim for clarity and conciseness in your reply.\n" +
+      "Context:\n" +
+      "${semantic_search}" +
+      "\n---------------------------------\n" +
+      "User's Question:\n" +
+      "${user_query}";
+    }
+
+  }
 }
 
 module.exports = SystemHelper;
