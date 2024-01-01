@@ -11,7 +11,7 @@ const Text2SpeechInput = require('../model/input/Text2SpeechInput');
 
 const SupportedSpeechModels = {
   GOOGLE: 'google',
-  OPEN_AI: 'openAi',
+  OPENAI: 'openAi',
 };
 
 class RemoteSpeechModel {
@@ -35,7 +35,7 @@ class RemoteSpeechModel {
 
     if (keyType === SupportedSpeechModels.GOOGLE) {
       this.googleWrapper = new GoogleAIWrapper(keyValue);
-    } else if (keyType === SupportedSpeechModels.OPEN_AI) {
+    } else if (keyType === SupportedSpeechModels.OPENAI) {
       this.openAIWrapper = new OpenAIWrapper(keyValue);
     } else {
       throw new Error('Invalid provider name');
@@ -60,7 +60,7 @@ class RemoteSpeechModel {
 
       const response = await this.googleWrapper.generateSpeech(params);
       return response.audioContent;
-    } else if (this.keyType === SupportedSpeechModels.OPEN_AI) {
+    } else if (this.keyType === SupportedSpeechModels.OPENAI) {
       let params;
 
       if (input instanceof Text2SpeechInput) {

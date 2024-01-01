@@ -9,13 +9,13 @@ const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const FineTuneInput = require('../model/input/FineTuneInput');
 
 const SupportedFineTuneModels = {
-    OPEN_AI: 'openAi',
+    OPENAI: 'openAi',
 };
 
 class RemoteFineTuneModel {
     constructor(keyValue, provider) {
         if (!provider) {
-            provider = SupportedFineTuneModels.OPEN_AI;
+            provider = SupportedFineTuneModels.OPENAI;
         }
 
         const supportedModels = this.getSupportedModels();
@@ -31,7 +31,7 @@ class RemoteFineTuneModel {
     initiate(keyValue, keyType) {
         this.keyType = keyType;
 
-        if (keyType === SupportedFineTuneModels.OPEN_AI) {
+        if (keyType === SupportedFineTuneModels.OPENAI) {
             this.openAIWrapper = new OpenAIWrapper(keyValue);
         } else {
             throw new Error('Invalid provider name');
@@ -43,7 +43,7 @@ class RemoteFineTuneModel {
     }
 
     async generateFineTune(input) {
-        if (this.keyType === SupportedFineTuneModels.OPEN_AI) {
+        if (this.keyType === SupportedFineTuneModels.OPENAI) {
             let params;
             if (input instanceof FineTuneInput) {
                 params = input.getOpenAIInput();
@@ -61,7 +61,7 @@ class RemoteFineTuneModel {
     }
 
     async listFineTune(input) {
-        if (this.keyType === SupportedFineTuneModels.OPEN_AI) {
+        if (this.keyType === SupportedFineTuneModels.OPENAI) {
             const response = await this.openAIWrapper.listFineTuningData(input);
             return response;
         } else {

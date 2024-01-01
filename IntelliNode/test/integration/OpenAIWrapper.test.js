@@ -214,7 +214,7 @@ async function testTextToSpeech() {
 
 async function testFineTuning() {
     try {
-        const filePath = 'IntelliNode/test/temp/training_data.jsonl'
+        const filePath = '../temp/training_data.jsonl'
 
         const filePayload = new FormData();
         filePayload.append('file', createReadStream(filePath));

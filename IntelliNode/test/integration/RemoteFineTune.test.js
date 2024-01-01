@@ -10,11 +10,11 @@ const openaiKey = process.env.OPENAI_API_KEY;
 async function testOpenAIFineTuneRemoteModel() {
   console.log('### Openai test case 1 ### \n');
   try {
-    const wrapper = new RemoteFineTuneModel(openaiKey, SupportedFineTuneModels.OPEN_AI);
+    const wrapper = new RemoteFineTuneModel(openaiKey, SupportedFineTuneModels.OPENAI);
 
     if (openaiKey === "") return;
 
-    const filePath = 'IntelliNode/test/temp/training_data.jsonl'
+    const filePath = '../temp/training_data.jsonl'
 
     const filePayload = new FormData();
     filePayload.append('file', createReadStream(filePath));
