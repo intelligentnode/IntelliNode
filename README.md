@@ -71,6 +71,23 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const chatbot = new Chatbot(OPENAI_API_KEY, 'openai');
 const responses = await chatbot.chat(input);
 ```
+### Mistral Chatbot
+IntelliNode enable effortless swapping between AI models.
+1. imports:
+```js
+const { Chatbot, MistralInput, SupportedChatModels } = require('intellinode');
+```
+2. call:
+```js
+const input = new MistralInput('You are an art expert.');
+input.addUserMessage('Who painted the Mona Lisa?');
+
+const mistralBot = new Chatbot(apiKey, SupportedChatModels.MISTRAL);
+const responses = await mistralBot.chat(input);
+```
+
+The documentation to switch the chatbot provider between ChatGPT, LLama, Cohere and more can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+
 The documentation on how to switch the chatbot between **ChatGPT** and **LLama** in this [wiki page](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
 
 ### Semantic search
