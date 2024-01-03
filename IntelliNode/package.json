@@ -15,7 +15,8 @@
     "image generation",
     "speech synthesis",
     "prompt",
-    "automation"
+    "automation",
+    "Mistral"
   ],
   "author": "IntelliNode",
   "license": "Apache",
