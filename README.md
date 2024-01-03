@@ -88,8 +88,6 @@ const responses = await mistralBot.chat(input);
 
 The documentation to switch the chatbot provider between ChatGPT, LLama, Cohere and more can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
 
-The documentation on how to switch the chatbot between **ChatGPT** and **LLama** in this [wiki page](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
-
 ### Semantic search
 import:
 ```js
