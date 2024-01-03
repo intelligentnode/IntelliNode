@@ -53,14 +53,15 @@ const responses = await bot.chat(input);
 IntelliNode enable effortless swapping between AI models.
 1. imports:
 ```js
-const { Chatbot, MistralInput } = require('intellinode');
+const { Chatbot, MistralInput, SupportedChatModels } = require('intellinode');
 ```
 2. call:
 ```js
 const input = new MistralInput('You are an art expert.');
 input.addUserMessage('Who painted the Mona Lisa?');
 
-const mistralBot = new Chatbot('your-mistral-ai-api-key', 'mistral');
+// get the api key from mistral.ai
+const mistralBot = new Chatbot(apiKey, SupportedChatModels.MISTRAL);
 const responses = await mistralBot.chat(input);
 ```
 
