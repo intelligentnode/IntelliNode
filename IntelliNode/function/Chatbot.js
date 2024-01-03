@@ -12,6 +12,7 @@ const { GPTStreamParser } = require('../utils/StreamParser');
 const { CohereStreamParser } = require('../utils/StreamParser');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const IntellicloudWrapper = require("../wrappers/IntellicloudWrapper");
+const MistralAIWrapper = require('../wrappers/MistralAIWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 
 const {
@@ -21,14 +22,16 @@ const {
     ChatLLamaInput,
     LLamaReplicateInput,
     CohereInput,
-    LLamaSageInput
+    LLamaSageInput,
+    MistralInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
     OPENAI: "openai",
     REPLICATE: "replicate",
     SAGEMAKER: "sagemaker",
-    COHERE: "cohere"
+    COHERE: "cohere",
+    MISTRAL: "mistral"
 };
 
 class Chatbot {
@@ -58,6 +61,8 @@ class Chatbot {
             this.sagemakerWrapper = new AWSEndpointWrapper(customProxyHelper.url, keyValue);
         } else if (provider === SupportedChatModels.COHERE) {
             this.cohereWrapper = new CohereAIWrapper(keyValue);
+        } else if (provider === SupportedChatModels.MISTRAL) {
+            this.mistralWrapper = new MistralAIWrapper(keyValue);
         } else {
             throw new Error("Invalid provider name");
         }
@@ -97,6 +102,8 @@ class Chatbot {
             return this._chatSageMaker(modelInput);
         } else if (this.provider === SupportedChatModels.COHERE) { 
             return this._chatCohere(modelInput);
+        } else if (this.provider === SupportedChatModels.MISTRAL) {
+            return this._chatMistral(modelInput);
         } else {
             throw new Error("The provider is not supported");
         }
@@ -370,6 +377,24 @@ class Chatbot {
             const chunkText = chunk.toString('utf8');
             yield* streamParser.feed(chunkText);
         }
+    }
+
+    async _chatMistral(modelInput) {
+        let params;
+    
+        if (modelInput instanceof MistralInput) {
+          params = modelInput.getChatInput();
+        } if (modelInput instanceof ChatGPTInput) {
+            params = modelInput.getChatInput();
+        } else if (typeof modelInput === "object") {
+          params = modelInput;
+        } else {
+          throw new Error("Invalid input: Must be an instance of MistralInput or an object");
+        }
+        
+        const results = await this.mistralWrapper.generateText(params);
+
+        return results.choices.map(choice => choice.message.content);
     }
 
 } /*chatbot class*/

@@ -151,6 +151,31 @@ class CohereInput extends ChatGPTInput {
 
 }
 
+class MistralInput extends ChatGPTInput {
+  constructor(systemMessage, options = {}) {
+    super(systemMessage, options);
+    
+    this.model = options.model || 'mistral-tiny'; 
+
+  }
+
+  getChatInput() {
+    // Prepare the messages in the expected format
+    const messages = this.messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+
+    // Construct Mistral input parameters
+    const params = {
+      model: this.model,
+      messages: messages,
+    };
+
+    return params;
+  }
+}
+
 class ChatLLamaInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super(options);
@@ -344,4 +369,5 @@ module.exports = {
   LLamaSageInput,
   LLamaReplicateInput,
   CohereInput,
+  MistralInput
 };

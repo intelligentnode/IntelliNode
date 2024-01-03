@@ -1,7 +1,7 @@
 {
   "name": "intellinode",
-  "version": "1.6.0",
-  "description": "Integrate and evaluate various AI models, such as ChatGPT, Llama, Diffusion, Cohere, and Hugging Face.",
+  "version": "1.7.1",
+  "description": "Integrate and evaluate various AI models, such as ChatGPT, Llama, Diffusion, Cohere, Mistral and Hugging Face.",
   "main": "index.js",
   "keywords": [
     "ai",
@@ -15,7 +15,8 @@
     "image generation",
     "speech synthesis",
     "prompt",
-    "automation"
+    "automation",
+    "Mistral"
   ],
   "author": "IntelliNode",
   "license": "Apache",

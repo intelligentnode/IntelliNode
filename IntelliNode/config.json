@@ -50,6 +50,11 @@
     "replicate": {
       "base": "https://api.replicate.com",
       "predictions": "/v1/predictions"
+    },
+    "mistral": {
+      "base": "https://api.mistral.ai",
+      "completions": "/v1/chat/completions",
+      "embed": "/v1/embeddings"
     }
   },
   "models": {

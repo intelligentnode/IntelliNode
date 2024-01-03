@@ -19,6 +19,7 @@
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
+- Add Mistral SMoE model as a chatbot provider (open source mixture of experts).
 - Update the chatbot to augment answers with your documents, allowing for a multi-model agent approach.
 - Update Openai with DALL·E 3 vision, speech, and ChatGPT functions (automation).
 - Improve Llama v2 chat speed and support llama code models. 🦙
@@ -35,7 +36,7 @@ Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates 
 ### Chatbot
 1. imports:
 ```js
-const { Chatbot, ChatGPTInput, ChatGPTMessage } = require('intellinode');
+const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
 2. call:
 ```js
@@ -47,7 +48,25 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const bot = new Chatbot(apiKey);
 const responses = await bot.chat(input);
 ```
+
+### Mistral Chatbot
+IntelliNode enable effortless swapping between AI models.
+1. imports:
+```js
+const { Chatbot, MistralInput, SupportedChatModels } = require('intellinode');
+```
+2. call:
+```js
+const input = new MistralInput('You are an art expert.');
+input.addUserMessage('Who painted the Mona Lisa?');
+
+// get the api key from mistral.ai
+const mistralBot = new Chatbot(apiKey, SupportedChatModels.MISTRAL);
+const responses = await mistralBot.chat(input);
+```
+
 The documentation on how to switch the chatbot between ChatGPT and LLama can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+
 ### Semantic Search
 1. imports:
 ```js
