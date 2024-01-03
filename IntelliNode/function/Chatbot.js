@@ -384,14 +384,16 @@ class Chatbot {
     
         if (modelInput instanceof MistralInput) {
           params = modelInput.getChatInput();
+        } if (modelInput instanceof ChatGPTInput) {
+            params = modelInput.getChatInput();
         } else if (typeof modelInput === "object") {
           params = modelInput;
         } else {
           throw new Error("Invalid input: Must be an instance of MistralInput or an object");
         }
-    
-        const results = await this.mistralWrapper.generateText(params);
         
+        const results = await this.mistralWrapper.generateText(params);
+
         return results.choices.map(choice => choice.message.content);
     }
 
