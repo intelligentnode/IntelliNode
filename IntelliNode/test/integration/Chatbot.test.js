@@ -7,10 +7,13 @@ const { ChatGPTInput,
         ChatLLamaInput,
         CohereInput,
         LLamaReplicateInput,
-        LLamaSageInput } = require("../../model/input/ChatModelInput");
+        LLamaSageInput,
+        MistralInput } = require("../../model/input/ChatModelInput");
 
+// env key
 const apiKey = process.env.OPENAI_API_KEY;
 const replicateApiKey = process.env.REPLICATE_API_KEY;
+const mistralApiKey = process.env.MISTRAL_API_KEY;
 // openai bot
 const bot = new Chatbot(apiKey, SupportedChatModels.OPENAI);
 // llama - replicate bot
@@ -18,6 +21,8 @@ const replicateBot = new Chatbot(replicateApiKey, SupportedChatModels.REPLICATE)
 // llama - sagemaker bot (open access)
 const sageBot = new Chatbot(null, SupportedChatModels.SAGEMAKER,
                         {url: process.env.AWS_API_URL});
+// Mistral bot (Add the Mistral bot testing setup)
+const mistralBot = new Chatbot(mistralApiKey, SupportedChatModels.MISTRAL);
 
 async function testOpenaiChatGPTCase1() {
   try {
@@ -208,6 +213,24 @@ async function testCohereChatStream() {
   assert(fullText.length > 0, "Cohere chat stream response length should be greater than 0");
 }
 
+async function testMistralChatCase() {
+  try {
+    
+    console.log('\nchat test case 1 for Mistral: \n');
+    
+    const input = new MistralInput("You are a helpful art assistant.");
+    input.addUserMessage("who is the most renowned italian painter ?");
+
+    const responses = await mistralBot.chat(input);
+    responses.forEach(response => console.log("- " + response));
+
+    assert(responses.length > 0, "Mistral chat response length should be greater than 0");
+
+  } catch (error) {
+    console.error("Test case failed with exception:", error.message);
+  }
+}
+
 (async () => {
   
   console.log('### Openai model ###')
@@ -224,6 +247,10 @@ async function testCohereChatStream() {
   console.log('### Cohere model ###')
   await testCohereChatCase();
   await testCohereChatStream();
+
+  console.log('### Mistral model ###')
+  testMistralChatCase();
+
 
   console.log('### SageMaker llama model ###')
   //await testSageMakerLLamaCase();
