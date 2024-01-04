@@ -25,7 +25,7 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - Improve Llama v2 chat speed and support llama code models. 🦙
 - Update stable diffusion to use the XL model engine. 🎨
 - Add support for hugging face inference. 🤗
-- Support in-memory memory semantic search. 🔍
+- Support in-memory semantic search. 🔍
 - Add web search to cohere chatbot.
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
