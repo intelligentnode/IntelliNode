@@ -2,6 +2,9 @@ require('dotenv').config();
 const assert = require('assert');
 const OpenAIWrapper = require('../../wrappers/OpenAIWrapper');
 const proxyHelper = require('../../utils/ProxyHelper').getInstance();
+const {
+  createReadStream, readFileSync, createWriteStream, existsSync
+} = require('fs');
 let openAI = null;
 
 async function testLanguageModel() {
@@ -71,4 +74,6 @@ async function testEmbeddings() {
   await testLanguageModel();
   await testChatGPT();
   await testEmbeddings();
+  // request access to image generation api
+  // await testImageModel();
 })();

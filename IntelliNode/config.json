@@ -24,6 +24,7 @@
       "embeddings": "/deployments/{deployment-id}/embeddings?api-version={api-version}",
       "audiotranscriptions": "/deployments/{deployment-id}/audio/transcriptions?api-version={api-version}",
       "audiospeech": "/deployments/{deployment-id}/audio/speech?api-version={api-version}",
+      "files": "/files?api-version={api-version}",
       "finetuning": "/fine_tuning/jobs?api-version={api-version}"
     },
     "cohere": {

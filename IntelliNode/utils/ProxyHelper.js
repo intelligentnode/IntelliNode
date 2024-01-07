@@ -43,7 +43,7 @@ class ProxyHelper {
     if (this._openai_type == 'azure') {
       return this._openaiImage.replace(
         '{api-version}',
-        ProxyHelper.API_VERSION
+        '2023-06-01-preview'
       );
     } else {
       return this._openaiImage;
@@ -163,6 +163,10 @@ class ProxyHelper {
     this._openaiChatGPT = config.url.azure_openai.chatgpt;
     this._openaiImage = config.url.azure_openai.imagegenerate;
     this._openaiEmbed = config.url.azure_openai.embeddings;
+    this._openaiAudioTranscriptions = config.url.azure_openai.audiotranscriptions;
+    this._openaiAudioToSpeech = config.url.azure_openai.audiospeech;
+    this._openaiFineTuningJob = config.url.azure_openai.finetuning;
+    this._openaiFiles = config.url.azure_openai.files;
     this._openai_type = 'azure';
     this._resourceName = resourceName;
   }
