@@ -10,7 +10,7 @@ const openaiKey = process.env.OPENAI_API_KEY;
 async function testOpenAIFineTuneRemoteModel() {
   console.log('### Openai test case 1 ### \n');
   try {
-    const wrapper = new RemoteFineTuneModel(openaiKey, SupportedFineTuneModels.OPENAI);
+    const tuner = new RemoteFineTuneModel(openaiKey, SupportedFineTuneModels.OPENAI);
 
     if (openaiKey === "") return;
 
@@ -20,15 +20,15 @@ async function testOpenAIFineTuneRemoteModel() {
     filePayload.append('file', createReadStream(filePath));
     filePayload.append('purpose', 'fine-tune');
 
-    const file = await wrapper.openAIWrapper.uploadFile(filePayload)
+    const file = await tuner.uploadFile(filePayload)
 
     const input = new FineTuneInput({
       model: 'gpt-3.5-turbo',
       training_file: file.id
     })
 
-    const result = await wrapper.generateFineTune(input)
-    const list = await wrapper.listFineTune()
+    const result = await tuner.generateFineTune(input)
+    const list = await tuner.listFineTune()
 
     const value = list.data.filter(b => b.id === result.id)
     console.log('Fine tuning Model Result:\n', value, '\n');
