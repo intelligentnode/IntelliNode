@@ -1,4 +1,4 @@
-const fs = require('fs');
+const FileHelper = require('./FileHelper')
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
 const SystemHelper = require("../utils/SystemHelper");
@@ -32,7 +32,7 @@ class Prompt {
   }
 
   static fromFile(filePath) {
-    const template = fs.readFileSync(filePath, 'utf-8');
+    const template = FileHelper.readData(filePath, 'utf-8');
     return new Prompt(template);
   }
 

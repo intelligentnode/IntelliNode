@@ -52,8 +52,8 @@ async function testGenerateHtmlPage() {
 
 async function testSaveHTML() {
   prompt = "a registration page with flat modern theme."
-  status = await Gen.save_html_page(prompt, folder='../temp', file_name='test_register', openaiKey=openaiApiKey);
-  assert.strictEqual(status, true, "Test passed");
+  result = await Gen.save_html_page(prompt, folder='../temp', file_name='test_register', openaiKey=openaiApiKey);
+  assert.strictEqual(result, true, "Test passed");
 }
 
 async function testGenerateDashboard() {
