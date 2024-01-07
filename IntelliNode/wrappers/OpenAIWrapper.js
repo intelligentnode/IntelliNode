@@ -118,6 +118,46 @@ class OpenAIWrapper {
     }
   }
 
+  async uploadFile(params) {
+    const url = this.proxyHelper.getOpenaiFiles();
+    let headers = {}
+    if (params.getHeaders) {
+      headers = { ...params.getHeaders() }
+    }
+    try {
+      const config = {
+        url,
+        method: 'post',
+        headers,
+        data: params
+      }
+      const response = await this.httpClient(config);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async storeFineTuningData(params) {
+    const url = this.proxyHelper.getOpenaiFineTuningJob();
+    try {
+      const response = await this.httpClient.post(url, params);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async listFineTuningData(params) {
+    const url = this.proxyHelper.getOpenaiFineTuningJob();
+    try {
+      const response = await this.httpClient.get(url, params);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
   async getEmbeddings(params) {
     const url = this.proxyHelper.getOpenaiEmbed(params.model);
     try {

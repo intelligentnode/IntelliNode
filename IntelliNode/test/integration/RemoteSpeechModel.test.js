@@ -7,7 +7,7 @@ const Text2SpeechInput = require('../../model/input/Text2SpeechInput');
 const AudioHelper = require('../../utils/AudioHelper');
 
 const remoteSpeechModel = new RemoteSpeechModel(process.env.GOOGLE_API_KEY, SupportedSpeechModels.GOOGLE);
-const openAiRemoteSpeechModel = new RemoteSpeechModel(process.env.OPENAI_API_KEY, SupportedSpeechModels.OPEN_AI);
+const openAiRemoteSpeechModel = new RemoteSpeechModel(process.env.OPENAI_API_KEY, SupportedSpeechModels.OPENAI);
 const audioHelper = new AudioHelper();
 
 async function testGenerateSpeech() {
