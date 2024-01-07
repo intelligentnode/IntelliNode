@@ -1,6 +1,9 @@
 const config = require('../config.json');
 
+
+
 class ProxyHelper {
+
   constructor() {
     this.setOriginOpenai();
   }
@@ -20,7 +23,7 @@ class ProxyHelper {
     if (this._openai_type == 'azure') {
       return this._openaiCompletion
         .replace('{deployment-id}', model)
-        .replace('{api-version}', '2023-06-01-preview');
+        .replace('{api-version}', ProxyHelper.API_VERSION);
     } else {
       return this._openaiCompletion;
     }
@@ -30,7 +33,7 @@ class ProxyHelper {
     if (this._openai_type == 'azure') {
       return this._openaiChatGPT
         .replace('{deployment-id}', model)
-        .replace('{api-version}', '2023-06-01-preview');
+        .replace('{api-version}', ProxyHelper.API_VERSION);
     } else {
       return this._openaiChatGPT;
     }
@@ -40,30 +43,28 @@ class ProxyHelper {
     if (this._openai_type == 'azure') {
       return this._openaiImage.replace(
         '{api-version}',
-        '2023-06-01-preview'
+        ProxyHelper.API_VERSION
       );
     } else {
       return this._openaiImage;
     }
   }
 
-  getOpenaiAudioTranscriptions() {
+  getOpenaiAudioTranscriptions(model = '') {
     if (this._openai_type == 'azure') {
-      return this._openaiAudioTranscriptions.replace(
-        '{api-version}',
-        '2023-06-01-preview'
-      );
+      return this._openaiAudioTranscriptions
+        .replace('{deployment-id}', model)
+        .replace('{api-version}', ProxyHelper.API_VERSION);
     } else {
       return this._openaiAudioTranscriptions;
     }
   }
 
-  getOpenaiAudioSpeech() {
+  getOpenaiAudioSpeech(model = '') {
     if (this._openai_type == 'azure') {
-      return this._openaiAudioToSpeech.replace(
-        '{api-version}',
-        '2023-06-01-preview'
-      );
+      return this._openaiAudioToSpeech
+        .replace('{deployment-id}', model)
+        .replace('{api-version}', ProxyHelper.API_VERSION);
     } else {
       return this._openaiAudioToSpeech;
     }
@@ -73,7 +74,7 @@ class ProxyHelper {
     if (this._openai_type == 'azure') {
       return this._openaiFiles.replace(
         '{api-version}',
-        '2023-06-01-preview'
+        ProxyHelper.API_VERSION
       );
     } else {
       return this._openaiFiles;
@@ -84,7 +85,7 @@ class ProxyHelper {
     if (this._openai_type == 'azure') {
       return this._openaiFineTuningJob.replace(
         '{api-version}',
-        '2023-06-01-preview'
+        '2023-10-01-preview'
       );
     } else {
       return this._openaiFineTuningJob;
@@ -95,7 +96,7 @@ class ProxyHelper {
     if (this._openai_type == 'azure') {
       return this._openaiEmbed
         .replace('{deployment-id}', model)
-        .replace('{api-version}', '2023-06-01-preview');
+        .replace('{api-version}', ProxyHelper.API_VERSION);
     } else {
       return this._openaiEmbed;
     }
@@ -181,5 +182,7 @@ class ProxyHelper {
     this._resourceName = '';
   }
 }
+
+ProxyHelper.API_VERSION = '2023-12-01-preview'
 
 module.exports = ProxyHelper;

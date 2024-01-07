@@ -20,7 +20,7 @@
       "embeddings": "/deployments/{deployment-id}/embeddings?api-version={api-version}",
       "audiotranscriptions": "/deployments/{deployment-id}/audio/transcriptions?api-version={api-version}",
       "audiospeech": "/deployments/{deployment-id}/audio/speech?api-version={api-version}",
-      "finetuning": "/deployments/{deployment-id}/fine_tuning/jobs?api-version={api-version}"
+      "finetuning": "/fine_tuning/jobs?api-version={api-version}"
     },
     "cohere": {
       "base": "https://api.cohere.ai",
