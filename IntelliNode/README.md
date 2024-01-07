@@ -196,14 +196,15 @@ const { ProxyHelper } = require('intellinode');
 ProxyHelper.getInstance().setAzureOpenai(resourceName);
 ```
 ### Custom proxy
-Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js)
+Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js).
 
 # :closed_book: Documentation
-- [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki).
-- [Showcase](https://show.intellinode.ai/).
-- [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Explore a code sample with detailed setup documentation to get started with Intellinode.
+- [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki): Detailed documentation about IntelliNode.
+- [Showcase](https://show.intellinode.ai/): Explore interactive demonstrations of IntelliNode's capabilities.
+- [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Get started with IntelliNode using well-documented code samples.
 - [Model Evaluation](https://github.com/Barqawiz/IntelliNode/wiki/Model-Evaluation): Demonstrate a swift approach to compare the performance of multiple models like gpt4, llama and cohere.
 - [LLM as Microservice](https://www.kdnuggets.com/building-microservice-for-multichat-backends-using-llama-and-chatgpt): For scalable production.
+- [Fine-tuning Tutorial](https://github.com/intelligentnode/IntelliNode/wiki/Fine-Tuning): Learn how to tune LLMs with yout data.
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models

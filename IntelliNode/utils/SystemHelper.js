@@ -1,4 +1,4 @@
-const fs = require("fs");
+const FileHelper = require('./FileHelper')
 const path = require("path");
 
 class SystemHelper {
@@ -31,7 +31,7 @@ class SystemHelper {
 
   loadPrompt(fileType) {
     let promptPath = this.getPromptPath(fileType)
-    const promptTemplate = fs.readFileSync(promptPath, "utf8");
+    const promptTemplate = FileHelper.readData(promptPath, 'utf-8');
 
     return promptTemplate;
 

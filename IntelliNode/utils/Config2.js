@@ -5,14 +5,14 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
-const fs = require('fs');
+const FileHelper = require('./FileHelper')
 const path = require('path');
 
 // WARNING: This file is deprecated
 class Config2 {
   constructor() {
     const configPath = path.join(__dirname, '..', 'config.json');
-    this.config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    this.config = JSON.parse(FileHelper.readData(configPath, 'utf-8'));
   }
 
   getProperty(key) {

@@ -68,6 +68,14 @@ class RemoteFineTuneModel {
             throw new Error('The keyType is not supported');
         }
     }
+
+    async uploadFile(filePayload) {
+        if (this.keyType === SupportedFineTuneModels.OPENAI) {
+            return await this.openAIWrapper.uploadFile(filePayload);
+        } else {
+            throw new Error('The keyType is not supported');
+        }
+    }
 }
 
 module.exports = {
