@@ -1,8 +1,7 @@
 const assert = require("assert");
 const FormData = require("form-data");
-const { RemoteFineTuneModel, SupportedFineTuneModels } = require("../../controller/RemoteFineTuneModel");
+const { RemoteFineTuneModel, SupportedFineTuneModels, FineTuneInput } = require("intellinode");
 const { createReadStream } = require("fs");
-const FineTuneInput = require("../../model/input/FineTuneInput");
 
 require("dotenv").config();
 const openaiKey = process.env.OPENAI_API_KEY;
@@ -14,7 +13,7 @@ async function testOpenAIFineTuneRemoteModel() {
 
     if (openaiKey === "") return;
 
-    const filePath = '../temp/training_data.jsonl'
+    const filePath = '../../temp/training_data.jsonl'
 
     const filePayload = new FormData();
     filePayload.append('file', createReadStream(filePath));
