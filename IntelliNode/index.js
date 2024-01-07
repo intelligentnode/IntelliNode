@@ -8,6 +8,10 @@ const {
   SupportedImageModels,
 } = require('./controller/RemoteImageModel');
 const {
+  RemoteFineTuneModel,
+  SupportedFineTuneModels,
+} = require('./controller/RemoteFineTuneModel');
+const {
   RemoteSpeechModel,
   SupportedSpeechModels,
 } = require('./controller/RemoteSpeechModel');
@@ -42,6 +46,7 @@ const {
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
+const FineTuneInput = require('./model/input/FineTuneInput');
 // wrappers
 const CohereAIWrapper = require('./wrappers/CohereAIWrapper');
 const GoogleAIWrapper = require('./wrappers/GoogleAIWrapper');
@@ -108,5 +113,8 @@ module.exports = {
   CohereInput,
   IntellicloudWrapper, 
   MistralAIWrapper,
-  MistralInput
+  MistralInput,
+  RemoteFineTuneModel,
+  SupportedFineTuneModels,
+  FineTuneInput
 };
