@@ -1,6 +1,6 @@
 const assert = require("assert");
 const FormData = require("form-data");
-const { RemoteFineTuneModel, SupportedFineTuneModels } = require("../../controller/RemoteFinetune");
+const { RemoteFineTuneModel, SupportedFineTuneModels } = require("../../controller/RemoteFineTuneModel");
 const { createReadStream } = require("fs");
 const FineTuneInput = require("../../model/input/FineTuneInput");
 
