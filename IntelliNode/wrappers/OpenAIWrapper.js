@@ -6,11 +6,10 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 
-const axios = require('axios');
-const ProxyHelper = require('../utils/ProxyHelper');
-const connHelper = require('../utils/ConnHelper');
-const fs = require('fs');
-const https = require('https');
+const axios = require("axios");
+const ProxyHelper = require("../utils/ProxyHelper");
+const connHelper = require("../utils/ConnHelper");
+const fs = require("fs");
 
 class OpenAIWrapper {
   proxyHelper = ProxyHelper.getInstance();
@@ -22,11 +21,11 @@ class OpenAIWrapper {
 
     let axios_config;
 
-    if (this.proxyHelper.getOpenaiType() == 'azure') {
-      console.log('set Openai azure settings');
+    if (this.proxyHelper.getOpenaiType() == "azure") {
+      console.log("set Openai azure settings");
 
-      if (this.proxyHelper.getOpenaiResource() === '') {
-        throw new Error('Set your azure resource name');
+      if (this.proxyHelper.getOpenaiResource() === "") {
+        throw new Error("Set your azure resource name");
       }
 
       this.API_BASE_URL = this.proxyHelper.getOpenaiURL();
@@ -34,8 +33,8 @@ class OpenAIWrapper {
       axios_config = {
         baseURL: this.API_BASE_URL,
         headers: {
-          'Content-Type': 'application/json',
-          'api-key': `${this.API_KEY}`,
+          "Content-Type": "application/json",
+          "api-key": `${this.API_KEY}`,
         },
       };
     } else {
@@ -44,14 +43,14 @@ class OpenAIWrapper {
       axios_config = {
         baseURL: this.API_BASE_URL,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${this.API_KEY}`,
         },
       };
       // Check if Organization ID exists
       let orgId = this.proxyHelper.getOpenaiOrg();
       if (orgId) {
-        axios_config.headers['OpenAI-Organization'] = orgId;
+        axios_config.headers["OpenAI-Organization"] = orgId;
       }
     } /*validate openai or azure connection*/
 
@@ -96,7 +95,7 @@ class OpenAIWrapper {
         payload.function_call = function_call;
       }
       const response = await this.httpClient.post(url, payload, {
-        responseType: params.stream ? 'stream' : 'json',
+        responseType: params.stream ? "stream" : "json",
       });
       if (params.stream) {
         // ReadableStream
@@ -133,7 +132,7 @@ class OpenAIWrapper {
     const url = this.proxyHelper.getOpenaiAudioTranscriptions();
     try {
       const config = {
-        method: 'post',
+        method: "post",
         url,
         headers,
         data: params,
@@ -148,46 +147,26 @@ class OpenAIWrapper {
   async uploadFile(filePath) {
     try {
       const url = `${this.API_BASE_URL}/v1/files`;
-      const boundary = '--------------------------' + Date.now().toString(16);
-      const headers = {
-        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        Authorization: `Bearer ${this.API_KEY}`,
+      const boundary = "--------------------------" + Date.now().toString(16);
+      const axios_config = {
+        headers: {
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+          "api-key": `${this.API_KEY}`,
+          Authorization: `Bearer ${this.API_KEY}`,
+        },
       };
-      const fileStream = fs.createReadStream(filePath);
-      const options = {
-        method: 'POST',
-        headers: headers,
-      };
-      const req = https.request(url, options, null);
-      // Write the multipart/form-data content
-      req.write(`--${boundary}\r\n`);
-      req.write(`Content-Disposition: form-data; name="purpose"\r\n\r\n`);
-      req.write('fine-tune\r\n');
-      req.write(`--${boundary}\r\n`);
-      req.write(`Content-Disposition: form-data; name="file"; filename="${filePath}"\r\n`);
-      req.write('Content-Type: application/octet-stream\r\n\r\n');
 
-      fileStream.on('data', (chunk) => {
-        req.write(chunk);
+      const formData = new FormData();
+      formData.append("purpose", "fine-tune");
+      formData.append("file", fs.createReadStream(filePath));
+      const response = this.httpClient.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          ...axios_config.headers,
+        },
       });
-      fileStream.on('end', () => {
-        req.end(`\r\n--${boundary}--`);
-      });
-      req.on('error', (error) => {
-        throw new Error(connHelper.getErrorMessage(error));
-      });
-      return new Promise((resolve, reject) => {
-        req.on('response', (res) => {
-          let data = '';
-          res.on('data', (chunk) => {
-            data += chunk;
-          });
-          res.on('end', () => {
-            data = JSON.parse(data);
-            resolve(data);
-          });
-        });
-      });
+
+      return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
