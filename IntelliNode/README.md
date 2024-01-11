@@ -41,11 +41,11 @@ const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
 2. call:
 ```js
-// set the system mode and the user message.
+// set chatGPT system mode and the user message.
 const input = new ChatGPTInput('You are a helpful assistant.');
 input.addUserMessage('What is the distance between the Earth and the Moon?');
 
-// get the responses from the chatbot
+// get chatGPT responses.
 const bot = new Chatbot(apiKey);
 const responses = await bot.chat(input);
 ```
