@@ -271,7 +271,7 @@ async function testGeminiChatCase2() {
 
     // add inputs
     geminiInput.addUserMessage("Write the first line of a story about a magic backpack.");
-    geminiInput.addModelMessage("In the bustling city of Meadow brook, lived a young girl named Sophie. She was a bright and curious soul with an imaginative mind.");
+    geminiInput.addAssistantMessage("In the bustling city of Meadow brook, lived a young girl named Sophie. She was a bright and curious soul with an imaginative mind.");
     geminiInput.addUserMessage("Can you set it in a quiet village in 1600s France?");
     
     const responses = await geminiBot.chat(geminiInput);
