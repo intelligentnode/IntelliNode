@@ -201,6 +201,10 @@ class GeminiInput extends ChatModelInput {
     });
   }
 
+  addAssistantMessage(text) {
+    this.addModelMessage(text);
+  }
+
   getChatInput() {
     return {
       contents: this.messages
