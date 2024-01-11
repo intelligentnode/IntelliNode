@@ -1,7 +1,7 @@
 require('dotenv').config();
 const assert = require('assert');
 const CohereAIWrapper = require('../../wrappers/CohereAIWrapper');
-
+const { CohereStreamParser } = require('../../utils/StreamParser');
 const cohere = new CohereAIWrapper(process.env.COHERE_API_KEY);
 
 async function testCohereGenerateModel() {
@@ -21,6 +21,59 @@ async function testCohereGenerateModel() {
     );
   } catch (error) {
     console.error('Cohere Language Model Error:', error);
+  }
+}
+
+async function testCohereWebChat() {
+  try {
+    const params = {
+      model: 'command-nightly',
+      message: 'what is the command to install intellinode npm module ?',
+      temperature: 0.3,
+      chat_history: [],
+      prompt_truncation: 'auto',
+      stream: false,
+      citation_quality: 'accurate',
+      connectors: [{'id': 'web-search'}],
+    };
+    const result = await cohere.generateChatText(params);
+
+    console.log('Cohere Chat Result:', JSON.stringify(result, null, 2));
+  } catch (error) {
+    console.error('Cohere Chat Error:', error);
+  }
+}
+
+async function testCohereChatStram() {
+  try {
+    const params = {
+      model: 'command',
+      message: 'how to use intellinode npm module ?',
+      stream: true,
+      chat_history: [],
+      prompt_truncation: 'auto',
+      citation_quality: 'accurate',
+      temperature: 0.3
+    };
+
+    let responseChunks = '';
+    const streamParser = new CohereStreamParser();
+
+    const stream = await cohere.generateChatText(params);
+
+    // Collect data from the stream
+    for await (const chunk of stream) {
+      const chunkText = chunk.toString('utf8');
+      for await (const contentText of streamParser.feed(chunkText)) {
+        console.log('result chunk:', contentText);
+        responseChunks += contentText;
+      }
+    }
+
+    console.log('Concatenated text: ', responseChunks);
+    assert(responseChunks.length > 0, 'testCohereChatStram response length should be greater than 0');
+  } catch (error) {
+    console.error('Cohere Chat Error:', error);
   }
 }
 
@@ -53,5 +106,11 @@ async function testCohereEmbeddings() {
 
 (async () => {
   await testCohereGenerateModel();
+
   await testCohereEmbeddings();
+
+  await testCohereWebChat();
+
+  await testCohereChatStram();
+
 })();

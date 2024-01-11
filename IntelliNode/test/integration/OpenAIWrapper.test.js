@@ -1,10 +1,10 @@
 require('dotenv').config();
 const assert = require('assert');
 const FormData = require("form-data");
-const GPTStreamParser = require('../../utils/StreamParser');
+const { GPTStreamParser } = require('../../utils/StreamParser');
 const OpenAIWrapper = require('../../wrappers/OpenAIWrapper');
 const {
-    createReadStream
+    createReadStream, readFileSync, createWriteStream, existsSync
 } = require('fs');
 const path = require('path');
 
@@ -112,13 +112,13 @@ async function testChatGPT() {
         const params = {
             model: 'gpt-3.5-turbo',
             messages: [{
-                    role: 'system',
-                    content: 'You are a helpful assistant.'
-                },
-                {
-                    role: 'user',
-                    content: 'Generate a product description for black and white standing desk.'
-                }
+                role: 'system',
+                content: 'You are a helpful assistant.'
+            },
+            {
+                role: 'user',
+                content: 'Generate a product description for black and white standing desk.'
+            }
             ],
             max_tokens: 100,
             temperature: 0.8
@@ -166,7 +166,6 @@ async function testEmbeddings() {
     }
 }
 
-
 async function testSpeechToText() {
     try {
         const audioFilePath = '../temp/test-audio.mp3'
@@ -190,13 +189,13 @@ async function testChatGPTStream() {
         const params = {
             model: 'gpt-4',
             messages: [{
-                    role: 'system',
-                    content: 'You are a helpful assistant.'
-                },
-                {
-                    role: 'user',
-                    content: 'Generate a product description for black and white standing desk.'
-                }
+                role: 'system',
+                content: 'You are a helpful assistant.'
+            },
+            {
+                role: 'user',
+                content: 'Generate a product description for black and white standing desk.'
+            }
             ],
             max_tokens: 100,
             temperature: 0.8,
@@ -224,6 +223,96 @@ async function testChatGPTStream() {
     }
 }
 
+async function testVisionImageToText() {
+    try {
+        const filePath = '../temp/test_image_desc.png'
+        const data = readFileSync(filePath, { encoding: 'base64' });
+        // Convert data to base64
+        const params = {
+            "model": "gpt-4-vision-preview",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "What's in this image?"
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": `data:image/png;base64,${data}`
+                            }
+                        }
+                    ]
+                }
+            ],
+            "max_tokens": 300
+        };
+
+        const result = await openAI.imageToText(params);
+        const value = result.choices[0].message.content
+        console.log('Vision Model Result:\n', value, '\n');
+        assert(value.length > 0, 'testVisionImageToText response length should be greater than 0');
+    } catch (error) {
+        console.error('testVisionImageToText Error:', error);
+    }
+}
+
+async function testTextToSpeech() {
+    try {
+        const payload = {
+            model: 'tts-1',
+            input: "The quick brown fox jumped over the lazy dog.",
+            voice: "alloy",
+            stream: true
+        }
+        const filePath = '../temp/downloaded_audio.mp3'; // Replace with the desired file name and extension
+
+        const result = await openAI.textToSpeech(payload);
+        // Create a writable stream and pipe the response data to the stream
+        const writer = createWriteStream(filePath);
+        result.pipe(writer);
+
+        // Handle the completion of writing the file
+        writer.on('finish', () => {
+            const fileExists = existsSync(filePath);
+            assert(fileExists === true, 'file should be generated on finish')
+            console.log('Audio file downloaded successfully!');
+        });
+
+        // Handle any errors that may occur during the download process
+        writer.on('error', (err) => {
+            console.error('Error downloading the audio file:', err);
+        });
+    } catch (error) {
+        console.error('Image Model Error:', error);
+    }
+}
+
+async function testFineTuning() {
+    try {
+        const filePath = '../temp/training_data.jsonl'
+
+        const filePayload = new FormData();
+        filePayload.append('file', createReadStream(filePath));
+        filePayload.append('purpose', 'fine-tune');
+
+        const file = await openAI.uploadFile(filePayload)
+        const payload = {
+            model: 'gpt-3.5-turbo',
+            training_file: file.id
+        }
+        const result = await openAI.storeFineTuningData(payload);
+        const allFineTuneObjects = await openAI.listFineTuningData();
+        const value = allFineTuneObjects.data.filter(b => b.id === result.id)
+        console.log('Fine tuning Model Result:\n', value, '\n');
+        assert(value.length > 0, 'testFineTuning response length should be greater than 0');
+
+    } catch (error) {
+        console.error('testFineTuning Error:', error);
+    }
+}
 
 (async () => {
     await testLanguageModel();
@@ -232,5 +321,7 @@ async function testChatGPTStream() {
     await testEmbeddings();
     await testSpeechToText();
     await testChatGPTStream();
-    await testFineTuneModel();
+    await testVisionImageToText();
+    await testTextToSpeech();
+    await testFineTuning();
 })();

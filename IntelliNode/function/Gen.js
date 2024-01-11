@@ -9,7 +9,7 @@ const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput"
 const { SupportedLangModels } = require('../controller/RemoteLanguageModel');
 const SystemHelper = require("../utils/SystemHelper");
 const Prompt = require("../utils/Prompt");
-const fs = require('fs');
+const FileHelper = require("../utils/FileHelper");
 const path = require('path');
 
 class Gen {
@@ -137,7 +137,7 @@ class Gen {
     const htmlCode = await Gen.generate_html_page(text, openaiKey, model_name, customProxyHelper);
     // console.log('html code: ', htmlCode);
     const folderPath = path.join(folder, file_name + '.html');
-    fs.writeFileSync(folderPath, htmlCode['html']);
+    FileHelper.writeDataToFile(folderPath, htmlCode['html'])
     return true;
   }
 

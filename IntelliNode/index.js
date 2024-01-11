@@ -8,6 +8,10 @@ const {
   SupportedImageModels,
 } = require('./controller/RemoteImageModel');
 const {
+  RemoteFineTuneModel,
+  SupportedFineTuneModels,
+} = require('./controller/RemoteFineTuneModel');
+const {
   RemoteSpeechModel,
   SupportedSpeechModels,
 } = require('./controller/RemoteSpeechModel');
@@ -37,9 +41,13 @@ const {
   LLamaReplicateInput,
   ChatGPTMessage,
   LLamaSageInput,
+  CohereInput,
+  MistralInput,
+  GeminiInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
+const FineTuneInput = require('./model/input/FineTuneInput');
 // wrappers
 const CohereAIWrapper = require('./wrappers/CohereAIWrapper');
 const GoogleAIWrapper = require('./wrappers/GoogleAIWrapper');
@@ -48,6 +56,9 @@ const StabilityAIWrapper = require('./wrappers/StabilityAIWrapper');
 const HuggingWrapper = require('./wrappers/HuggingWrapper');
 const ReplicateWrapper = require('./wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('./wrappers/AWSEndpointWrapper');
+const IntellicloudWrapper = require('./wrappers/IntellicloudWrapper');
+const MistralAIWrapper = require('./wrappers/MistralAIWrapper');
+const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -56,7 +67,7 @@ const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
-const GPTStreamParser = require('./utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser} = require('./utils/StreamParser');
 const ChatContext = require('./utils/ChatContext');
 
 module.exports = {
@@ -99,5 +110,15 @@ module.exports = {
   LLMEvaluation,
   SemanticSearchPaging,
   GPTStreamParser,
-  ChatContext
+  CohereStreamParser,
+  ChatContext,
+  CohereInput,
+  IntellicloudWrapper, 
+  MistralAIWrapper,
+  MistralInput,
+  RemoteFineTuneModel,
+  SupportedFineTuneModels,
+  FineTuneInput,
+  GeminiInput,
+  GeminiAIWrapper
 };

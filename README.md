@@ -71,7 +71,22 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const chatbot = new Chatbot(OPENAI_API_KEY, 'openai');
 const responses = await chatbot.chat(input);
 ```
-The documentation on how to switch the chatbot between **ChatGPT** and **LLama** in this [wiki page](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+### Gemini Chatbot
+IntelliNode enable effortless swapping between AI models.
+1. imports:
+```js
+const { Chatbot, GeminiInput, SupportedChatModels } = require('intellinode');
+```
+2. call:
+```js
+const input = new GeminiInput();
+input.addUserMessage('Who painted the Mona Lisa?');
+
+const geminiBot = new Chatbot(apiKey, SupportedChatModels.GEMINI);
+const responses = await geminiBot.chat(input);
+```
+
+The documentation to switch the chatbot provider between ChatGPT, LLama, Cohere, Mistral and more can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
 
 ### Semantic search
 import:

@@ -5,7 +5,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
-const fs = require('fs');
+const FileHelper = require('./FileHelper')
 
 class AudioHelper {
   constructor() {
@@ -25,7 +25,7 @@ class AudioHelper {
 
     try {
       const filePath = `${directory}/${fileName}`;
-      fs.writeFileSync(filePath, decodedAudio);
+      FileHelper.writeDataToFile(filePath, decodedAudio);
       return true;
     } catch (error) {
       if (this.isLog) console.error(error);

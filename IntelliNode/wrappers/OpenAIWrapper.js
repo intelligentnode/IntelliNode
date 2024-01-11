@@ -12,12 +12,10 @@ const connHelper = require("../utils/ConnHelper");
 const fs = require("fs");
 
 class OpenAIWrapper {
-  proxyHelper = ProxyHelper.getInstance();
 
   constructor(apiKey, customProxyHelper = null) {
-    if (customProxyHelper) {
-      this.proxyHelper = customProxyHelper;
-    }
+    
+    this.proxyHelper = customProxyHelper || ProxyHelper.getInstance();
 
     let axios_config;
 
@@ -118,6 +116,46 @@ class OpenAIWrapper {
     }
   }
 
+  async uploadFile(params) {
+    const url = this.proxyHelper.getOpenaiFiles();
+    let headers = {}
+    if (params.getHeaders) {
+      headers = { ...params.getHeaders() }
+    }
+    try {
+      const config = {
+        url,
+        method: 'post',
+        headers,
+        data: params
+      }
+      const response = await this.httpClient(config);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async storeFineTuningData(params) {
+    const url = this.proxyHelper.getOpenaiFineTuningJob();
+    try {
+      const response = await this.httpClient.post(url, params);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async listFineTuningData(params) {
+    const url = this.proxyHelper.getOpenaiFineTuningJob();
+    try {
+      const response = await this.httpClient.get(url, params);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
   async getEmbeddings(params) {
     const url = this.proxyHelper.getOpenaiEmbed(params.model);
     try {
@@ -159,13 +197,28 @@ class OpenAIWrapper {
       const formData = new FormData();
       formData.append("purpose", "fine-tune");
       formData.append("file", fs.createReadStream(filePath));
-      const response = this.httpClient.post(url, formData, {
+      const response = await this.httpClient.post(url, formData, {
         headers: {
           ...formData.getHeaders(),
           ...axios_config.headers,
         },
       });
-
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+  async textToSpeech(params, headers) {
+    const url = this.proxyHelper.getOpenaiAudioSpeech();
+    try {
+      const config = {
+        method: 'post',
+        url,
+        headers,
+        data: params,
+        responseType: params.stream ? 'stream' : 'json'
+      };
+      const response = await this.httpClient.request(config);
       return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
@@ -234,6 +287,22 @@ class OpenAIWrapper {
     const url = `${this.API_BASE_URL}/v1/chat/completions`;
     try {
       const response = await this.httpClient.post(url, params);
+      return response.data;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async imageToText(params, headers) {
+    const url = this.proxyHelper.getOpenaiChat();
+    try {
+      const config = {
+        method: 'post',
+        url,
+        headers,
+        data: params,
+      };
+      const response = await this.httpClient.request(config);
       return response.data;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));

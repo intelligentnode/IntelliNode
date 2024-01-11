@@ -1,0 +1,6 @@
+Using the provided context, craft a  cohesive response that directly addresses the user's query. If the context lacks relevance or is absent, focus on generating a knowledgeable and accurate answer based on the user's question alone. Aim for clarity and conciseness in your reply.
+Context:
+${semantic_search}
+---------------------------------
+User's Question:
+${user_query}

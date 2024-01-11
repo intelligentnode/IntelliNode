@@ -20,6 +20,10 @@ class ChatGPTMessage {
 }
 
 class ChatModelInput {
+  constructor(options = {}) { 
+    this.searchK = options.searchK || 3;
+  }
+  
   getChatInput() {
     return null;
   }
@@ -27,7 +31,7 @@ class ChatModelInput {
 
 class ChatGPTInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
-    super();
+    super(options);
     if (
       systemMessage instanceof ChatGPTMessage &&
       systemMessage.isSystemRole()
@@ -111,9 +115,102 @@ class ChatGPTInput extends ChatModelInput {
   }
 }
 
+class CohereInput extends ChatGPTInput {
+  constructor(systemMessage, options = {}) {
+    super(systemMessage, options);
+    this.web = options.web || false;
+    this.model = options.model || 'command';
+  }
+
+  getChatInput() {
+    if (this.messages.length < 1) {
+        throw new Error("At least one message is required for Cohere API");
+    }
+
+    const chatHistory = [];
+    const latestMessage = this.messages[this.messages.length - 1];
+
+    for (let i = 0; i < this.messages.length - 1; i++) {
+        const message = this.messages[i];
+        chatHistory.push({
+            'id': i,
+            'role': message.role,
+            'message': message.content
+        });
+    }
+
+    const params = {
+        'model': this.model,
+        'message': latestMessage.content,
+        'chat_history': chatHistory,
+        ...(this.web && {'connectors': [{id: 'web-search'}]}),
+    };
+
+    return params;
+  }
+
+}
+
+class MistralInput extends ChatGPTInput {
+  constructor(systemMessage, options = {}) {
+    super(systemMessage, options);
+    
+    this.model = options.model || 'mistral-tiny'; 
+
+  }
+
+  getChatInput() {
+    // Prepare the messages in the expected format
+    const messages = this.messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+
+    // Construct Mistral input parameters
+    const params = {
+      model: this.model,
+      messages: messages,
+    };
+
+    return params;
+  }
+}
+
+class GeminiInput extends ChatModelInput {
+  constructor(systemMessage, options = {}) {
+    super(options);
+    this.messages = [];
+
+    if (systemMessage && typeof systemMessage === 'string') {
+      this.addUserMessage(systemMessage);
+      this.addModelMessage('I will response based on the provided instructions.');
+    }
+  }
+
+  addUserMessage(text) {
+    this.messages.push({
+      role: "user",
+      parts: [{ text }]
+    });
+  }
+
+  addModelMessage(text) {
+    this.messages.push({
+      role: "model",
+      parts: [{ text }]
+    });
+  }
+
+  getChatInput() {
+    return {
+      contents: this.messages
+    };
+  }
+}
+
 class ChatLLamaInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
-    super();
+    super(options);
     if (
       systemMessage instanceof ChatGPTMessage &&
       systemMessage.isSystemRole()
@@ -228,8 +325,8 @@ class LLamaReplicateInput extends ChatLLamaInput {
 }
 
 class LLamaSageInput extends ChatModelInput {
-  constructor(systemMessage, parameters = {}) {
-    super();
+  constructor(systemMessage, parameters = {}, options = {}) {
+    super(options);
     if (
       systemMessage instanceof ChatGPTMessage &&
       systemMessage.isSystemRole()
@@ -303,4 +400,7 @@ module.exports = {
   ChatLLamaInput,
   LLamaSageInput,
   LLamaReplicateInput,
+  CohereInput,
+  MistralInput,
+  GeminiInput
 };

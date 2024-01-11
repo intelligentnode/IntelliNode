@@ -1,4 +1,4 @@
-const fs = require("fs");
+const FileHelper = require('./FileHelper')
 const path = require("path");
 
 class SystemHelper {
@@ -20,7 +20,9 @@ class SystemHelper {
       promptPath = path.join(this.systemsPath, "instruct_update.in");
     } else if (fileType === "prompt_example") {
       promptPath = path.join(this.systemsPath, "prompt_example.in");
-    }else {
+    } else if (fileType === "augmented_chatbot") {
+      promptPath = path.join(this.systemsPath, "augmented_chatbot.in");
+    } else {
       throw new Error(`File type '${file_type}' not supported`);
     }
 
@@ -29,9 +31,24 @@ class SystemHelper {
 
   loadPrompt(fileType) {
     let promptPath = this.getPromptPath(fileType)
-    const promptTemplate = fs.readFileSync(promptPath, "utf8");
+    const promptTemplate = FileHelper.readData(promptPath, 'utf-8');
 
     return promptTemplate;
+
+  }
+
+  loadStaticPrompt(fileType) { 
+
+    if (fileType === "augmented_chatbot") { 
+      return "Using the provided context, craft a  cohesive response that directly addresses the user's query. " +
+      "If the context lacks relevance or is absent, focus on generating a knowledgeable and accurate answer based on the user's question alone. " +
+      "Aim for clarity and conciseness in your reply.\n" +
+      "Context:\n" +
+      "${semantic_search}" +
+      "\n---------------------------------\n" +
+      "User's Question:\n" +
+      "${user_query}";
+    }
 
   }
 }
