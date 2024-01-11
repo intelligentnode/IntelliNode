@@ -75,18 +75,18 @@ const responses = await chatbot.chat(input);
 IntelliNode enable effortless swapping between AI models.
 1. imports:
 ```js
-const { Chatbot, MistralInput, SupportedChatModels } = require('intellinode');
+const { Chatbot, GeminiInput, SupportedChatModels } = require('intellinode');
 ```
 2. call:
 ```js
-const input = new MistralInput('You are an art expert.');
+const input = new GeminiInput();
 input.addUserMessage('Who painted the Mona Lisa?');
 
-const mistralBot = new Chatbot(apiKey, SupportedChatModels.MISTRAL);
-const responses = await mistralBot.chat(input);
+const geminiBot = new Chatbot(apiKey, SupportedChatModels.GEMINI);
+const responses = await geminiBot.chat(input);
 ```
 
-The documentation to switch the chatbot provider between ChatGPT, LLama, Cohere and more can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+The documentation to switch the chatbot provider between ChatGPT, LLama, Cohere, Mistral and more can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
 
 ### Semantic search
 import:
