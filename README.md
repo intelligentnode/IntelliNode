@@ -71,7 +71,7 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const chatbot = new Chatbot(OPENAI_API_KEY, 'openai');
 const responses = await chatbot.chat(input);
 ```
-### Mistral Chatbot
+### Gemini Chatbot
 IntelliNode enable effortless swapping between AI models.
 1. imports:
 ```js

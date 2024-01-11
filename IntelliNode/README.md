@@ -61,7 +61,7 @@ const { Chatbot, GeminiInput, SupportedChatModels } = require('intellinode');
 const input = new GeminiInput();
 input.addUserMessage('Who painted the Mona Lisa?');
 
-// get the api key from mistral.ai
+// get the api key from makersuite.google.com/app/apikey
 const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI);
 const responses = await geminiBot.chat(geminiInput);
 ```
