@@ -183,6 +183,7 @@ class GeminiInput extends ChatModelInput {
 
     if (systemMessage && typeof systemMessage === 'string') {
       this.addUserMessage(systemMessage);
+      this.addModelMessage('I will response based on the provided instructions.');
     }
   }
 
