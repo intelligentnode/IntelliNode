@@ -187,18 +187,23 @@ class GeminiInput extends ChatModelInput {
   }
 
   addUserMessage(text) {
-    this.messages.push({ role: 'user', parts: [{ text }] });
+    this.messages.push({
+      role: "user",
+      parts: [{ text }]
+    });
   }
 
   addModelMessage(text) {
-    this.messages.push({ role: 'model', parts: [{ text }] });
+    this.messages.push({
+      role: "model",
+      parts: [{ text }]
+    });
   }
 
   getChatInput() {
-    const params = {
-      contents: this.messages,
+    return {
+      contents: this.messages
     };
-    return params;
   }
 }
 
@@ -395,5 +400,6 @@ module.exports = {
   LLamaSageInput,
   LLamaReplicateInput,
   CohereInput,
-  MistralInput
+  MistralInput,
+  GeminiInput
 };
