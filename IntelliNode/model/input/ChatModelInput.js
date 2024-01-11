@@ -176,6 +176,32 @@ class MistralInput extends ChatGPTInput {
   }
 }
 
+class GeminiInput extends ChatModelInput {
+  constructor(systemMessage, options = {}) {
+    super(options);
+    this.messages = [];
+
+    if (systemMessage && typeof systemMessage === 'string') {
+      this.addUserMessage(systemMessage);
+    }
+  }
+
+  addUserMessage(text) {
+    this.messages.push({ role: 'user', parts: [{ text }] });
+  }
+
+  addModelMessage(text) {
+    this.messages.push({ role: 'model', parts: [{ text }] });
+  }
+
+  getChatInput() {
+    const params = {
+      contents: this.messages,
+    };
+    return params;
+  }
+}
+
 class ChatLLamaInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super(options);
