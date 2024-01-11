@@ -59,6 +59,11 @@
       "base": "https://api.mistral.ai",
       "completions": "/v1/chat/completions",
       "embed": "/v1/embeddings"
+    },
+    "gemini": {
+      "base": "https://generativelanguage.googleapis.com/v1beta/models/",
+      "contentEndpoint": "gemini-pro:generateContent",
+      "visionEndpoint": "gemini-pro-vision:generateContent"
     }
   },
   "models": {
