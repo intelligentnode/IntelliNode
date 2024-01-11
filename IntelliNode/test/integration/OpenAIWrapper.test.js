@@ -245,5 +245,5 @@ async function testFineTuning() {
     await testChatGPTStream();
     await testVisionImageToText();
     await testTextToSpeech();
-    await testFineTuning()
+    await testFineTuning();
 })();

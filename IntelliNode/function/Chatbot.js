@@ -13,6 +13,7 @@ const { CohereStreamParser } = require('../utils/StreamParser');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const IntellicloudWrapper = require("../wrappers/IntellicloudWrapper");
 const MistralAIWrapper = require('../wrappers/MistralAIWrapper');
+const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 
 const {
@@ -23,7 +24,8 @@ const {
     LLamaReplicateInput,
     CohereInput,
     LLamaSageInput,
-    MistralInput
+    MistralInput,
+    GeminiInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
@@ -31,7 +33,8 @@ const SupportedChatModels = {
     REPLICATE: "replicate",
     SAGEMAKER: "sagemaker",
     COHERE: "cohere",
-    MISTRAL: "mistral"
+    MISTRAL: "mistral",
+    GEMINI: "gemini",
 };
 
 class Chatbot {
@@ -63,6 +66,8 @@ class Chatbot {
             this.cohereWrapper = new CohereAIWrapper(keyValue);
         } else if (provider === SupportedChatModels.MISTRAL) {
             this.mistralWrapper = new MistralAIWrapper(keyValue);
+        } else if (provider === SupportedChatModels.GEMINI) {
+            this.geminiWrapper = new GeminiAIWrapper(keyValue);
         } else {
             throw new Error("Invalid provider name");
         }
@@ -104,6 +109,8 @@ class Chatbot {
             return this._chatCohere(modelInput);
         } else if (this.provider === SupportedChatModels.MISTRAL) {
             return this._chatMistral(modelInput);
+        } else if (this.provider === SupportedChatModels.GEMINI) {
+            return this._chatGemini(modelInput);
         } else {
             throw new Error("The provider is not supported");
         }
@@ -353,6 +360,35 @@ class Chatbot {
         const results = await this.mistralWrapper.generateText(params);
 
         return results.choices.map(choice => choice.message.content);
+    }
+
+    async _chatGemini(modelInput) {
+        let params;
+        
+        if (modelInput instanceof GeminiInput) {
+            params = modelInput.getChatInput();
+        } else if (typeof modelInput === "object") {
+            params = modelInput;
+        } else {
+            throw new Error("Invalid input: Must be an instance of GeminiInput");
+        }
+        
+        // call Gemini
+        const result = await this.geminiWrapper.generateContent(params);
+        
+        if (!Array.isArray(result.candidates) || result.candidates.length === 0) {
+            throw new Error("Invalid response from Gemini API: Expected 'candidates' array with content");
+        }
+    
+        // iterate over all the candidates
+        const responses = result.candidates.map(candidate => {
+            // combine text from all parts
+            return candidate.content.parts
+                .map(part => part.text)
+                .join(' ');
+        });
+        
+        return responses;
     }
 
 } /*chatbot class*/

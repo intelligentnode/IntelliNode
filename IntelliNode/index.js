@@ -42,7 +42,8 @@ const {
   ChatGPTMessage,
   LLamaSageInput,
   CohereInput,
-  MistralInput
+  MistralInput,
+  GeminiInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
@@ -57,6 +58,7 @@ const ReplicateWrapper = require('./wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('./wrappers/AWSEndpointWrapper');
 const IntellicloudWrapper = require('./wrappers/IntellicloudWrapper');
 const MistralAIWrapper = require('./wrappers/MistralAIWrapper');
+const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -116,5 +118,7 @@ module.exports = {
   MistralInput,
   RemoteFineTuneModel,
   SupportedFineTuneModels,
-  FineTuneInput
+  FineTuneInput,
+  GeminiInput,
+  GeminiAIWrapper
 };

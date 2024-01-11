@@ -19,6 +19,7 @@
 IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
+- Add Google Gemini chat and vision.
 - Add Mistral SMoE model as a chatbot provider (open source mixture of experts).
 - Update the chatbot to augment answers with your documents, allowing for a multi-model agent approach.
 - Update Openai with DALL·E 3 vision, speech, and ChatGPT functions (automation).
@@ -49,23 +50,23 @@ const bot = new Chatbot(apiKey);
 const responses = await bot.chat(input);
 ```
 
-### Mistral Chatbot
+### Google Gemini Chatbot
 IntelliNode enable effortless swapping between AI models.
 1. imports:
 ```js
-const { Chatbot, MistralInput, SupportedChatModels } = require('intellinode');
+const { Chatbot, GeminiInput, SupportedChatModels } = require('intellinode');
 ```
 2. call:
 ```js
-const input = new MistralInput('You are an art expert.');
+const input = new GeminiInput();
 input.addUserMessage('Who painted the Mona Lisa?');
 
-// get the api key from mistral.ai
-const mistralBot = new Chatbot(apiKey, SupportedChatModels.MISTRAL);
-const responses = await mistralBot.chat(input);
+// get the api key from makersuite.google.com/app/apikey
+const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI);
+const responses = await geminiBot.chat(geminiInput);
 ```
 
-The documentation on how to switch the chatbot between ChatGPT and LLama can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+The documentation on how to switch the chatbot between ChatGPT, Mistral and LLama can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
 
 ### Semantic Search
 1. imports:
