@@ -9,7 +9,7 @@ async function callChatbot(apiKey, provider) {
   const system = 'You are a helpful assistant.';
   const input = new GeminiInput(system);
   input.addUserMessage('What is the distance between the Earth and the Moon?');
-  console.log(input.messages)
+  // console.log(input.messages);
 
   const responses = await chatbot.chat(input);
 
