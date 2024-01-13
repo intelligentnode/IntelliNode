@@ -37,13 +37,24 @@ class EmbedInput {
     };
   }
 
+    getGeminiInputs() {
+        return {
+            model: this.model,
+            content: {
+                parts: this.texts.map(text => ({text}))
+            }
+        };
+    }
+
   setDefaultValues(provider) {
     if (provider === "openai") {
       this.model = "text-embedding-ada-002";
     } else if (provider === "cohere") {
       this.model = "embed-multilingual-v2.0";
     } else if (provider === "replicate") {
-      this.model = config.models.replicate.llama['llama-2-13b-embeddings-version'];
+        this.model = config.models.replicate.llama['llama-2-13b-embeddings-version'];
+    } else if (provider === "gemini") {
+        this.model = "models/embedding-001";
     } else {
       throw new Error("Invalid provider name");
     }

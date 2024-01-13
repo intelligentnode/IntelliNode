@@ -51,6 +51,28 @@ class GeminiAIWrapper {
 
     return this.generateContent(params, true);
   }
+
+  async getEmbeddings(params) {
+    const url = config.url.gemini.embeddingEndpoint;
+
+    try {
+      const response = await this.httpClient.post(url, params);
+      return response.data.embedding;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async getBatchEmbeddings(params) {
+    const url = config.url.gemini.batchEmbeddingEndpoint;
+
+    try {
+      const response = await this.httpClient.post(url, params);
+      return response.data.embeddings;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
 }
 
 module.exports = GeminiAIWrapper;
