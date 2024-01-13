@@ -44,7 +44,7 @@ async function testCohereWebChat() {
   }
 }
 
-async function testCohereChatStram() {
+async function testCohereChatStream() {
   try {
     const params = {
       model: 'command',
@@ -71,7 +71,7 @@ async function testCohereChatStram() {
     }
 
     console.log('Concatenated text: ', responseChunks);
-    assert(responseChunks.length > 0, 'testCohereChatStram response length should be greater than 0');
+    assert(responseChunks.length > 0, 'testCohereChatStream response length should be greater than 0');
   } catch (error) {
     console.error('Cohere Chat Error:', error);
   }
@@ -111,6 +111,6 @@ async function testCohereEmbeddings() {
 
   await testCohereWebChat();
 
-  await testCohereChatStram();
+  await testCohereChatStream();
 
 })();

@@ -1,12 +1,14 @@
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
+const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const EmbedInput = require('../model/input/EmbedInput');
 
 const SupportedEmbedModels = {
   OPENAI: 'openai',
   COHERE: 'cohere',
   REPLICATE: 'replicate',
+  GEMINI: 'gemini',
 };
 
 class RemoteEmbedModel {
@@ -34,6 +36,8 @@ class RemoteEmbedModel {
       this.cohereWrapper = new CohereAIWrapper(keyValue);
     } else if (keyType === SupportedEmbedModels.REPLICATE) {
       this.replicateWrapper = new ReplicateWrapper(keyValue);
+    } else if (keyType === SupportedEmbedModels.GEMINI) {
+        this.geminiWrapper = new GeminiAIWrapper(keyValue);
     } else {
       throw new Error('Invalid provider name');
     }
@@ -53,6 +57,8 @@ class RemoteEmbedModel {
         inputs = embedInput.getCohereInputs();
       } else if (this.keyType === SupportedEmbedModels.REPLICATE) {
         inputs = embedInput.getLlamaReplicateInput();
+      } else if (this.keyType === SupportedEmbedModels.GEMINI) {
+        inputs = embedInput.getGeminiInputs();
       } else {
         throw new Error('The keyType is not supported');
       }
@@ -77,7 +83,7 @@ class RemoteEmbedModel {
 
       return embeddings;
 
-    } if (this.keyType === SupportedEmbedModels.REPLICATE) {
+    } else if (this.keyType === SupportedEmbedModels.REPLICATE) {
 
       const prediction = await this.replicateWrapper.predict('replicate', inputs);
       
@@ -108,6 +114,9 @@ class RemoteEmbedModel {
           }
         }, 1000);
       });
+    } else if (this.keyType === SupportedEmbedModels.GEMINI) {
+      inputs = embedInput.getGeminiInputs();
+      return await this.geminiWrapper.getEmbeddings(inputs);
     } else {
       throw new Error('The keyType is not supported');
     }

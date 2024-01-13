@@ -63,7 +63,9 @@
     "gemini": {
       "base": "https://generativelanguage.googleapis.com/v1beta/models/",
       "contentEndpoint": "gemini-pro:generateContent",
-      "visionEndpoint": "gemini-pro-vision:generateContent"
+      "visionEndpoint": "gemini-pro-vision:generateContent",
+      "embeddingEndpoint": "embedding-001:embedContent",
+      "batchEmbeddingEndpoint": "embedding-001:batchEmbedContents"
     }
   },
   "models": {
