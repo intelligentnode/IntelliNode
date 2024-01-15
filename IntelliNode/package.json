@@ -1,6 +1,6 @@
 {
   "name": "intellinode",
-  "version": "1.7.7",
+  "version": "1.7.8",
   "description": "Integrate and evaluate various AI models, such as ChatGPT, Llama, Diffusion, Cohere, Gemini and Hugging Face.",
   "main": "index.js",
   "keywords": [
@@ -16,8 +16,8 @@
     "speech synthesis",
     "prompt",
     "automation",
-    "Mistral",
-    "Google Gemini"
+    "mistralai",
+    "gemini"
   ],
   "author": "IntelliNode",
   "license": "Apache",

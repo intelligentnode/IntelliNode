@@ -143,6 +143,12 @@ class Chatbot {
                 const content = line.replace(/^(User|Assistant): /, '');
                 return { role, content };
             });
+        } else if (modelInput instanceof GeminiInput) {
+            messages = modelInput.messages.map(message => {
+                const role = message.role;
+                const content = message.parts.map(part => part.text).join(" ");
+                return { role, content };
+            });
         } else if (Array.isArray(modelInput.messages)) {
             messages = modelInput.messages;
         } else {
@@ -151,7 +157,7 @@ class Chatbot {
         }
         
         lastMessage = messages[messages.length - 1];
-    
+        
         if (lastMessage && lastMessage.role === "user") {
 
             const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
