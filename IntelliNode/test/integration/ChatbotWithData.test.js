@@ -22,7 +22,7 @@ const replicateBot = new Chatbot(replicateApiKey, SupportedChatModels.REPLICATE,
           {oneKey:intelliKey, intelliBase: process.env.INTELLI_API_BASE});
 // gemini api key
 const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI, null, 
-                              {oneKey:intelliKey});
+                              {oneKey:intelliKey, intelliBase: process.env.INTELLI_API_BASE});
 
 async function testOpenaiChatGPTCase1() {
   try {
@@ -132,7 +132,7 @@ async function testGeminiChatCase1() {
 
 (async () => {
   
-  /*console.log('### Openai model ###')
+  console.log('### Openai model ###')
   await testOpenaiChatGPTCase1();
   await testOpenaiChatGPTCase2();
 
@@ -143,8 +143,9 @@ async function testGeminiChatCase1() {
   await testReplicateLLamaCase1();
 
   console.log('### Cohere model ###')
-  await testCohereChatCase();*/
+  await testCohereChatCase();
 
+  console.log('### Gemini model ###')
   testGeminiChatCase1();
 
 })();
