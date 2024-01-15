@@ -210,6 +210,19 @@ class GeminiInput extends ChatModelInput {
       contents: this.messages
     };
   }
+
+  cleanMessages() {
+    this.messages = [];
+  }
+
+  deleteLastMessage(message) {
+    if (this.messages.length > 0) {
+      this.messages.splice(-1, 1);
+      return true;
+    }
+    return false;
+  }
+
 }
 
 class ChatLLamaInput extends ChatModelInput {

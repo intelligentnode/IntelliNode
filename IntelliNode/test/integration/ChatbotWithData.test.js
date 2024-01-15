@@ -7,17 +7,22 @@ const { ChatGPTInput,
         ChatLLamaInput,
         CohereInput,
         LLamaReplicateInput,
+        GeminiInput,
         LLamaSageInput } = require("../../model/input/ChatModelInput");
 
 const openaiKey = process.env.OPENAI_API_KEY;
 const replicateApiKey = process.env.REPLICATE_API_KEY;
 const intelliKey = process.env.INTELLI_ONE_KEY;
+const geminiApiKey = process.env.GEMINI_API_KEY;
 // openai bot
 const bot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, null, 
           {oneKey:intelliKey, intelliBase: process.env.INTELLI_API_BASE});
 // llama - replicate bot
 const replicateBot = new Chatbot(replicateApiKey, SupportedChatModels.REPLICATE, null, 
           {oneKey:intelliKey, intelliBase: process.env.INTELLI_API_BASE});
+// gemini api key
+const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI, null, 
+                              {oneKey:intelliKey});
 
 async function testOpenaiChatGPTCase1() {
   try {
@@ -107,9 +112,27 @@ async function testCohereChatCase() {
   assert(responses.length > 0, "Cohere chat response length should be greater than 0");
 }
 
+async function testGeminiChatCase1() {
+  try {
+    console.log('\ngemini test case 1: \n')
+
+    const input = new GeminiInput("", {searchK:4});
+    input.addUserMessage("Tell me about the Mars the Red Planet? summarize the context");
+
+    const responses = await geminiBot.chat(input);
+    
+    console.log('### the chatbot response ###')
+    responses.forEach((response) => console.log("- " + response));
+
+    assert(responses.length > 0, "testOpenaiChatGPTCase1 response length should be greater than 0");
+  } catch (error) {
+    console.error("Test case failed with exception:", error.message);
+  }
+}
+
 (async () => {
   
-  console.log('### Openai model ###')
+  /*console.log('### Openai model ###')
   await testOpenaiChatGPTCase1();
   await testOpenaiChatGPTCase2();
 
@@ -120,6 +143,8 @@ async function testCohereChatCase() {
   await testReplicateLLamaCase1();
 
   console.log('### Cohere model ###')
-  await testCohereChatCase();
+  await testCohereChatCase();*/
+
+  testGeminiChatCase1();
 
 })();
