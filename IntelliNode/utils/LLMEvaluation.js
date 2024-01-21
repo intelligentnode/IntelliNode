@@ -26,42 +26,42 @@ class LLMEvaluation extends ModelEvaluation {
   }
 
   async generateText(apiKey, inputString, provider, modelName, type,
-                            maxTokens = 500, custom_url = null) {
+    maxTokens = 500, custom_url = null) {
 
     if (type == 'chat' && Object.values(SupportedChatModels).includes(provider.toLowerCase())) {
 
-        const customProxy = (custom_url != undefined && custom_url != null && custom_url != '') ? {url: custom_url } : null;
+      const customProxy = (custom_url != undefined && custom_url != null && custom_url != '') ? { url: custom_url } : null;
 
-        const chatbot = new Chatbot(apiKey, provider, customProxy);
+      const chatbot = new Chatbot(apiKey, provider, customProxy);
 
-        // define the chat input
-        let input;
-        if (SupportedChatModels.REPLICATE == provider.toLowerCase()) {
-            input = new LLamaReplicateInput("provide direct answer", { model: modelName, maxTokens: maxTokens});
-        } else if (SupportedChatModels.SAGEMAKER == provider.toLowerCase()) {
-            input = new LLamaSageInput("provide direct answer", {maxTokens: maxTokens});
-        } else if (SupportedChatModels.GEMINI == provider.toLowerCase()) {
-            input = new GeminiInput("provide direct answer", {maxTokens: maxTokens});
-        } else if (SupportedChatModels.COHERE == provider.toLowerCase()) {
-            input = new CohereInput("provide direct answer", {maxTokens: maxTokens});
-        } else if (SupportedChatModels.MISTRAL == provider.toLowerCase()) {
-            input = new MistralInput("provide direct answer", {maxTokens: maxTokens});
-        } else {
-            input = new ChatGPTInput("provide direct answer", { model: modelName, maxTokens: maxTokens});
-        }
+      // define the chat input
+      let input;
+      if (SupportedChatModels.REPLICATE == provider.toLowerCase()) {
+        input = new LLamaReplicateInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
+      } else if (SupportedChatModels.SAGEMAKER == provider.toLowerCase()) {
+        input = new LLamaSageInput("provide direct answer", { maxTokens: maxTokens });
+      } else if (SupportedChatModels.GEMINI == provider.toLowerCase()) {
+        input = new GeminiInput("provide direct answer", { maxTokens: maxTokens });
+      } else if (SupportedChatModels.COHERE == provider.toLowerCase()) {
+        input = new CohereInput("provide direct answer", { maxTokens: maxTokens });
+      } else if (SupportedChatModels.MISTRAL == provider.toLowerCase()) {
+        input = new MistralInput("provide direct answer", { maxTokens: maxTokens });
+      } else {
+        input = new ChatGPTInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
+      }
 
-        input.addUserMessage(inputString);
-        const responses = await chatbot.chat(input);
+      input.addUserMessage(inputString);
+      const responses = await chatbot.chat(input);
 
-        return responses[0].trim();
+      return responses[0].trim();
     } else if (type == 'completion' && Object.values(SupportedLangModels).includes(provider.toLowerCase())) {
 
-        const languageModel = new RemoteLanguageModel(apiKey, provider);
-        const langInput = new LanguageModelInput({ prompt: inputString, model: modelName, maxTokens: maxTokens });
-        langInput.setDefaultValues(provider, maxTokens);
+      const languageModel = new RemoteLanguageModel(apiKey, provider);
+      const langInput = new LanguageModelInput({ prompt: inputString, model: modelName, maxTokens: maxTokens });
+      langInput.setDefaultValues(provider, maxTokens);
 
-        const responses = await languageModel.generateText(langInput);
-        return responses[0].trim();
+      const responses = await languageModel.generateText(langInput);
+      return responses[0].trim();
     } else {
       throw new Error('Provider not supported');
     }
@@ -92,45 +92,53 @@ class LLMEvaluation extends ModelEvaluation {
     let targetEmbeddings = [];
 
     // Initiate Embedding for targets
-    for(let target of targetAnswers) {
+    for (let target of targetAnswers) {
       const embedding = await this.generateEmbedding(target);
       targetEmbeddings.push(embedding);
     }
 
-    for(let provider of providerSets) {
+    for (let provider of providerSets) {
       console.log(`- start ${provider.model} evaluation`)
 
       let predictions = [];
-      let prediction = await this.generateText(provider.apiKey, inputString, provider.provider,
-                                                provider.model, provider.type,
-                                                provider.maxTokens, provider.url);
-      const predictionEmbedding = await this.generateEmbedding(prediction);
+      try {
+        let prediction = await this.generateText(provider.apiKey, inputString, provider.provider,
+          provider.model, provider.type,
+          provider.maxTokens, provider.url);
+        const predictionEmbedding = await this.generateEmbedding(prediction);
 
-      let cosineSum = 0, euclideanSum = 0, manhattanSum = 0;
-      for(let targetEmbedding of targetEmbeddings) {
-        cosineSum += MatchHelpers.cosineSimilarity(predictionEmbedding, targetEmbedding);
-        euclideanSum += MatchHelpers.euclideanDistance(predictionEmbedding, targetEmbedding);
-        manhattanSum += MatchHelpers.manhattanDistance(predictionEmbedding, targetEmbedding);
+        let cosineSum = 0, euclideanSum = 0, manhattanSum = 0;
+        for (let targetEmbedding of targetEmbeddings) {
+          cosineSum += MatchHelpers.cosineSimilarity(predictionEmbedding, targetEmbedding);
+          euclideanSum += MatchHelpers.euclideanDistance(predictionEmbedding, targetEmbedding);
+          manhattanSum += MatchHelpers.manhattanDistance(predictionEmbedding, targetEmbedding);
+        }
+
+        const avgCosine = cosineSum / targetEmbeddings.length;
+        const avgEuclidean = euclideanSum / targetEmbeddings.length;
+        const avgManhattan = manhattanSum / targetEmbeddings.length;
+
+        predictions.push({
+          prediction: prediction,
+          score_cosine_similarity: avgCosine,
+          score_euclidean_distance: avgEuclidean,
+          score_manhattan_distance: avgManhattan,
+          stop_reason: "complete"
+        });
+      } catch (error) {
+        console.error(error);
+        predictions.push({
+          stop_reason: "error"
+        });
       }
-
-      const avgCosine = cosineSum / targetEmbeddings.length;
-      const avgEuclidean = euclideanSum / targetEmbeddings.length;
-      const avgManhattan = manhattanSum / targetEmbeddings.length;
-
-      predictions.push({
-        prediction: prediction,
-        score_cosine_similarity: avgCosine,
-        score_euclidean_distance: avgEuclidean,
-        score_manhattan_distance: avgManhattan
-      });
 
       results[`${provider.provider}/${provider.model}`] = predictions;
     }
 
     results['lookup'] = {
-        'cosine_similarity': 'a value closer to 1 indicates a higher degree of similarity between two vectors.',
-        'euclidean_distance': 'the lower the value, the closer the two points.',
-        'manhattan_distance': 'the lower the value, the closer the two vectors.' 
+      'cosine_similarity': 'a value closer to 1 indicates a higher degree of similarity between two vectors.',
+      'euclidean_distance': 'the lower the value, the closer the two points.',
+      'manhattan_distance': 'the lower the value, the closer the two vectors.'
     }
 
     if (isJson) {
