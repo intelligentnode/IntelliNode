@@ -39,7 +39,7 @@ class SemanticSearch {
       if (this.provider === SupportedEmbedModels.OPENAI) {
         embeddings = embeddingsResponse.map((item) => item.embedding);
       } else if (this.provider === SupportedEmbedModels.COHERE) {
-        embeddings = embeddingsResponse.map((item) => item);
+        embeddings = embeddingsResponse.map((item) => item.embedding);
       } else {
         throw new Error('Invalid provider name');
       }
