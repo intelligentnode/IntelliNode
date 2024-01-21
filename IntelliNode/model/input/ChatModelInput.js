@@ -180,6 +180,8 @@ class GeminiInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super(options);
     this.messages = [];
+    this.maxOutputTokens = options.maxTokens
+    this.temperature = options.temperature
 
     if (systemMessage && typeof systemMessage === 'string') {
       this.addUserMessage(systemMessage);
@@ -207,7 +209,11 @@ class GeminiInput extends ChatModelInput {
 
   getChatInput() {
     return {
-      contents: this.messages
+      contents: this.messages,
+      generationConfig: { 
+        ...(this.temperature && { temperature: this.temperature }),
+        ...(this.maxOutputTokens && { maxOutputTokens: this.maxOutputTokens }),
+      }
     };
   }
 
