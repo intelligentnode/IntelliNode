@@ -2,7 +2,7 @@ const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/Remote
 const LanguageModelInput = require('../model/input/LanguageModelInput');
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { RemoteLanguageModel, SupportedLangModels } = require("../controller/RemoteLanguageModel");
-const { ChatGPTInput, LLamaReplicateInput, LLamaSageInput } = require("../model/input/ChatModelInput");
+const { ChatGPTInput, LLamaReplicateInput, LLamaSageInput, GeminiInput, CohereInput, MistralInput } = require("../model/input/ChatModelInput");
 const MatchHelpers = require('../utils/MatchHelpers');
 const EmbedInput = require('../model/input/EmbedInput');
 const { ModelEvaluation } = require('./ModelEvaluation');
@@ -26,7 +26,7 @@ class LLMEvaluation extends ModelEvaluation {
   }
 
   async generateText(apiKey, inputString, provider, modelName, type,
-                            maxTokens = 400, custom_url = null) {
+                            maxTokens = 500, custom_url = null) {
 
     if (type == 'chat' && Object.values(SupportedChatModels).includes(provider.toLowerCase())) {
 
@@ -40,6 +40,12 @@ class LLMEvaluation extends ModelEvaluation {
             input = new LLamaReplicateInput("provide direct answer", { model: modelName, maxTokens: maxTokens});
         } else if (SupportedChatModels.SAGEMAKER == provider.toLowerCase()) {
             input = new LLamaSageInput("provide direct answer", {maxTokens: maxTokens});
+        } else if (SupportedChatModels.GEMINI == provider.toLowerCase()) {
+            input = new GeminiInput("provide direct answer", {maxTokens: maxTokens});
+        } else if (SupportedChatModels.COHERE == provider.toLowerCase()) {
+            input = new CohereInput("provide direct answer", {maxTokens: maxTokens});
+        } else if (SupportedChatModels.MISTRAL == provider.toLowerCase()) {
+            input = new MistralInput("provide direct answer", {maxTokens: maxTokens});
         } else {
             input = new ChatGPTInput("provide direct answer", { model: modelName, maxTokens: maxTokens});
         }
