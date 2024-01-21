@@ -17,7 +17,8 @@
     "prompt",
     "automation",
     "mistralai",
-    "gemini"
+    "gemini",
+    "robotics"
   ],
   "author": "IntelliNode",
   "license": "Apache",
