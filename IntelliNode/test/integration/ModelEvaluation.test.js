@@ -11,6 +11,8 @@ const openaiChat = { apiKey: process.env.OPENAI_API_KEY, provider: SupportedChat
                      type: 'chat', model:'gpt-3.5-turbo', maxTokens: 50};
 const cohereCompletion = { apiKey: process.env.COHERE_API_KEY, provider: SupportedLangModels.COHERE,
                             type:'completion', model: 'command', maxTokens: 50};
+const geminiChat = { apiKey: process.env.GEMINI_API_KEY, provider: SupportedChatModels.GEMINI,
+                              type:'chat', model: 'gemini'};
 
 // create the evaluation object
 const llmEvaluation = new LLMEvaluation(process.env.OPENAI_API_KEY, 'openai');
@@ -20,7 +22,7 @@ async function testLLMEvaluation() {
   const targetAnswers = ["Photosynthesis is the process where green plants use sunlight to turn carbon dioxide and water into glucose and oxygen. The glucose provides food for the plant, and the oxygen gets released back into the air.",
                          "Photosynthesis is how plants make their own food. They take in water and carbon dioxide, use the energy from sunlight to transform them into glucose (their food) and oxygen, which they release into the air.",
                          "In simple terms, photosynthesis is like cooking for plants but instead of a stove, they use sunlight. They mix water and carbon dioxide with the sunlight to create glucose, which is their food, and also produce oxygen."];
-  const providerSets = [llamaChat, openaiChat, cohereCompletion];
+  const providerSets = [llamaChat, openaiChat, cohereCompletion, geminiChat];
 
   const results = await llmEvaluation.compareModels(inputString, targetAnswers, providerSets);
 
