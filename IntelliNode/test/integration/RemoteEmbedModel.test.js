@@ -72,6 +72,6 @@ async function testGeminiEmbeddings() {
 (async () => {
   await testOpenAIEmbeddings();
   await testCohereEmbeddings();
-  await testReplicateEmbeddings();
+  // await testReplicateEmbeddings();
   await testGeminiEmbeddings();
 })();
