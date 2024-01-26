@@ -48,7 +48,7 @@ class EmbedInput {
 
   setDefaultValues(provider) {
     if (provider === "openai") {
-      this.model = "text-embedding-ada-002";
+      this.model = "text-embedding-3-small";
     } else if (provider === "cohere") {
       this.model = "embed-multilingual-v2.0";
     } else if (provider === "replicate") {

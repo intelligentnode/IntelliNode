@@ -76,7 +76,7 @@ async function testEmbeddings() {
     try {
         const params = {
             input: 'IntelliNode provide lightning-fast access to the latest deep learning models',
-            model: 'text-embedding-ada-002',
+            model: 'text-embedding-3-small',
         };
 
         const result = await openAI.getEmbeddings(params);
