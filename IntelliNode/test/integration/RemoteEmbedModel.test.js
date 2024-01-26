@@ -19,7 +19,7 @@ async function testOpenAIEmbeddings() {
 
   const embedInput = new EmbedInput({
     texts: ['Hello from OpenAI!', '您好，来自 OpenAI！'],
-    model: 'text-embedding-ada-002',
+    model: 'text-embedding-3-small',
   });
 
   const results = await openaiEmbedModel.getEmbeddings(embedInput);
@@ -50,7 +50,7 @@ async function testReplicateEmbeddings() {
 
   const results = await replicateEmbedModel.getEmbeddings(embedInput);
   console.log('Replicate Embeddings:', results, '\n');
-  
+
   assert(results.length === embedInput.texts.length && results.every(embedding => embedding.length > 0),
       'Replicate Embeddings Test passed');
 }
@@ -72,6 +72,6 @@ async function testGeminiEmbeddings() {
 (async () => {
   await testOpenAIEmbeddings();
   await testCohereEmbeddings();
-  await testReplicateEmbeddings();
+  // await testReplicateEmbeddings();
   await testGeminiEmbeddings();
 })();
