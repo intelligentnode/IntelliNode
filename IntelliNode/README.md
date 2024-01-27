@@ -21,7 +21,6 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 # Latest Updates
 - Add Google Gemini chat and vision.
 - Add Mistral SMoE model as a chatbot provider (open source mixture of experts).
-- Update the chatbot to augment answers with your documents, allowing for a multi-model agent approach.
 - Update Openai with DALL·E 3 vision, speech, and ChatGPT functions (automation).
 - Improve Llama v2 chat speed and support llama code models. 🦙
 - Update stable diffusion to use the XL model engine. 🎨
@@ -30,6 +29,8 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 - Add web search to cohere chatbot.
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
+
+Enhance any LLM chatbot by integrating your documents via Intellinode one key at [app.intellinode.ai](https://app.intellinode.ai/).
 
 # Examples
 ## Functions
@@ -206,6 +207,7 @@ Check the code to access the chatbot through a proxy: [proxy chatbot](https://gi
 - [Model Evaluation](https://github.com/Barqawiz/IntelliNode/wiki/Model-Evaluation): Demonstrate a swift approach to compare the performance of multiple models like gpt4, llama and cohere.
 - [LLM as Microservice](https://www.kdnuggets.com/building-microservice-for-multichat-backends-using-llama-and-chatgpt): For scalable production.
 - [Fine-tuning Tutorial](https://github.com/intelligentnode/IntelliNode/wiki/Fine-Tuning): Learn how to tune LLMs with yout data.
+- [Chatbot With Your Docs](https://github.com/intelligentnode/IntelliNode/wiki/Connecting-Your-Data-To-Chatbots): Tutorial to augment any LLM provider with your docs and images.
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models
