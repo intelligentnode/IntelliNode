@@ -39,7 +39,7 @@ const SupportedChatModels = {
 
 class Chatbot {
     constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null, options = {}) {
-        
+
         const supportedModels = this.getSupportedModels();
 
         if (supportedModels.includes(provider)) {
@@ -50,7 +50,7 @@ class Chatbot {
                 `The received keyValue is not supported. Send any model from: ${models}`
             );
         }
-        
+
     }
 
     initiate(keyValue, provider, customProxyHelper = null, options = {}) {
@@ -77,7 +77,7 @@ class Chatbot {
             const apiBase = options.intelliBase ? options.intelliBase : null;
             this.extendedController = options.oneKey.startsWith("in") ? new IntellicloudWrapper(options.oneKey, apiBase) : null;
         }
-        
+
     }
 
     getSupportedModels() {
@@ -86,31 +86,33 @@ class Chatbot {
 
     async chat(modelInput, functions = null, function_call = null, debugMode = true) {
 
-        await this.getSemanticSearchContext(modelInput);
+        // call semantic search
+        let references = await this.getSemanticSearchContext(modelInput);
 
+        // verify the extra params
+        if (this.provider != SupportedChatModels.OPENAI && (functions != null || function_call != null)) {
+            throw new Error('The functions and function_call are supported for chatGPT models only.');
+        }
+
+        // call the chatbot
         if (this.provider === SupportedChatModels.OPENAI) {
-            return this._chatGPT(modelInput, functions, function_call);
+            const result = await this._chatGPT(modelInput, functions, function_call);
+            return modelInput.attachReference ? { result, references } : result;
         } else if (this.provider === SupportedChatModels.REPLICATE) {
-            // functions not supported for REPLICATE models
-            if (functions != null || function_call != null) {
-                throw new Error('The functions and function_call are supported for chatGPT models only. They should be null for LLama model.');
-            }
-
-            return this._chatReplicateLLama(modelInput, debugMode);
+            const result = await this._chatReplicateLLama(modelInput, debugMode);
+            return modelInput.attachReference ? { result, references } : result;
         } else if (this.provider === SupportedChatModels.SAGEMAKER) {
-
-            // functions not supported for REPLICATE models
-            if (functions != null || function_call != null) {
-                throw new Error('The functions and function_call are supported for chatGPT models only. They should be null for LLama model.');
-            }
-
-            return this._chatSageMaker(modelInput);
-        } else if (this.provider === SupportedChatModels.COHERE) { 
-            return this._chatCohere(modelInput);
+            const result = await this._chatSageMaker(modelInput);
+            return modelInput.attachReference ? { result, references } : result;
+        } else if (this.provider === SupportedChatModels.COHERE) {
+            const result = await this._chatCohere(modelInput);
+            return modelInput.attachReference ? { result, references } : result;
         } else if (this.provider === SupportedChatModels.MISTRAL) {
-            return this._chatMistral(modelInput);
+            const result = await this._chatMistral(modelInput);
+            return modelInput.attachReference ? { result, references } : result;
         } else if (this.provider === SupportedChatModels.GEMINI) {
-            return this._chatGemini(modelInput);
+            const result = await this._chatGemini(modelInput);
+            return modelInput.attachReference ? { result, references } : result;
         } else {
             throw new Error("The provider is not supported");
         }
@@ -122,7 +124,7 @@ class Chatbot {
 
         if (this.provider === SupportedChatModels.OPENAI) {
             yield* this._chatGPTStream(modelInput);
-        } else  if (this.provider === SupportedChatModels.COHERE) {
+        } else if (this.provider === SupportedChatModels.COHERE) {
             yield* this._streamCohere(modelInput)
         } else {
             throw new Error("The stream function support only chatGPT, for other providers use chat function.");
@@ -130,10 +132,13 @@ class Chatbot {
     }
 
     async getSemanticSearchContext(modelInput) {
+
+        let references = {};
+
         if (!this.extendedController) {
-            return;
+            return references;
         }
-        
+
         // Initialize variables for messages or prompt
         let messages, lastMessage;
 
@@ -153,25 +158,37 @@ class Chatbot {
             messages = modelInput.messages;
         } else {
             console.log('The input format does not support augmented search.');
-            return;
+            return references;
         }
-        
+
         lastMessage = messages[messages.length - 1];
-        
+
         if (lastMessage && lastMessage.role === "user") {
 
             const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
+            
+            // console.log('semanticResult: ', semanticResult);
 
             if (semanticResult && semanticResult.length > 0) {
+                
+                references = semanticResult.reduce((acc, doc) => {
+                    // check if the document_name exists in the accumulator
+                    if (!acc[doc.document_name]) {
+                      acc[doc.document_name] = { pages: [] };
+                    }
+                    return acc;
+                  }, {});
+                
+                // console.log('references: ', references);
 
                 let contextData = semanticResult.map(doc => doc.data.map(dataItem => dataItem.text).join('\n')).join('\n').trim();
                 const templateWrapper = new SystemHelper().loadStaticPrompt("augmented_chatbot");
                 const augmentedMessage = templateWrapper.replace('${semantic_search}', contextData).replace('${user_query}', lastMessage.content);
-    
+
                 if (modelInput instanceof ChatLLamaInput && modelInput.prompt) {
                     const promptLines = modelInput.prompt.trim().split('\n');
                     promptLines.pop();
-                    promptLines.push(`User: ${augmentedMessage}`); 
+                    promptLines.push(`User: ${augmentedMessage}`);
                     modelInput.prompt = promptLines.join('\n');
 
                     // console.log('----> prompt after update: ', modelInput.prompt);
@@ -189,6 +206,8 @@ class Chatbot {
                 }
             }
         }
+        
+        return references;
     }
 
     async *_chatGPTStream(modelInput) {
@@ -295,11 +314,11 @@ class Chatbot {
         let params;
 
         if (modelInput instanceof LLamaSageInput) {
-          params = modelInput.getChatInput();
+            params = modelInput.getChatInput();
         } else if (typeof modelInput === "object") {
-          params = modelInput;
+            params = modelInput;
         } else {
-          throw new Error("Invalid input: Must be an instance of LLamaSageInput or a dictionary");
+            throw new Error("Invalid input: Must be an instance of LLamaSageInput or a dictionary");
         }
 
         const results = await this.sagemakerWrapper.predict(params);
@@ -309,16 +328,16 @@ class Chatbot {
 
     async _chatCohere(modelInput) {
         let params;
-    
+
         if (modelInput instanceof CohereInput) {
             params = modelInput.getChatInput();
-    
+
         } else if (typeof modelInput === "object") {
             params = modelInput;
         } else {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or an object");
         }
-    
+
         const results = await this.cohereWrapper.generateChatText(params);
 
         const responseText = results.text;
@@ -328,7 +347,7 @@ class Chatbot {
     async *_streamCohere(modelInput) {
 
         let params;
-    
+
         if (modelInput instanceof CohereInput) {
             params = modelInput.getChatInput();
             params.stream = true;
@@ -338,11 +357,11 @@ class Chatbot {
         } else {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
-    
+
         const streamParser = new CohereStreamParser();
-    
+
         const stream = await this.cohereWrapper.generateChatText(params);
-    
+
         // Collect data from the stream
         for await (const chunk of stream) {
             const chunkText = chunk.toString('utf8');
@@ -352,17 +371,17 @@ class Chatbot {
 
     async _chatMistral(modelInput) {
         let params;
-    
+
         if (modelInput instanceof MistralInput) {
-          params = modelInput.getChatInput();
+            params = modelInput.getChatInput();
         } if (modelInput instanceof ChatGPTInput) {
             params = modelInput.getChatInput();
         } else if (typeof modelInput === "object") {
-          params = modelInput;
+            params = modelInput;
         } else {
-          throw new Error("Invalid input: Must be an instance of MistralInput or an object");
+            throw new Error("Invalid input: Must be an instance of MistralInput or an object");
         }
-        
+
         const results = await this.mistralWrapper.generateText(params);
 
         return results.choices.map(choice => choice.message.content);
@@ -370,7 +389,7 @@ class Chatbot {
 
     async _chatGemini(modelInput) {
         let params;
-        
+
         if (modelInput instanceof GeminiInput) {
             params = modelInput.getChatInput();
         } else if (typeof modelInput === "object") {
@@ -378,14 +397,14 @@ class Chatbot {
         } else {
             throw new Error("Invalid input: Must be an instance of GeminiInput");
         }
-        
+
         // call Gemini
         const result = await this.geminiWrapper.generateContent(params);
-        
+
         if (!Array.isArray(result.candidates) || result.candidates.length === 0) {
             throw new Error("Invalid response from Gemini API: Expected 'candidates' array with content");
         }
-    
+
         // iterate over all the candidates
         const responses = result.candidates.map(candidate => {
             // combine text from all parts
@@ -393,7 +412,7 @@ class Chatbot {
                 .map(part => part.text)
                 .join(' ');
         });
-        
+
         return responses;
     }
 

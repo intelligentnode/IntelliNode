@@ -22,6 +22,7 @@ class ChatGPTMessage {
 class ChatModelInput {
   constructor(options = {}) { 
     this.searchK = options.searchK || 3;
+    this.attachReference = options.attachReference || false;
   }
   
   getChatInput() {
