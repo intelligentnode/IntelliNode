@@ -16,7 +16,7 @@
 
 </p>
 
-IntelliNode is the ultimate tool to integrate with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
+IntelliNode is the ultimate tool to integrate your data with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
 - Add Google Gemini chat and vision.
@@ -30,7 +30,7 @@ IntelliNode is the ultimate tool to integrate with the latest language models an
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
-Enhance any LLM chatbot by integrating your documents via Intellinode one key at [app.intellinode.ai](https://app.intellinode.ai/).
+Augment any LLM chatbot by integrating your documents via Intellinode one key at [app.intellinode.ai](https://app.intellinode.ai/).
 
 # Examples
 ## Functions

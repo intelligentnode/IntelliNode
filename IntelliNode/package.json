@@ -1,7 +1,7 @@
 {
   "name": "intellinode",
-  "version": "1.8.0",
-  "description": "Integrate and evaluate various AI models, such as ChatGPT, Llama, Diffusion, Cohere, Gemini and Hugging Face.",
+  "version": "1.8.1",
+  "description": "Connect your data and evaluate AI models including ChatGPT, Llama, Diffusion, Cohere, Gemini, and Hugging Face for improved accuracy.",
   "main": "index.js",
   "keywords": [
     "ai",
@@ -16,7 +16,7 @@
     "speech synthesis",
     "prompt",
     "automation",
-    "mistralai",
+    "mistral",
     "gemini",
     "framework"
   ],
