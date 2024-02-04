@@ -29,7 +29,7 @@ class IntellicloudWrapper {
     });
   }
 
-  async semanticSearch(queryText, k = 3) {
+  async semanticSearch(queryText, k = 3, filters = {}) {
     // validate k value
     if (!k || k == undefined) {
       k = 3;
@@ -40,6 +40,9 @@ class IntellicloudWrapper {
     form.append('one_key', this.ONE_KEY);
     form.append('query_text', queryText);
     form.append('k', k);
+    if (filters && filters.document_name) {
+      form.append('document_name', filters.document_name);
+    }
     
     try {
       const response = await this.httpClient.post(url, form);
