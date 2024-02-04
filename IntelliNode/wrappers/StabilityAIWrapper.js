@@ -29,7 +29,7 @@ class StabilityAIWrapper {
 
   async generateTextToImage(
     params,
-    engine = 'stable-diffusion-xl-beta-v2-2-2'
+    engine = 'stable-diffusion-xl-1024-v1-0'
   ) {
     const url = config.url.stability.text_to_image.replace(
       '{1}',
@@ -87,13 +87,13 @@ class StabilityAIWrapper {
    * @param {number} [params.seed=0] - random noise seed.
    * @param {number} [params.steps=50] - number of diffusion steps to run.
    * @param {string} [params.style_preset] - pass in a style preset to guide the image model towards a particular style.
-   * @param {string} [engine="stable-diffusion-xl-beta-v2-2-2"] - the engine to use for image-to-image generation. Defaults to "stable-diffusion-xl-beta-v2-2-2".
+   * @param {string} [engine="stable-diffusion-xl-1024-v1-0"] - the engine to use for image-to-image generation. Defaults to "stable-diffusion-xl-beta-v2-2-2".
    * @returns {Promise<object>} the generated image data.
    * @throws {Error} if there is an error during the request.
    */
   async generateImageToImage(
     params,
-    engine = 'stable-diffusion-xl-beta-v2-2-2'
+    engine = 'stable-diffusion-xl-1024-v1-0'
   ) {
     const url = config.url.stability.image_to_image.replace(
       '{1}',
