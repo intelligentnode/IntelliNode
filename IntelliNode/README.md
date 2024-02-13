@@ -9,9 +9,8 @@
     <img src="https://img.shields.io/github/license/Barqawiz/IntelliJava?style=flat-square" />
 </a>
 
-
-<a href="https://discord.gg/VYgCh2p3Ww" alt="discord invite" target="_blank">
-    <img src="https://img.shields.io/badge/Discord-Community-light?style=flat-square" />
+<a href="https://discord.gg/VYgCh2p3Ww" alt="Join our Discord community">
+    <img src="https://img.shields.io/badge/Discord-join%20us-5865F2?style=flat-square&logo=discord&logoColor=white" />
 </a>
 
 </p>
@@ -26,11 +25,10 @@ IntelliNode is the ultimate tool to integrate your data with the latest language
 - Update stable diffusion to use the XL model engine. 🎨
 - Add support for hugging face inference. 🤗
 - Support in-memory semantic search. 🔍
-- Add web search to cohere chatbot.
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
-Augment any LLM chatbot by integrating your documents via Intellinode one key at [app.intellinode.ai](https://app.intellinode.ai/).
+Chat with your docs via Intellinode one key at [app.intellinode.ai](https://app.intellinode.ai/).
 
 # Examples
 ## Functions
