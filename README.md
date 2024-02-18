@@ -17,7 +17,7 @@ Unified prompt, evaluation, and production integration to any large model
 </a>
 
 <a href="https://opensource.org/licenses/Apache-2.0" alt="licenses tag">
-    <img src="https://img.shields.io/github/license/Barqawiz/IntelliJava?style=flat-square" />
+    <img src="https://img.shields.io/github/license/Barqawiz/IntelliNode?style=flat-square" />
 </a>
 
 
