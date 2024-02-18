@@ -6,7 +6,7 @@
 <p>
 
 <a href="https://github.com/Barqawiz/IntelliNode/blob/main/LICENSE" alt="licenses tag" target="_blank">
-    <img src="https://img.shields.io/github/license/Barqawiz/IntelliJava?style=flat-square" />
+    <img src="https://img.shields.io/github/license/intelligentnode/IntelliNode?style=flat-square" />
 </a>
 
 <a href="https://discord.gg/VYgCh2p3Ww" alt="Join our Discord community">
