@@ -1,7 +1,7 @@
 {
   "name": "intellinode",
-  "version": "1.8.2",
-  "description": "Connect your data and evaluate AI models including ChatGPT, Llama, Diffusion, Cohere, Gemini, and Hugging Face for improved accuracy.",
+  "version": "1.8.3",
+  "description": "Connect your data, evaluate accuracy, and integrate with AI models including ChatGPT, Llama, Diffusion, Cohere, Gemini, and Hugging Face.",
   "main": "index.js",
   "keywords": [
     "ai",
