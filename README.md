@@ -38,6 +38,8 @@ One command and get access to latest models:
 npm i intellinode
 ```
 
+For detailed usage instructions, refer to the [documentation](https://docs.intellinode.ai/docs/npm).
+
 ## Examples
 ### Gen
 The `Gen` function quickly generates tailored content in one line.<br><br>
