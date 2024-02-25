@@ -135,7 +135,7 @@ const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
 2. call openai model:
 ```js
 const langModel = new RemoteLanguageModel('openai-key', 'openai');
-model_name = 'text-davinci-003'
+model_name = 'gpt-3.5-turbo-instruct'
 
 const results = await langModel.generateText(new LanguageModelInput({
   prompt: 'Write a product description for smart plug that works with voice assistant.',
@@ -199,13 +199,13 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js).
 
 # :closed_book: Documentation
-- [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki): Detailed documentation about IntelliNode.
+- [IntelliNode Docs](https://doc.intellinode.ai/docs/npm): Detailed documentation about IntelliNode.
 - [Showcase](https://show.intellinode.ai/): Explore interactive demonstrations of IntelliNode's capabilities.
 - [Samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample): Get started with IntelliNode using well-documented code samples.
-- [Model Evaluation](https://github.com/Barqawiz/IntelliNode/wiki/Model-Evaluation): Demonstrate a swift approach to compare the performance of multiple models like gpt4, llama and cohere.
+- [Model Evaluation](https://doc.intellinode.ai/docs/npm/functions/llm-evaluation): A swift approach to compare the performance of multiple large langiage models like gpt4, gemini, llama and cohere.
 - [LLM as Microservice](https://www.kdnuggets.com/building-microservice-for-multichat-backends-using-llama-and-chatgpt): For scalable production.
-- [Fine-tuning Tutorial](https://github.com/intelligentnode/IntelliNode/wiki/Fine-Tuning): Learn how to tune LLMs with yout data.
-- [Chatbot With Your Docs](https://github.com/intelligentnode/IntelliNode/wiki/Connecting-Your-Data-To-Chatbots): Tutorial to augment any LLM provider with your docs and images.
+- [Fine-tuning Tutorial](https://doc.intellinode.ai/docs/npm/controllers/fine-tuning): Learn how to tune LLMs with yout data.
+- [Chatbot With Your Docs](https://doc.intellinode.ai/docs/npm/chatbot/docs-chat): Tutorial to augment any LLM provider with your docs and images.
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models

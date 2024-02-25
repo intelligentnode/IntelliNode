@@ -12,7 +12,7 @@ const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
 async function testLanguageModel() {
     try {
         const params = {
-            model: 'text-davinci-003',
+            model: 'gpt-3.5-turbo-instruct',
             prompt: 'Summarize the plot of the Inception movie in two sentences',
             max_tokens: 50,
             n: 1,

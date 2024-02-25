@@ -62,7 +62,7 @@ class LanguageModelInput {
 
   setDefaultModels(provider) {
     if (provider === "openai") {
-      this.model = "text-davinci-003";
+      this.model = "gpt-3.5-turbo-instruct";
     } else if (provider === "cohere") {
       this.model = "command";
     } else {
