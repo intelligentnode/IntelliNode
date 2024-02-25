@@ -17,7 +17,7 @@ async function generateText(apiKey, provider, model, prompt, temperature) {
 (async () => {
   // Generate text using OpenAI
   const openaiKey = process.env.OPENAI_API_KEY;
-  const openaiModel = 'text-davinci-003';
+  const openaiModel = 'gpt-3.5-turbo-instruct';
   const prompt = 'Write a product description for smart plug that works with voice assistant.';
   const temperature = 0.7;
 
