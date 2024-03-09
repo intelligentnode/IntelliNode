@@ -15,12 +15,12 @@
 
 </p>
 
-IntelliNode is the ultimate tool to integrate your data with the latest language models and deep learning frameworks using **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
+Integrate your data with the latest language models and deep learning frameworks using intellinode **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
+- Add Anthropic claude 3 chat.
 - Add Google Gemini chat and vision.
 - Add Mistral SMoE model as a chatbot provider (open source mixture of experts).
-- Update Openai with DALL·E 3 vision, speech, and ChatGPT functions (automation).
 - Improve Llama v2 chat speed and support llama code models. 🦙
 - Update stable diffusion to use the XL model engine. 🎨
 - Add support for hugging face inference. 🤗
@@ -65,7 +65,7 @@ const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI);
 const responses = await geminiBot.chat(geminiInput);
 ```
 
-The documentation on how to switch the chatbot between ChatGPT, Mistral and LLama can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+The documentation on how to switch between ChatGPT, Mistral, Anthropic and LLama can be found in the [IntelliNode Wiki](https://docs.intellinode.ai/docs/npm/chatbot/get-started).
 
 ### Semantic Search
 1. imports:

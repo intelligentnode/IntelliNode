@@ -14,6 +14,7 @@ const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const IntellicloudWrapper = require("../wrappers/IntellicloudWrapper");
 const MistralAIWrapper = require('../wrappers/MistralAIWrapper');
 const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
+const AnthropicWrapper = require('../wrappers/AnthropicWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 
 const {
@@ -25,7 +26,8 @@ const {
     CohereInput,
     LLamaSageInput,
     MistralInput,
-    GeminiInput
+    GeminiInput,
+    AnthropicInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
@@ -35,6 +37,7 @@ const SupportedChatModels = {
     COHERE: "cohere",
     MISTRAL: "mistral",
     GEMINI: "gemini",
+    ANTHROPIC: "anthropic",
 };
 
 class Chatbot {
@@ -68,6 +71,8 @@ class Chatbot {
             this.mistralWrapper = new MistralAIWrapper(keyValue);
         } else if (provider === SupportedChatModels.GEMINI) {
             this.geminiWrapper = new GeminiAIWrapper(keyValue);
+        } else if (provider === SupportedChatModels.ANTHROPIC) {
+            this.anthropicWrapper = new AnthropicWrapper(keyValue);
         } else {
             throw new Error("Invalid provider name");
         }
@@ -112,6 +117,9 @@ class Chatbot {
             return modelInput.attachReference ? { result, references } : result;
         } else if (this.provider === SupportedChatModels.GEMINI) {
             const result = await this._chatGemini(modelInput);
+            return modelInput.attachReference ? { result, references } : result;
+        } else if (this.provider === SupportedChatModels.ANTHROPIC) {
+            const result = await this._chatAnthropic(modelInput);
             return modelInput.attachReference ? { result, references } : result;
         } else {
             throw new Error("The provider is not supported");
@@ -166,8 +174,6 @@ class Chatbot {
         if (lastMessage && lastMessage.role === "user") {
 
             const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
-            
-            // console.log('semanticResult: ', semanticResult);
 
             if (semanticResult && semanticResult.length > 0) {
                 
@@ -178,8 +184,6 @@ class Chatbot {
                     }
                     return acc;
                   }, {});
-                
-                // console.log('references: ', references);
 
                 let contextData = semanticResult.map(doc => doc.data.map(dataItem => dataItem.text).join('\n')).join('\n').trim();
                 const templateWrapper = new SystemHelper().loadStaticPrompt("augmented_chatbot");
@@ -190,19 +194,14 @@ class Chatbot {
                     promptLines.pop();
                     promptLines.push(`User: ${augmentedMessage}`);
                     modelInput.prompt = promptLines.join('\n');
-
-                    // console.log('----> prompt after update: ', modelInput.prompt);
                 } else if (modelInput instanceof ChatModelInput) {
                     modelInput.deleteLastMessage(lastMessage);
                     modelInput.addUserMessage(augmentedMessage);
-
-                    // console.log('----> modelInput after update: ', modelInput);
                 } else if (typeof modelInput === "object" && Array.isArray(modelInput.messages) && messages.length > 0) {
                     // replace the user message directly in the array
                     if (lastMessage.content) {
                         lastMessage.content = augmentedMessage;
                     }
-                    // console.log('----> messages after update: ', messages[messages.length - 1]);
                 }
             }
         }
@@ -414,6 +413,20 @@ class Chatbot {
         });
 
         return responses;
+    }
+
+    async _chatAnthropic(modelInput) {
+        let params;
+    
+        if (modelInput instanceof AnthropicInput) {
+            params = modelInput.getChatInput();
+        } else {
+            throw new Error("Invalid input: Must be an instance of AnthropicInput");
+        }
+    
+        const results = await this.anthropicWrapper.generateText(params);
+        
+        return results.content.map(choice => choice.text);
     }
 
 } /*chatbot class*/
