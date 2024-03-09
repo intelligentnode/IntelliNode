@@ -238,6 +238,8 @@ class AnthropicInput extends ChatModelInput {
       super(options);
       this.system = system;
       this.model = options.model || 'claude-3-sonnet-20240229'; 
+      this.maxTokens = options.maxTokens  || 800;
+      this.temperature = options.temperature || 1.0;
       this.messages = [];
   }
 
@@ -260,8 +262,8 @@ class AnthropicInput extends ChatModelInput {
           system: this.system,
           model: this.model,
           messages: this.messages,
-          max_tokens: this.maxTokens || 800,
-          temperature: this.temperature || 1.0,
+          max_tokens: this.maxTokens,
+          temperature: this.temperature,
       };
   }
 }

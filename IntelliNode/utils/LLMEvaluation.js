@@ -2,7 +2,7 @@ const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/Remote
 const LanguageModelInput = require('../model/input/LanguageModelInput');
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { RemoteLanguageModel, SupportedLangModels } = require("../controller/RemoteLanguageModel");
-const { ChatGPTInput, LLamaReplicateInput, LLamaSageInput, GeminiInput, CohereInput, MistralInput } = require("../model/input/ChatModelInput");
+const { ChatGPTInput, LLamaReplicateInput, LLamaSageInput, GeminiInput, CohereInput, MistralInput, AnthropicInput } = require("../model/input/ChatModelInput");
 const MatchHelpers = require('../utils/MatchHelpers');
 const EmbedInput = require('../model/input/EmbedInput');
 const { ModelEvaluation } = require('./ModelEvaluation');
@@ -45,7 +45,9 @@ class LLMEvaluation extends ModelEvaluation {
       } else if (SupportedChatModels.COHERE == provider.toLowerCase()) {
         input = new CohereInput("provide direct answer", { maxTokens: maxTokens });
       } else if (SupportedChatModels.MISTRAL == provider.toLowerCase()) {
-        input = new MistralInput("provide direct answer", { maxTokens: maxTokens });
+        input = new MistralInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
+      } else if (SupportedChatModels.ANTHROPIC == provider.toLowerCase()) {
+        input = new AnthropicInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else {
         input = new ChatGPTInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       }
