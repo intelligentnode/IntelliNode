@@ -1,7 +1,6 @@
 require('dotenv').config();
 const assert = require('assert');
 const AnthropicWrapper = require('../../wrappers/AnthropicWrapper');
-const { AnthropicStreamParser } = require('../../utils/StreamParser');
 
 // initiate anthropic object
 const anthropic = new AnthropicWrapper(process.env.ANTHROPIC_API_KEY);

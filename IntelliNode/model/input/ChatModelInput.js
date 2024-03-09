@@ -156,7 +156,7 @@ class MistralInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
     
-    this.model = options.model || 'mistral-tiny'; 
+    this.model = options.model || 'mistral-medium'; 
 
   }
 
@@ -230,6 +230,40 @@ class GeminiInput extends ChatModelInput {
     return false;
   }
 
+}
+
+class AnthropicInput extends ChatModelInput {
+
+  constructor(system, options = {}) {
+      super(options);
+      this.system = system;
+      this.model = options.model || 'claude-3-sonnet-20240229'; 
+      this.messages = [];
+  }
+
+  addUserMessage(text) {
+      this.messages.push({
+          role: "user",
+          content: text
+      });
+  }
+
+  addAssistantMessage(text) {
+      this.messages.push({
+          role: "assistant",
+          content: text
+      });
+  }
+
+  getChatInput() {
+      return {
+          system: this.system,
+          model: this.model,
+          messages: this.messages,
+          max_tokens: this.maxTokens || 800,
+          temperature: this.temperature || 1.0,
+      };
+  }
 }
 
 class ChatLLamaInput extends ChatModelInput {
@@ -426,5 +460,6 @@ module.exports = {
   LLamaReplicateInput,
   CohereInput,
   MistralInput,
-  GeminiInput
+  GeminiInput,
+  AnthropicInput
 };

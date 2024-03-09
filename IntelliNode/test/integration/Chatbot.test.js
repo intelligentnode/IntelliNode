@@ -9,7 +9,8 @@ const { ChatGPTInput,
   LLamaReplicateInput,
   LLamaSageInput,
   MistralInput,
-  GeminiInput } = require("../../model/input/ChatModelInput");
+  GeminiInput,
+  AnthropicInput } = require("../../model/input/ChatModelInput");
 
 // env key
 const apiKey = process.env.OPENAI_API_KEY;
@@ -292,6 +293,19 @@ async function testGeminiChatCase2() {
   }
 }
 
+async function testAnthropicChatCase() {
+  console.log('\nAnthropic chat test case: \n');
+  const bot = new Chatbot(process.env.ANTHROPIC_API_KEY, SupportedChatModels.ANTHROPIC);
+
+  const input = new AnthropicInput("You are helpful asssitant.", {model: "claude-3-sonnet-20240229"});
+  input.addUserMessage("Tell me about the history of artificial intelligence.")
+  const responses = await bot.chat(input);
+
+  responses.forEach((response) => console.log("- " + response));
+
+  assert(responses.length > 0, "Anthropic chat response length should be greater than 0");
+}
+
 (async () => {
 
   console.log('### Openai model ###')
@@ -312,11 +326,14 @@ async function testGeminiChatCase2() {
   console.log('### Mistral model ###')
   await testMistralChatCase();
 
+  console.log('### Anthropic model ###')
+  await testAnthropicChatCase();
+
   console.log('### Gemini model ###')
   await testGeminiChatCase1();
   await testGeminiChatCase2();
 
   console.log('### SageMaker llama model ###')
   //await testSageMakerLLamaCase();
-
+  
 })();
