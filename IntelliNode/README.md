@@ -65,7 +65,7 @@ const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI);
 const responses = await geminiBot.chat(geminiInput);
 ```
 
-The documentation on how to switch the chatbot between ChatGPT, Mistral and LLama can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+The documentation on how to switch between ChatGPT, Mistral, Anthropic and LLama can be found in the [IntelliNode Wiki](https://docs.intellinode.ai/docs/npm/chatbot/get-started).
 
 ### Semantic Search
 1. imports:
