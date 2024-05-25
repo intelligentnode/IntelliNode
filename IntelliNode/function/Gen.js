@@ -130,7 +130,7 @@ class Gen {
     // set the user message with the template
     input.addUserMessage(promptTemp.format({'text': text}));
     const responses = await chatbot.chat(input);
-    return JSON.parse(responses[0].trim());
+    return JSON.parse(responses[0].trim().replace('```', '').replace('```', ''));
   }
 
   static async save_html_page(text, folder, file_name, openaiKey, model_name='gpt-4', customProxyHelper=null) {
@@ -166,7 +166,7 @@ class Gen {
     input.addUserMessage(promptTemp.format({'count': num_graphs, 'topic': topic, 'text': csvStrData}));
     const responses = await chatbot.chat(input);
 
-    return JSON.parse(responses[0].trim())[0];
+    return JSON.parse(responses[0].trim().replace('```', '').replace('```', ''))[0];
   }
 
 
