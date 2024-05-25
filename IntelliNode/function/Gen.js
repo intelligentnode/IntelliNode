@@ -84,16 +84,16 @@ class Gen {
   *
   * @returns {Promise<string|Buffer>} - The generated image, either as base64 string or Buffer.
   */
-  static async generate_image_from_desc(promptString, openaiKey, imageApiKey, is_base64 = true,
-                                          provider = SupportedImageModels.STABILITY, customProxyHelper=null) {
+  static async generate_image_from_desc(promptString, openaiKey, imageApiKey, is_base64 = true, witdht= 1024,
+                                          hegiht = 1024, provider = SupportedImageModels.STABILITY, customProxyHelper=null) {
 
     const imageDescription = await Gen.getImageDescription(promptString, openaiKey, customProxyHelper);
     const imgModel = new RemoteImageModel(imageApiKey, provider);
     const images = await imgModel.generateImages(
           new ImageModelInput({ prompt: imageDescription,
                                 numberOfImages: 1,
-                                width: 512,
-                                height: 512,
+                                width: witdht,
+                                height: hegiht,
                                 responseFormat: 'b64_json'}));
     if (is_base64) {
       return images[0];

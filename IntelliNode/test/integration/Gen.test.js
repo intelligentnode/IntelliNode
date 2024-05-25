@@ -23,7 +23,7 @@ async function testGetBlogPost() {
 
 async function testGenerateImageFromDesc() {
   const prompt = "Generate an image of a futuristic city skyline.";
-  const image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey, true);
+  const image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey, true, witdht=1024, hegiht = 1024);
   // console.log("Generated Image (Base64):", image);
   assert(image.length > 0, "Test passed");
 }
@@ -85,9 +85,9 @@ async function testInstructUpdate() {
 
 (async () => {
   console.log('test the marketing function');
-  await testGetMarketingDesc();
+  // await testGetMarketingDesc();
   console.log('test blog post function');
-  await testGetBlogPost();
+  // await testGetBlogPost();
   console.log('test image description function');
   await testGenerateImageFromDesc();
   console.log('test speech function');
