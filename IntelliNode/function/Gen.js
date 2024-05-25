@@ -84,16 +84,16 @@ class Gen {
   *
   * @returns {Promise<string|Buffer>} - The generated image, either as base64 string or Buffer.
   */
-  static async generate_image_from_desc(promptString, openaiKey, imageApiKey, is_base64 = true,
-                                          provider = SupportedImageModels.STABILITY, customProxyHelper=null) {
+  static async generate_image_from_desc(promptString, openaiKey, imageApiKey, is_base64 = true, width= 1024,
+                                        height = 1024, provider = SupportedImageModels.STABILITY, customProxyHelper=null) {
 
     const imageDescription = await Gen.getImageDescription(promptString, openaiKey, customProxyHelper);
     const imgModel = new RemoteImageModel(imageApiKey, provider);
     const images = await imgModel.generateImages(
           new ImageModelInput({ prompt: imageDescription,
                                 numberOfImages: 1,
-                                width: 512,
-                                height: 512,
+                                width: width,
+                                height: height,
                                 responseFormat: 'b64_json'}));
     if (is_base64) {
       return images[0];
@@ -121,6 +121,8 @@ class Gen {
         tokeSize = 8000;
     } else if (model_name.includes('gpt-4')) {
       tokeSize = 4000;
+    } else if (model_name.includes('gpt-4o')) {
+      tokeSize = 20000;
     }
 
     // prepare the bot
@@ -130,7 +132,7 @@ class Gen {
     // set the user message with the template
     input.addUserMessage(promptTemp.format({'text': text}));
     const responses = await chatbot.chat(input);
-    return JSON.parse(responses[0].trim());
+    return JSON.parse(responses[0].trim().replace('```json', '').replace('```', '').replace('```', '').replace('```', ''));
   }
 
   static async save_html_page(text, folder, file_name, openaiKey, model_name='gpt-4', customProxyHelper=null) {
@@ -158,7 +160,10 @@ class Gen {
         tokeSize = 8000;
     } else if (model_name.includes('gpt-4')) {
       tokeSize = 3900;
+    } else if (model_name.includes('gpt-4o')) {
+      tokeSize = 20000;
     }
+    
     const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput('Generate HTML graphs from the CSV data and ensure the response is a valid JSON to parse with full HTML code.',
                                    { maxTokens: tokeSize, model: model_name, temperature:0.3 });
@@ -166,7 +171,7 @@ class Gen {
     input.addUserMessage(promptTemp.format({'count': num_graphs, 'topic': topic, 'text': csvStrData}));
     const responses = await chatbot.chat(input);
 
-    return JSON.parse(responses[0].trim())[0];
+    return JSON.parse(responses[0].trim().replace('```json', '').replace('```', '').replace('```', '').replace('```', ''))[0];
   }
 
 
