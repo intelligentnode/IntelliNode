@@ -121,6 +121,8 @@ class Gen {
         tokeSize = 8000;
     } else if (model_name.includes('gpt-4')) {
       tokeSize = 4000;
+    } else if (model_name.includes('gpt-4o')) {
+      tokeSize = 20000;
     }
 
     // prepare the bot
@@ -158,7 +160,10 @@ class Gen {
         tokeSize = 8000;
     } else if (model_name.includes('gpt-4')) {
       tokeSize = 3900;
+    } else if (model_name.includes('gpt-4o')) {
+      tokeSize = 20000;
     }
+    
     const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
     const input = new ChatGPTInput('Generate HTML graphs from the CSV data and ensure the response is a valid JSON to parse with full HTML code.',
                                    { maxTokens: tokeSize, model: model_name, temperature:0.3 });
