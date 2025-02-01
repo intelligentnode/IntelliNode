@@ -130,3 +130,4 @@ dist
 temp/
 */.idea/
 samples/command_sample/.DS_Store
+.DS_Store

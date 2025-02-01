@@ -54,7 +54,7 @@ async function testNvidiaDeepSeekStreaming() {
 }
 
 (async () => {
-  //await testNvidiaGenerateText();
-  //await testNvidiaStream();
+  await testNvidiaGenerateText();
+  await testNvidiaStream();
   await testNvidiaDeepSeekStreaming();
 })();

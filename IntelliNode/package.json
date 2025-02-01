@@ -1,6 +1,6 @@
 {
   "name": "intellinode",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Evaluate and integrate with latest AI models including ChatGPT, Llama, Diffusion, Cohere, Gemini, and Hugging Face.",
   "main": "index.js",
   "keywords": [
