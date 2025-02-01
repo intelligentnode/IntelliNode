@@ -47,7 +47,7 @@ async function callChatbotStream(apiKey, provider) {
 }
 
 (async () => {
-  //console.log('\n🔹 Testing NVIDIA DeepSeek Chat\n');
+  console.log('\n🔹 Testing NVIDIA DeepSeek Chat\n');
   await callChatbot(process.env.NVIDIA_API_KEY, SupportedChatModels.NVIDIA);
 
   console.log('\n🔹 Testing NVIDIA DeepSeek Streaming\n');
