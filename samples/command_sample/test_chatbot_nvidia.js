@@ -13,7 +13,7 @@ async function callChatbot(apiKey, provider) {
     temperature: 0.7
   });
 
-  input.addUserMessage('What are the main differences between AI and Machine Learning?');
+  input.addUserMessage('What are the main differences between AI and Machine Learning? provide short answer');
 
   const responses = await chatbot.chat(input);
 
@@ -47,7 +47,7 @@ async function callChatbotStream(apiKey, provider) {
 }
 
 (async () => {
-  console.log('\n🔹 Testing NVIDIA DeepSeek Chat\n');
+  //console.log('\n🔹 Testing NVIDIA DeepSeek Chat\n');
   await callChatbot(process.env.NVIDIA_API_KEY, SupportedChatModels.NVIDIA);
 
   console.log('\n🔹 Testing NVIDIA DeepSeek Streaming\n');
