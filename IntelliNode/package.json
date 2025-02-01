@@ -6,7 +6,6 @@
   "keywords": [
     "ai",
     "ChatGPT",
-    "GPT4",
     "stable diffusion",
     "openai",
     "huggingface",
@@ -14,10 +13,10 @@
     "language models",
     "image generation",
     "speech synthesis",
-    "prompt",
     "automation",
     "mistral",
     "gemini",
+    "deepseek",
     "framework"
   ],
   "author": "IntelliNode",
