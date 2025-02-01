@@ -16,6 +16,7 @@ const MistralAIWrapper = require('../wrappers/MistralAIWrapper');
 const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('../wrappers/AnthropicWrapper');
 const SystemHelper = require("../utils/SystemHelper");
+const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
 
 const {
     ChatGPTInput,
@@ -27,7 +28,8 @@ const {
     LLamaSageInput,
     MistralInput,
     GeminiInput,
-    AnthropicInput
+    AnthropicInput,
+    NvidiaInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
@@ -38,6 +40,7 @@ const SupportedChatModels = {
     MISTRAL: "mistral",
     GEMINI: "gemini",
     ANTHROPIC: "anthropic",
+    NVIDIA: "nvidia",
 };
 
 class Chatbot {
@@ -73,6 +76,8 @@ class Chatbot {
             this.geminiWrapper = new GeminiAIWrapper(keyValue);
         } else if (provider === SupportedChatModels.ANTHROPIC) {
             this.anthropicWrapper = new AnthropicWrapper(keyValue);
+        } else if (provider === SupportedChatModels.NVIDIA) {
+            this.nvidiaWrapper = new NvidiaWrapper(keyValue);
         } else {
             throw new Error("Invalid provider name");
         }
@@ -121,6 +126,9 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.ANTHROPIC) {
             const result = await this._chatAnthropic(modelInput);
             return modelInput.attachReference ? { result, references } : result;
+        } else if (this.provider === SupportedChatModels.NVIDIA) {
+            let result = await this._chatNvidia(modelInput);
+            return modelInput.attachReference ? { result: result, references } : result;
         } else {
             throw new Error("The provider is not supported");
         }
@@ -134,6 +142,8 @@ class Chatbot {
             yield* this._chatGPTStream(modelInput);
         } else if (this.provider === SupportedChatModels.COHERE) {
             yield* this._streamCohere(modelInput)
+        } else if (this.provider === SupportedChatModels.NVIDIA) {
+            yield* this._streamNvidia(modelInput);
         } else {
             throw new Error("The stream function support only chatGPT, for other providers use chat function.");
         }
@@ -427,6 +437,39 @@ class Chatbot {
         const results = await this.anthropicWrapper.generateText(params);
         
         return results.content.map(choice => choice.text);
+    }
+
+    async _chatNvidia(modelInput) {
+        let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
+        if (params.stream) throw new Error("Use stream() for NVIDIA streaming.");
+        let resp = await this.nvidiaWrapper.generateText(params);
+        return resp.choices.map(c => c.message.content);
+    }
+
+    async *_streamNvidia(modelInput) {
+        let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
+        params.stream = true;
+        const stream = await this.nvidiaWrapper.generateTextStream(params);
+        let buffer = '';
+        for await (const chunk of stream) {
+          const lines = chunk.toString('utf8').split('\n');
+          for (let line of lines) {
+            line = line.trim();
+            if (!line) continue;
+            if (line.startsWith('data: [DONE]')) {
+              yield buffer;
+              return;
+            }
+            if (line.startsWith('data: ')) {
+              try {
+                let parsed = JSON.parse(line.replace('data: ', ''));
+                let content = parsed.choices?.[0]?.delta?.content || '';
+                buffer += content;
+                yield content;
+              } catch(e) {}
+            }
+          }
+        }
     }
 
 } /*chatbot class*/

@@ -73,6 +73,11 @@
       "version": "2023-06-01"
     }
   },
+  "nvidia": {
+    "base": "https://integrate.api.nvidia.com",
+    "chat": "/v1/chat/completions",
+    "version": "v1"
+  },
   "models": {
     "replicate": {
       "llama": {
