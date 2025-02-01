@@ -1,3 +1,4 @@
+// Gen.js
 const { RemoteLanguageModel } = require("../controller/RemoteLanguageModel");
 const { RemoteImageModel, SupportedImageModels } = require("../controller/RemoteImageModel");
 const { RemoteSpeechModel } = require("../controller/RemoteSpeechModel");
@@ -5,200 +6,220 @@ const LanguageModelInput = require("../model/input/LanguageModelInput");
 const ImageModelInput = require("../model/input/ImageModelInput");
 const Text2SpeechInput = require("../model/input/Text2SpeechInput");
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
-const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
+const { ChatGPTInput, ChatGPTMessage, NvidiaInput } = require("../model/input/ChatModelInput");
 const { SupportedLangModels } = require('../controller/RemoteLanguageModel');
 const SystemHelper = require("../utils/SystemHelper");
 const Prompt = require("../utils/Prompt");
 const FileHelper = require("../utils/FileHelper");
 const path = require('path');
 
+function stripThinking(text) {
+  /** emove any <think>...</think> block from NVIDIA responses. */
+  return text.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+}
+
 class Gen {
-  static async get_marketing_desc(promptString, apiKey,
-                            provider = SupportedLangModels.OPENAI, customProxyHelper=null) {
-
-    if (provider == SupportedLangModels.OPENAI) {
-        const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-        const input = new ChatGPTInput("generate marketing description", { maxTokens: 800 });
-        input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
-        const responses = await chatbot.chat(input);
-
-        return responses[0].trim();
-    } else if (provider == SupportedLangModels.COHERE) {
-
-        const langInput = new LanguageModelInput({prompt:`Create a marketing description for the following: ${promptString}`});
-        langInput.setDefaultValues(SupportedLangModels.COHERE, 400);
-
-        const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
-        const responses = await cohereLanguageModel.generateText(langInput);
-
-        return responses[0].trim();
+  // Marketing description generation
+  static async get_marketing_desc(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+    if (provider === SupportedLangModels.OPENAI) {
+      const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
+      const input = new ChatGPTInput("generate marketing description", { maxTokens: 800 });
+      input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
+      const responses = await chatbot.chat(input);
+      return responses[0].trim();
+    } else if (provider === SupportedLangModels.COHERE) {
+      const langInput = new LanguageModelInput({ prompt: `Create a marketing description for the following: ${promptString}` });
+      langInput.setDefaultValues(SupportedLangModels.COHERE, 400);
+      const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
+      const responses = await cohereLanguageModel.generateText(langInput);
+      return responses[0].trim();
+    } else if (provider === SupportedChatModels.NVIDIA) {
+      const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
+      const input = new NvidiaInput("generate marketing description", { maxTokens: 800, model: 'deepseek-ai/deepseek-r1', temperature: 0.6 });
+      input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
+      const responses = await chatbot.chat(input);
+      let text = responses[0].trim();
+      return stripThinking(text);
     } else {
-        const supportedModels = RemoteLanguageModel.getSupportedModels();
-        const models = supportedModels.join(' - ');
-        throw new Error(`The received keyValue is not supported. Send any model from: ${models}`);
+      const supported = RemoteLanguageModel.getSupportedModels().join(' - ');
+      throw new Error(`Unsupported provider. Use one of: ${supported}, ${SupportedChatModels.NVIDIA}`);
     }
-
   }
 
-  static async get_blog_post(promptString, apiKey, provider = SupportedLangModels.OPENAI,
-                                        customProxyHelper=null) {
-    if (provider == SupportedLangModels.OPENAI) {
-        const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-        const input = new ChatGPTInput("generate blog posts related to user input", { maxTokens: 1200 });
-        input.addUserMessage(`Write a blog post about ${promptString}`);
-        const responses = await chatbot.chat(input);
-
-        return responses[0].trim();
-    } else if (provider == SupportedLangModels.COHERE) {
-        const langInput = new LanguageModelInput({prompt:`Write a blog post with sections titles about ${promptString}`});
-        langInput.setDefaultValues(SupportedLangModels.COHERE, 1200);
-
-        const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
-        const responses = await cohereLanguageModel.generateText(langInput);
-
-        return responses[0].trim();
+  // Blog post generation
+  static async get_blog_post(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+    if (provider === SupportedLangModels.OPENAI) {
+      const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
+      const input = new ChatGPTInput("generate blog post", { maxTokens: 1200 });
+      input.addUserMessage(`Write a blog post about ${promptString}`);
+      const responses = await chatbot.chat(input);
+      return responses[0].trim();
+    } else if (provider === SupportedLangModels.COHERE) {
+      const langInput = new LanguageModelInput({ prompt: `Write a blog post with section titles about ${promptString}` });
+      langInput.setDefaultValues(SupportedLangModels.COHERE, 1200);
+      const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
+      const responses = await cohereLanguageModel.generateText(langInput);
+      return responses[0].trim();
+    } else if (provider === SupportedChatModels.NVIDIA) {
+      const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
+      const input = new NvidiaInput("generate blog post", { maxTokens: 1200, model: 'deepseek-ai/deepseek-r1', temperature: 0.6 });
+      input.addUserMessage(`Write a blog post about ${promptString}`);
+      const responses = await chatbot.chat(input);
+      let text = responses[0].trim();
+      return stripThinking(text);
     } else {
-        const supportedModels = RemoteLanguageModel.getSupportedModels();
-        const models = supportedModels.join(' - ');
-        throw new Error(`The received keyValue is not supported. Send any model from: ${models}`);
+      const supported = RemoteLanguageModel.getSupportedModels().join(' - ');
+      throw new Error(`Unsupported provider. Use one of: ${supported}, ${SupportedChatModels.NVIDIA}`);
     }
-
   }
 
-  static async getImageDescription(promptString, apiKey, customProxyHelper=null) {
+  // Image description (unchanged)
+  static async getImageDescription(promptString, apiKey, customProxyHelper = null) {
     const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-    const input = new ChatGPTInput("Generate image description to use for image generation models. return only the image description");
+    const input = new ChatGPTInput("Generate image description", {});
     input.addUserMessage(`Generate image description from the following text: ${promptString}`);
     const responses = await chatbot.chat(input);
     return responses[0].trim();
   }
 
-  /**
-  * Generates image description from the user prompt then use the image description to generate the image.
-  *
-  * @param {string} promptString - The text prompt used for image generation.
-  * @param {string} openaiKey - The OpenAI API key to generate the description.
-  * @param {string} imageApiKey - The image API key to generate the image based on the received provider.
-  * @param {boolean} [is_base64=true] - Set to true for base64 image string, false if it should be returned as a Buffer.
-  * @param {SupportedImageModels} [provider=SupportedImageModels.STABILITY] - The image model provider.
-  *
-  * @returns {Promise<string|Buffer>} - The generated image, either as base64 string or Buffer.
-  */
-  static async generate_image_from_desc(promptString, openaiKey, imageApiKey, is_base64 = true, width= 1024,
-                                        height = 1024, provider = SupportedImageModels.STABILITY, customProxyHelper=null) {
-
+  // Generate image from description (unchanged)
+  static async generate_image_from_desc(promptString, openaiKey, imageApiKey, is_base64 = true, width = 1024,
+                                          height = 1024, provider = SupportedImageModels.STABILITY, customProxyHelper = null) {
     const imageDescription = await Gen.getImageDescription(promptString, openaiKey, customProxyHelper);
     const imgModel = new RemoteImageModel(imageApiKey, provider);
     const images = await imgModel.generateImages(
-          new ImageModelInput({ prompt: imageDescription,
-                                numberOfImages: 1,
-                                width: width,
-                                height: height,
-                                responseFormat: 'b64_json'}));
-    if (is_base64) {
-      return images[0];
-    } else {
-      return Buffer.from(images[0], "base64");
-    }
+      new ImageModelInput({
+        prompt: imageDescription,
+        numberOfImages: 1,
+        width: width,
+        height: height,
+        responseFormat: 'b64_json'
+      })
+    );
+    return is_base64 ? images[0] : Buffer.from(images[0], "base64");
   }
 
+  // Speech synthesis (unchanged)
   static async generate_speech_synthesis(text, googleKey) {
     const speechModel = new RemoteSpeechModel(googleKey, "google");
     const input = new Text2SpeechInput({ text: text, language: "en-gb" });
-    const audioContent = await speechModel.generateSpeech(input);
-    return audioContent;
+    return await speechModel.generateSpeech(input);
   }
 
-  static async generate_html_page(text, openaiKey, model_name='gpt-4', customProxyHelper=null) {
-    // load and fill the template
+  // Generate HTML page
+  static async generate_html_page(text, apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     const template = new SystemHelper().loadPrompt("html_page");
     const promptTemp = new Prompt(template);
-
-    // prepare the bot
-    let tokeSize = 2100;
-
+    let tokenSize = 8000;
     if (model_name.includes('-16k')) {
-        tokeSize = 8000;
-    } else if (model_name.includes('gpt-4')) {
-      tokeSize = 4000;
+      tokenSize = 8000;
     } else if (model_name.includes('gpt-4o')) {
-      tokeSize = 20000;
+      tokenSize = 12000;
+    } else if (model_name.includes('gpt-4')) {
+      tokenSize = 4000;
+    } else if (model_name.includes('deepseek')) {
+      tokenSize = 15000;
     }
-
-    // prepare the bot
-    const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
-    const input = new ChatGPTInput('generate html, css and javascript based on the user request. Do not generate any response not following this template {"html": "<code>", "message":"<text>"}',
-                                   { maxTokens: tokeSize, model: model_name, temperature:0.8 });
-    // set the user message with the template
-    input.addUserMessage(promptTemp.format({'text': text}));
+    let chatbot, input;
+    if (provider === SupportedLangModels.OPENAI) {
+      chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
+      input = new ChatGPTInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
+        { maxTokens: tokenSize, model: model_name, temperature: 0.8 });
+    } else if (provider === SupportedChatModels.NVIDIA) {
+      chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
+      input = new NvidiaInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
+        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.8 });
+    } else {
+      throw new Error("Unsupported provider for generate_html_page.");
+    }
+    input.addUserMessage(promptTemp.format({ 'text': text }));
     const responses = await chatbot.chat(input);
-    return JSON.parse(responses[0].trim().replace('```json', '').replace('```', '').replace('```', '').replace('```', ''));
+    let cleaned = responses[0]
+      .trim()
+      .replace(/```json/g, '')
+      .replace(/```/g, '');
+    if (provider === SupportedChatModels.NVIDIA) {
+      cleaned = stripThinking(cleaned);
+    }
+    return JSON.parse(cleaned);
   }
 
-  static async save_html_page(text, folder, file_name, openaiKey, model_name='gpt-4', customProxyHelper=null) {
-    const htmlCode = await Gen.generate_html_page(text, openaiKey, model_name, customProxyHelper);
-    // console.log('html code: ', htmlCode);
+  // Save HTML page (calls generate_html_page)
+  static async save_html_page(text, folder, file_name, apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+    const htmlCode = await Gen.generate_html_page(text, apiKey, model_name, provider, customProxyHelper);
     const folderPath = path.join(folder, file_name + '.html');
-    FileHelper.writeDataToFile(folderPath, htmlCode['html'])
+    FileHelper.writeDataToFile(folderPath, htmlCode['html']);
     return true;
   }
 
-
-  static async generate_dashboard(csvStrData, topic, openaiKey, model_name='gpt-4', num_graphs=1, customProxyHelper=null) {
-
+  // Generate dashboard
+  static async generate_dashboard(csvStrData, topic, apiKey, model_name = 'gpt-4o', num_graphs = 1, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     if (num_graphs < 1 || num_graphs > 4) {
-        throw new Error('num_graphs should be between 1 and 4 (inclusive)');
+      throw new Error('num_graphs must be between 1 and 4.');
     }
-
-    // load and fill the template
     const template = new SystemHelper().loadPrompt("graph_dashboard");
     const promptTemp = new Prompt(template);
-
-    // prepare the bot
-    let tokeSize = 2100;
+    let tokenSize = 2100;
     if (model_name.includes('-16k')) {
-        tokeSize = 8000;
-    } else if (model_name.includes('gpt-4')) {
-      tokeSize = 3900;
+      tokenSize = 8000;
     } else if (model_name.includes('gpt-4o')) {
-      tokeSize = 20000;
+      tokenSize = 12000;
+    } else if (model_name.includes('gpt-4')) {
+      tokenSize = 3900;
+    } else if (model_name.includes('deepseek')) {
+      tokenSize = 15000;
     }
-    
-    const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
-    const input = new ChatGPTInput('Generate HTML graphs from the CSV data and ensure the response is a valid JSON to parse with full HTML code.',
-                                   { maxTokens: tokeSize, model: model_name, temperature:0.3 });
-    // set the user message with the template
-    input.addUserMessage(promptTemp.format({'count': num_graphs, 'topic': topic, 'text': csvStrData}));
+    let chatbot, input;
+    if (provider === SupportedLangModels.OPENAI) {
+      chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
+      input = new ChatGPTInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
+        { maxTokens: tokenSize, model: model_name, temperature: 0.3 });
+    } else if (provider === SupportedChatModels.NVIDIA) {
+      chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
+      input = new NvidiaInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
+        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.3 });
+    } else {
+      throw new Error("Unsupported provider for generate_dashboard.");
+    }
+    input.addUserMessage(promptTemp.format({ 'count': num_graphs, 'topic': topic, 'text': csvStrData }));
     const responses = await chatbot.chat(input);
-
-    return JSON.parse(responses[0].trim().replace('```json', '').replace('```', '').replace('```', '').replace('```', ''))[0];
+    let cleaned = responses[0]
+      .trim()
+      .replace(/```json/g, '')
+      .replace(/```/g, '');
+    if (provider === SupportedChatModels.NVIDIA) {
+      cleaned = stripThinking(cleaned);
+    }
+    return JSON.parse(cleaned)[0];
   }
 
-
-  static async instructUpdate(modelOutput, userInstruction, type='', openaiKey,
-                                model_name='gpt-4', customProxyHelper=null) {
-
-    // load and fill the template
+  // Instruct update
+  static async instructUpdate(modelOutput, userInstruction, type = '', apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     const template = new SystemHelper().loadPrompt("instruct_update");
     const promptTemp = new Prompt(template);
-
-    // prepare the bot
-    let tokeSize = 2000;
+    let tokenSize = 2000;
     if (model_name.includes('gpt-4')) {
-      tokeSize = 3900;
+      tokenSize = 3900;
     }
-
-    const chatbot = new Chatbot(openaiKey, SupportedChatModels.OPENAI, customProxyHelper);
-    const input = new ChatGPTInput('Update the model message based on the user feedback maintaining the format/structure.',
-                                   { maxTokens: tokeSize, model: model_name, temperature:0.2 });
-
-    // set the user message with the template
-    input.addUserMessage(promptTemp.format({'model_output': modelOutput,
-                                        'user_instruction': userInstruction,
-                                        'type': type}));
+    let chatbot, input;
+    if (provider === SupportedLangModels.OPENAI) {
+      chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
+      input = new ChatGPTInput('Update the model message based on user feedback while maintaining format.',
+        { maxTokens: tokenSize, model: model_name, temperature: 0.2 });
+    } else if (provider === SupportedChatModels.NVIDIA) {
+      chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
+      input = new NvidiaInput('Update the model message based on user feedback while maintaining format.',
+        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.2 });
+    } else {
+      throw new Error("Unsupported provider for instructUpdate.");
+    }
+    input.addUserMessage(promptTemp.format({ 'model_output': modelOutput, 'user_instruction': userInstruction, 'type': type }));
     const responses = await chatbot.chat(input);
-
-    return responses[0].trim();
+    let text = responses[0].trim();
+    if (provider === SupportedChatModels.NVIDIA) {
+      text = stripThinking(text);
+    }
+    return text;
   }
 }
 
