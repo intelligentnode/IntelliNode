@@ -451,6 +451,59 @@ class LLamaSageInput extends ChatModelInput {
       ],
     };
   }
+  
+}
+
+class NvidiaInput extends ChatModelInput {
+  constructor(systemMessage, options = {}) {
+    super(options);
+    if (typeof systemMessage === 'string') {
+      this.messages = [{ role: 'system', content: systemMessage }];
+    } else {
+      this.messages = [];
+    }
+    this.model = options.model || 'deepseek-ai/deepseek-r1';
+    this.temperature = options.temperature || 0.7;
+    this.maxTokens = options.maxTokens || 1024;
+    this.topP = options.topP || 1.0;
+    this.presencePenalty = options.presencePenalty || 0;
+    this.frequencyPenalty = options.frequencyPenalty || 0;
+    this.stream = options.stream || false;
+  }
+
+  addUserMessage(text) {
+    this.messages.push({ role: 'user', content: text });
+  }
+
+  addAssistantMessage(text) {
+    this.messages.push({ role: 'assistant', content: text });
+  }
+
+  deleteLastMessage(message) {
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      if (
+        this.messages[i].role === message.role &&
+        this.messages[i].content === message.content
+      ) {
+        this.messages.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  getChatInput() {
+    return {
+      model: this.model,
+      messages: this.messages,
+      max_tokens: this.maxTokens,
+      temperature: this.temperature,
+      top_p: this.topP,
+      presence_penalty: this.presencePenalty,
+      frequency_penalty: this.frequencyPenalty,
+      stream: this.stream
+    };
+  }
 }
 
 module.exports = {
@@ -463,5 +516,6 @@ module.exports = {
   CohereInput,
   MistralInput,
   GeminiInput,
-  AnthropicInput
+  AnthropicInput,
+  NvidiaInput
 };

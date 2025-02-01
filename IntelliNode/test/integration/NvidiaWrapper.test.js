@@ -69,7 +69,35 @@ async function testNvidiaStream(model_name) {
   }
 }
 
+async function testNvidiaDeepSeekStream(model_name) {
+  try {
+    const nvidia = new NvidiaWrapper(process.env.NVIDIA_API_KEY);
+    const params = {
+      model: model_name,
+      messages: [
+        {
+          role: 'user',
+          content: 'Write a short poem about the future of GPUs.'
+        }
+      ],
+      max_tokens: 256,
+      temperature: 0.6
+    };
+
+    const stream = await nvidia.generateTextStream(params);
+
+    console.log('\n--- NVIDIA Deep Seek Streaming ---\n');
+    for await (const chunk of stream) {
+      process.stdout.write(chunk.toString('utf8'));
+    }
+    console.log('\n--- End of Deep Seek Streaming ---\n');
+  } catch (error) {
+    console.error('Error during Deep Seek stream:', error);
+  }
+}
+
 (async () => {
   await testNvidiaGenerateText('deepseek-ai/deepseek-r1');
   await testNvidiaStream('meta/llama-3.3-70b-instruct');
+  await testNvidiaDeepSeekStream('deepseek-ai/deepseek-r1');
 })();
