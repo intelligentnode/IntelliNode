@@ -45,7 +45,7 @@ class ChatGPTInput extends ChatModelInput {
         'The input type should be system to define the chatbot theme or instructions.'
       );
     }
-    this.model = options.model || 'gpt-3.5-turbo';
+    this.model = options.model || 'gpt-4o';
     this.temperature = options.temperature || 1;
     this.maxTokens = options.maxTokens || null;
     this.numberOfOutputs = 1;

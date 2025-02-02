@@ -12,7 +12,7 @@ const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
 async function testLanguageModel() {
     try {
         const params = {
-            model: 'gpt-3.5-turbo-instruct',
+            model: 'gpt-4o',
             prompt: 'Summarize the plot of the Inception movie in two sentences',
             max_tokens: 50,
             n: 1,
@@ -32,7 +32,7 @@ async function testLanguageModel() {
 async function testChatGPT() {
     try {
         const params = {
-            model: 'gpt-3.5-turbo',
+            model: 'gpt-4o',
             messages: [{
                 role: 'system',
                 content: 'You are a helpful assistant.'

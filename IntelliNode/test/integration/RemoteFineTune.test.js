@@ -23,7 +23,7 @@ async function testOpenAIFineTuneRemoteModel() {
     const file = await tuner.uploadFile(filePayload)
 
     const input = new FineTuneInput({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o',
       training_file: file.id
     })
 

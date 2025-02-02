@@ -12,7 +12,7 @@ const cohereLanguageModel = new RemoteLanguageModel(cohereApiKey, SupportedLangM
 async function testOpenAIGenerateOneOutput() {
   const langInput = new LanguageModelInput({
     prompt: 'Write a product description for any device input adapter.',
-    model: 'gpt-3.5-turbo-instruct',
+    model: 'gpt-4o',
     temperature: 0.7});
 
   //console.log('openAI inputs: ', langInput.getOpenAIInputs());
@@ -25,7 +25,7 @@ async function testOpenAIGenerateOneOutput() {
 async function testOpenAIGenerateMultipleOutputs() {
   const langInput = new LanguageModelInput({
           prompt:'Write a product description for any device input adapter.',
-          model:'gpt-3.5-turbo-instruct',
+          model:'gpt-4o',
           numberOfOutputs:3,
           temperature:0.7})
 

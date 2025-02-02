@@ -135,7 +135,7 @@ const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
 2. call openai model:
 ```js
 const langModel = new RemoteLanguageModel('openai-key', 'openai');
-model_name = 'gpt-3.5-turbo-instruct'
+model_name = 'gpt-4o'
 
 const results = await langModel.generateText(new LanguageModelInput({
   prompt: 'Write a product description for smart plug that works with voice assistant.',
