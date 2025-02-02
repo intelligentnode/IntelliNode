@@ -1,6 +1,6 @@
 {
   "name": "intellinode",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Evaluate and integrate with latest AI models including ChatGPT, Llama, Diffusion, Cohere, Gemini, and Hugging Face.",
   "main": "index.js",
   "keywords": [
@@ -9,14 +9,13 @@
     "stable diffusion",
     "openai",
     "huggingface",
-    "Llama",
-    "language models",
+    "llm",
+    "embeddings",
+    "prompt",
     "image generation",
     "speech synthesis",
-    "automation",
-    "mistral",
-    "gemini",
     "deepseek",
+    "gemini",
     "framework"
   ],
   "author": "IntelliNode",

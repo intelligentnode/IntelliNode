@@ -11,7 +11,7 @@ const llamaChat = {
 };
 const openaiChat = {
   apiKey: process.env.OPENAI_API_KEY, provider: SupportedChatModels.OPENAI,
-  type: 'chat', model: 'gpt-3.5-turbo', maxTokens: 50
+  type: 'chat', model: 'gpt-4o', maxTokens: 50
 };
 const cohereCompletion = {
   apiKey: process.env.COHERE_API_KEY, provider: SupportedLangModels.COHERE,
