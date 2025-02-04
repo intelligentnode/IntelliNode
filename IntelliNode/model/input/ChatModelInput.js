@@ -120,7 +120,19 @@ class CohereInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
     this.web = options.web || false;
-    this.model = options.model || 'command';
+    this.model = options.model || 'command-r';
+  }
+
+  addUserMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, 'User'));
+  }
+
+  addAssistantMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, 'Chatbot'));
+  }
+
+  addSystemMessage(prompt) {
+    this.messages.push(new ChatGPTMessage(prompt, 'System'));
   }
 
   getChatInput() {
