@@ -7,7 +7,7 @@ async function callChatbot(apiKey, provider) {
   const chatbot = new Chatbot(apiKey, provider);
 
   const system = 'You are a helpful assistant.';
-  const input = new ChatGPTInput(system, options={model: "o1"});
+  const input = new ChatGPTInput(system, options={model: "o3-mini"});
   input.addUserMessage('what is the story of batman the dark night with less than 50 words');
   input.numberOfOutputs = 1;
 
@@ -21,7 +21,7 @@ async function callChatbotStream(apiKey, provider) {
   const chatbot = new Chatbot(apiKey, provider);
 
   const system = 'You are a helpful assistant.';
-  const input = new ChatGPTInput(system);
+  const input = new ChatGPTInput(system, options={model: "o3-mini"});
   input.addUserMessage('what is the story of batman the dark night with less than 50 words');
   input.numberOfOutputs = 1;
 
@@ -38,7 +38,7 @@ async function callChatbotStream(apiKey, provider) {
 (async () => {
   // Test chatbot using OpenAI
   console.log('test the chat function')
-  await callChatbot(process.env.OPENAI_API_KEY, 'openai');
+  // await callChatbot(process.env.OPENAI_API_KEY, 'openai');
 
   console.log('test the stream function')
   await callChatbotStream(process.env.OPENAI_API_KEY, 'openai');
