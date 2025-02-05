@@ -1,13 +1,9 @@
 /*
 Apache License
-
-Copyright 2023 Github.com/Barqawiz/IntelliNode
-
-   Licensed under the Apache License, Version 2.0 (the "License");
 */
-const axios = require('axios');
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
+const FetchClient = require('../utils/FetchClient');
 
 class GoogleAIWrapper {
   constructor(apiKey) {
@@ -16,25 +12,25 @@ class GoogleAIWrapper {
       config.url.google.speech.prefix
     );
     this.API_KEY = apiKey;
-    this.httpClient = axios.create({
+
+    this.client = new FetchClient({
       baseURL: this.API_SPEECH_URL,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'X-Goog-Api-Key': this.API_KEY,
-      },
+        'X-Goog-Api-Key': this.API_KEY
+      }
     });
   }
 
   async generateSpeech(params) {
-    const url =
-      this.API_SPEECH_URL +
+    const endpoint =
+      config.url.google.speech.prefix +
       config.url.google.speech.synthesize.postfix;
+    const url = this.API_SPEECH_URL + config.url.google.speech.synthesize.postfix;
 
     const json = this.getSynthesizeInput(params);
-
     try {
-      const response = await this.httpClient.post(url, json);
-      return response.data;
+      return await this.client.post(url, JSON.parse(json));
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
@@ -48,19 +44,20 @@ class GoogleAIWrapper {
 
     const modelInput = {
       input: {
-        text: text,
+        text: text
       },
       voice: {
         languageCode: languageCode,
         name: name,
-        ssmlGender: ssmlGender,
+        ssmlGender: ssmlGender
       },
       audioConfig: {
-        audioEncoding: 'MP3',
-      },
+        audioEncoding: 'MP3'
+      }
     };
 
     return JSON.stringify(modelInput);
   }
 }
+
 module.exports = GoogleAIWrapper;

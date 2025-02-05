@@ -73,7 +73,7 @@ async function testOpenaiChatGPTCase3() {
     console.log('\nChat test case 3: \n');
 
     const sysMsg = "You are a helpful assistant.";
-    const input = new ChatGPTInput(sysMsg, { model: "gpt-3.5-turbo-0613" });
+    const input = new ChatGPTInput(sysMsg, { model: "o3-mini" });
     input.addMessage(new ChatGPTMessage("Please return the current date and time in Dublin.", "user"));
 
     const functions = [
