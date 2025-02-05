@@ -38,7 +38,7 @@ async function callChatbotStream(apiKey, provider) {
 (async () => {
   // Test chatbot using OpenAI
   console.log('test the chat function')
-  // await callChatbot(process.env.OPENAI_API_KEY, 'openai');
+  await callChatbot(process.env.OPENAI_API_KEY, 'openai');
 
   console.log('test the stream function')
   await callChatbotStream(process.env.OPENAI_API_KEY, 'openai');
