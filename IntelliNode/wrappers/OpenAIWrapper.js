@@ -1,217 +1,150 @@
-/*
-Apache License
-
-Copyright 2023 Github.com/Barqawiz/IntelliNode
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-*/
-const axios = require('axios');
+/*Apache License
+Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const ProxyHelper = require('../utils/ProxyHelper');
 const connHelper = require('../utils/ConnHelper');
+const FetchClient = require('../utils/FetchClient');
 
 class OpenAIWrapper {
-
   constructor(apiKey, customProxyHelper = null) {
-    
     this.proxyHelper = customProxyHelper || ProxyHelper.getInstance();
 
-    let axios_config;
-
-    if (this.proxyHelper.getOpenaiType() == 'azure') {
-      console.log('set Openai azure settings');
-
+    if (this.proxyHelper.getOpenaiType() === 'azure') {
       if (this.proxyHelper.getOpenaiResource() === '') {
         throw new Error('Set your azure resource name');
       }
-
       this.API_BASE_URL = this.proxyHelper.getOpenaiURL();
       this.API_KEY = apiKey;
-      axios_config = {
+      this.client = new FetchClient({
         baseURL: this.API_BASE_URL,
         headers: {
           'Content-Type': 'application/json',
-          'api-key': `${this.API_KEY}`,
-        },
-      };
+          'api-key': this.API_KEY
+        }
+      });
     } else {
       this.API_BASE_URL = this.proxyHelper.getOpenaiURL();
       this.API_KEY = apiKey;
-      axios_config = {
-        baseURL: this.API_BASE_URL,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.API_KEY}`,
-        },
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.API_KEY}`
       };
       // Check if Organization ID exists
-      let orgId = this.proxyHelper.getOpenaiOrg();
+      const orgId = this.proxyHelper.getOpenaiOrg();
       if (orgId) {
-        axios_config.headers['OpenAI-Organization'] = orgId;
+        headers['OpenAI-Organization'] = orgId;
       }
-    } /*validate openai or azure connection*/
-
-    this.httpClient = axios.create(axios_config);
+      this.client = new FetchClient({
+        baseURL: this.API_BASE_URL,
+        headers
+      });
+    }
   }
 
   async generateText(params) {
-    const url = this.proxyHelper.getOpenaiCompletion(params.model);
+    const endpoint = this.proxyHelper.getOpenaiCompletion(params.model);
     try {
-      const response = await this.httpClient.post(url, params);
-      return response.data;
+      return await this.client.post(endpoint, params);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
-  /**
-   * Generate a text using OpenAI ChatGPT API.
-   *
-   * @param {Object} params - Parameters for the chat model such as model id, tokens, temperature etc.
-   *
-   * @param {Array} [functions=null] - Optional array of FunctionModelInput defined models that the chat can call.
-   * Each function is provided as an instance of FunctionModelInput.
-   *
-   * @param {String|Object|Null} [function_call=null] - Optional control whether the model should call a function with "auto" default value.
-   * Can be "auto", "none" or { "name": "my_function" }.
-   *
-   * @returns {Object} The model data response.
-   *
-   * @throws {Error} Throws an error if the request fails.
-   */
-  async generateChatText(
-    params,
-    functions = null,
-    function_call = null
-  ) {
-    const url = this.proxyHelper.getOpenaiChat(params.model);
+  async generateChatText(params, functions = null, function_call = null) {
+    const endpoint = this.proxyHelper.getOpenaiChat(params.model);
     try {
-      let payload = {
-        ...params,
-      };
-      if (functions) {
-        payload.functions = functions;
-      }
-      if (function_call) {
-        payload.function_call = function_call;
-      }
-      const response = await this.httpClient.post(url, payload, {
-        responseType: params.stream ? 'stream' : 'json',
-      });
-      if (params.stream) {
-        // ReadableStream
-        return response.data;
-      } else {
-        return response.data; // This is your normal response
-      }
+      const payload = { ...params };
+      if (functions) payload.functions = functions;
+      if (function_call) payload.function_call = function_call;
+
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, payload, extraConfig);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async generateImages(params) {
-    const url = this.proxyHelper.getOpenaiImage();
+    const endpoint = this.proxyHelper.getOpenaiImage();
     try {
-      const response = await this.httpClient.post(url, params);
-      return response.data;
+      return await this.client.post(endpoint, params);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async uploadFile(params) {
-    const url = this.proxyHelper.getOpenaiFiles();
-    let headers = {}
-    if (params.getHeaders) {
-      headers = { ...params.getHeaders() }
-    }
+    const endpoint = this.proxyHelper.getOpenaiFiles();
     try {
-      const config = {
-        url,
-        method: 'post',
-        headers,
-        data: params
-      }
-      const response = await this.httpClient(config);
-      return response.data;
+      // If params is FormData, fetch client will handle it
+      return await this.client.post(endpoint, params, {
+        headers: params.getHeaders ? params.getHeaders() : {}
+      });
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async storeFineTuningData(params) {
-    const url = this.proxyHelper.getOpenaiFineTuningJob();
+    const endpoint = this.proxyHelper.getOpenaiFineTuningJob();
     try {
-      const response = await this.httpClient.post(url, params);
-      return response.data;
+      return await this.client.post(endpoint, params);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async listFineTuningData(params) {
-    const url = this.proxyHelper.getOpenaiFineTuningJob();
+    const endpoint = this.proxyHelper.getOpenaiFineTuningJob();
     try {
-      const response = await this.httpClient.get(url, params);
-      return response.data;
+      // .get is an example usage; if you pass params as query, you might need
+      // querystring appending or some logic. If you used axios.get with config,
+      // you can do a .get with extra headers in the fetch client
+      // or just do .post if that was your actual usage.
+      return await this.client.get(endpoint, {
+        headers: {
+          // any custom headers
+        }
+      });
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async getEmbeddings(params) {
-    const url = this.proxyHelper.getOpenaiEmbed(params.model);
+    const endpoint = this.proxyHelper.getOpenaiEmbed(params.model);
     try {
-      const response = await this.httpClient.post(url, params);
-      return response.data;
+      return await this.client.post(endpoint, params);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async speechToText(params, headers) {
-    const url = this.proxyHelper.getOpenaiAudioTranscriptions();
+    const endpoint = this.proxyHelper.getOpenaiAudioTranscriptions();
     try {
-      const config = {
-        method: 'post',
-        url,
-        headers,
-        data: params,
-      };
-      const response = await this.httpClient.request(config);
-      return response.data;
+      return await this.client.post(endpoint, params, { headers });
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async textToSpeech(params, headers) {
-    const url = this.proxyHelper.getOpenaiAudioSpeech();
+    const endpoint = this.proxyHelper.getOpenaiAudioSpeech();
     try {
-      const config = {
-        method: 'post',
-        url,
-        headers,
-        data: params,
-        responseType: params.stream ? 'stream' : 'json'
-      };
-      const response = await this.httpClient.request(config);
-      return response.data;
+      const extraConfig = { headers };
+      if (params.stream) {
+        extraConfig.responseType = 'stream';
+      }
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async imageToText(params, headers) {
-    const url = this.proxyHelper.getOpenaiChat();
+    const endpoint = this.proxyHelper.getOpenaiChat();
     try {
-      const config = {
-        method: 'post',
-        url,
-        headers,
-        data: params,
-      };
-      const response = await this.httpClient.request(config);
-      return response.data;
+      return await this.client.post(endpoint, params, { headers });
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }

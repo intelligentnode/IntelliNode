@@ -1,29 +1,29 @@
-const axios = require('axios');
+const FetchClient = require('../utils/FetchClient');
 
 class AWSEndpointWrapper {
   constructor(apiUrl, apiKey = null) {
     this.API_BASE_URL = apiUrl;
 
     let headers = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     };
-    // sdd the API kry if provided
+
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`;
     }
-    // Configure axios
-    this.httpClient = axios.create({
+
+    // Create our FetchClient with the base url + default headers
+    this.client = new FetchClient({
       baseURL: this.API_BASE_URL,
-      headers
+      headers: headers,
     });
   }
 
   async predict(inputData) {
     try {
-      const response = await this.httpClient.post('', inputData);
-      return response.data;
+      return await this.client.post('', inputData);
     } catch (error) {
-      throw error;
+      throw error; // You can wrap this in a custom error message if you wish
     }
   }
 }

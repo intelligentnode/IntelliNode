@@ -1,60 +1,45 @@
-/*
-Apache License
-
-Copyright 2023 Github.com/Barqawiz/IntelliNode
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-*/
-const axios = require('axios');
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
+const FetchClient = require('../utils/FetchClient');
 
 class HuggingWrapper {
   constructor(apiKey) {
     this.API_BASE_URL = config.url.huggingface.base;
     this.API_KEY = apiKey;
-    this.httpClient = axios.create({
+
+    this.client = new FetchClient({
       baseURL: this.API_BASE_URL,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.API_KEY}`,
-      },
+        Authorization: `Bearer ${this.API_KEY}`
+      }
     });
   }
 
   async generateText(modelId, data) {
-    const url = `/${modelId}`;
+    const endpoint = `/${modelId}`;
     try {
-      const response = await this.httpClient.post(url, data);
-      return response.data;
+      return await this.client.post(endpoint, data);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async generateImage(modelId, data) {
-    const url = `/${modelId}`;
+    const endpoint = `/${modelId}`;
     try {
-      const response = await this.httpClient.post(url, data, {
-        responseType: 'arraybuffer',
-      });
-      return response.data;
+      // We need arraybuffer to get raw image data
+      return await this.client.post(endpoint, data, { responseType: 'arraybuffer' });
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
   async processImage(modelId, data) {
-    const url = `/${modelId}`;
+    const endpoint = `/${modelId}`;
     try {
-      const response = await this.httpClient.post(url, data, {
-        responseType: 'arraybuffer',
-      });
-      return JSON.parse(response.data.toString());
+      const arrayBuf = await this.client.post(endpoint, data, { responseType: 'arraybuffer' });
+      return JSON.parse(Buffer.from(arrayBuf).toString());
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
