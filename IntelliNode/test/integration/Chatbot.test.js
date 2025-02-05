@@ -309,13 +309,13 @@ async function testAnthropicChatCase() {
 (async () => {
 
   console.log('### Openai model ###')
-  /*await testOpenaiChatGPTCase1();
+  await testOpenaiChatGPTCase1();
   await testOpenaiChatGPTCase2();
-  await testOpenaiChatGPTCase3();*/
+  await testOpenaiChatGPTCase3();
   // streaming
   await testStreamOpenaiChatGPTCase1();
 
-  /*console.log('### Replicate llama model ###')
+  console.log('### Replicate llama model ###')
   await testReplicateLLamaCase1();
   await testReplicateLLamaCase2();
 
@@ -331,7 +331,7 @@ async function testAnthropicChatCase() {
 
   console.log('### Gemini model ###')
   await testGeminiChatCase1();
-  await testGeminiChatCase2();*/
+  await testGeminiChatCase2();
 
   console.log('### SageMaker llama model ###')
   //await testSageMakerLLamaCase();
