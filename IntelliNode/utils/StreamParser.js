@@ -6,40 +6,49 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 class GPTStreamParser {
-    constructor(isLog = false) {
-        this.buffer = '';
-        this.isLog = false;
-    }
+  constructor(isLog = false) {
+    this.buffer = '';
+    this.isLog = isLog;
+  }
 
-    async *feed(data) {
-        this.buffer += data;
+  async *feed(data) {
+    this.buffer += data;
 
-        if (this.buffer.startsWith("data: [DONE]")) {
-            if (this.isLog) {
-                console.log("Parsing finished.");
-            }
-            this.buffer = '';
-            return;
+    // check if the buffer contains events
+    while (this.buffer.includes('\n\n')) {
+      // find the end of the first complete event
+      const eventEndIndex = this.buffer.indexOf('\n\n');
+      let rawData = this.buffer.slice(0, eventEndIndex).trim();
+      
+      // remove the processed event
+      this.buffer = this.buffer.slice(eventEndIndex + 2);
+
+      // look for the stop signal
+      if (rawData === "data: [DONE]") {
+        if (this.isLog) {
+          console.log("Parsing finished.");
         }
+        // stop processing if the stream is done
+        return; 
+      }
 
-        if (this.buffer.includes('\n\n')) {
-            const eventEndIndex = this.buffer.indexOf('\n\n');
-            const rawData = this.buffer.slice(0, eventEndIndex + 1).trim();
-
-            if (!rawData.startsWith("data: ")) {
-                // skip it, if not a data line.
-                this.buffer = this.buffer.slice(eventEndIndex + 2);
-                return;
-            }
-            // remove initial "data: " from rawData.
-            const jsonData = JSON.parse(rawData.slice(6));
-            const contentText = jsonData.choices[0]?.delta?.content;
-            if (contentText) {
-                yield contentText;
-            }
-            this.buffer = this.buffer.slice(eventEndIndex + 2);
+      // skip lines without "data: "
+      if (!rawData.startsWith("data: ")) {
+        continue;
+      }
+      
+      try {
+        // parse the JSON
+        const jsonData = JSON.parse(rawData.substring(6));
+        const contentText = jsonData.choices?.[0]?.delta?.content;
+        if (contentText) {
+          yield contentText;
         }
+      } catch (error) {
+        console.error("Error parsing JSON in stream:", error);
+      }
     }
+  }
 }
 class CohereStreamParser {
     constructor(isLog = false) {
