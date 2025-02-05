@@ -31,8 +31,6 @@ Unified prompt, evaluation, and production integration to any large model
 
 IntelliNode is a javascript module that integrates cutting-edge AI into your project. With its intuitive functions, you can easily feed data to models like **ChatGPT**, **LLaMA**, **WaveNet**, **Gemini** and **Stable diffusion** and receive generated text, speech, or images. It also offers high-level functions such as semantic search, multi-model evaluation, and chatbot capabilities.
 
-IntelliNode now supports both backend and frontend.
-
 # Access the module
 ## Install
 One command and get access to latest models:
