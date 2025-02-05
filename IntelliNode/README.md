@@ -21,7 +21,7 @@ Integrate your data with the latest language models and deep learning frameworks
 - Support Nvidia hosted models deepseek 🐳 and llama3 🦙.
 - Add Anthropic claude 3 chat.
 - Add Google Gemini chat and vision.
-- Add Mistral SMoE model as a chatbot provider (open source mixture of experts).
+- Add Mistral MoE model as a chatbot provider.
 - Update stable diffusion to use the XL model engine. 🎨
 - Add support for hugging face inference. 🤗
 - Support in-memory semantic search. 🔍
