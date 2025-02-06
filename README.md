@@ -174,6 +174,14 @@ ProxyHelper.getInstance().setOpenaiProxyValues(openaiProxyJson);
 
 For more details and in-depth code, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
 
+# Frontend
+Include the following CDN script in your HTML:
+```
+<script src="https://cdn.jsdelivr.net/npm/intellinode@latest/front/intellinode.min.js"></script>
+```
+
+Check a sample html [here](https://github.com/Barqawiz/IntelliNode/tree/main/samples/frontend).
+
 # The code repository setup
 ## First setup
 1. Initiate the project:
