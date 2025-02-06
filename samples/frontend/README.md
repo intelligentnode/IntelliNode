@@ -2,6 +2,8 @@
 
 IntelliNode provides a frontend version that runs directly in your browser.
 
+<img src="screenshot.png" alt="IntelliNode Frontend" width="600">
+
 
 ## Running Locally
 
