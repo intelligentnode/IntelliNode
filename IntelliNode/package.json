@@ -1,6 +1,6 @@
 {
   "name": "intellinode",
-  "version": "2.1.0",
+  "version": "2.2.1",
   "description": "Create AI agents using the latest models, including ChatGPT, Llama, Diffusion, Cohere, Gemini, and Hugging Face.",
   "main": "index.js",
   "keywords": [
@@ -28,9 +28,14 @@
     "url": "https://github.com/intelligentnode/IntelliNode.git"
   },
   "scripts": {
+    "build": "browserify index.js --standalone IntelliNode -o front/intellinode.js && uglifyjs front/intellinode.js -o front/intellinode.min.js",
     "test": "node test/unit/testRunner"
   },
   "homepage": "https://intellinode.ai",
+  "devDependencies": {
+    "browserify": "^17.0.0",
+    "uglify-js": "^3.17.0"
+  },
   "dependencies": {
     "cross-fetch": "^4.1.0",
     "dotenv": "^16.4.7",

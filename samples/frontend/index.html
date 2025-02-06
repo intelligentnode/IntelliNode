@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IntelliNode Chat Demo</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .field {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.3rem;
+      font-weight: 600;
+    }
+    input[type="text"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff;
+      color: #fff;
+      padding: 0.7rem 1.2rem;
+      font-size: 1rem;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #output {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border: 1px solid #eee;
+      background: #fafafa;
+      border-radius: 4px;
+      min-height: 2rem;
+      white-space: pre-wrap;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <h1>IntelliNode Chat Demo</h1>
+  <div class="container">
+    <div class="field">
+      <label for="apiKey">API Key</label>
+      <input id="apiKey" type="text" placeholder="Enter your API key here..." />
+    </div>
+
+    <div class="field">
+      <label for="provider">Choose Provider</label>
+      <select id="provider">
+        <option value="openai">OpenAI</option>
+        <option value="cohere">Cohere</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="model">Choose Model</label>
+      <select id="model">
+        <!-- For OpenAI Chat -->
+        <optgroup label="OpenAI Chat Models">
+          <option value="gpt-4o">gpt-4o</option>
+          <option value="o3-mini">o3-mini</option>
+        </optgroup>
+
+        <!-- For Cohere Chat -->
+        <optgroup label="Cohere Chat Models">
+          <option value="command">command</option>
+          <option value="command-r">command-r</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="userPrompt">Your Prompt</label>
+      <textarea id="userPrompt" rows="4" placeholder="Type your request here..."></textarea>
+    </div>
+
+    <button onclick="sendRequest()">Send Request</button>
+
+    <div id="output"></div>
+  </div>
+
+  <div class="footer">
+    <p>Powered by IntelliNode</p>
+  </div>
+
+  <!-- Load IntelliNode from the dist folder -->
+  <script src="https://cdn.jsdelivr.net/npm/intellinode@latest/front/intellinode.min.js"></script>
+  <script>
+    async function sendRequest() {
+      const apiKey = document.getElementById("apiKey").value.trim();
+      const provider = document.getElementById("provider").value;
+      const model = document.getElementById("model").value;
+      const userPrompt = document.getElementById("userPrompt").value.trim();
+
+      if (!apiKey || !userPrompt) {
+        alert("Please enter your API Key and a prompt.");
+        return;
+      }
+
+      try {
+        // intelliNode classes
+        const { Chatbot, ChatGPTInput, CohereInput } = IntelliNode;
+
+        // create a chatbot instance
+        const chatbot = new Chatbot(apiKey, provider);
+
+        // prepare the correct input type
+
+        let chatInput;
+        if (provider === "openai") {
+          // use ChatGPTInput for an OpenAI
+          chatInput = new ChatGPTInput("You are a helpful assistant.", {
+            model: model,
+            temperature: 0.7,
+            maxTokens: 300
+          });
+          chatInput.addUserMessage(userPrompt);
+        } else if (provider === "cohere") {
+          // use CohereInput for a Cohere Chat model
+          chatInput = new CohereInput("You are a helpful assistant.", {
+            model: model
+          });
+          chatInput.addUserMessage(userPrompt);
+        }
+
+        const responses = await chatbot.chat(chatInput);
+
+        document.getElementById("output").textContent = responses[0];
+      } catch (error) {
+        document.getElementById("output").textContent = "Error: " + error.message;
+        console.error(error);
+      }
+    }
+  </script>
+</body>
+</html>
