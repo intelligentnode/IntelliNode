@@ -271,26 +271,6 @@
             chatInput.addUserMessage(userPrompt);
             break;
 
-          case "nvidia":
-            chatInput = new NvidiaInput("You are a helpful assistant.", {
-            model: model,
-          });
-          chatInput.addUserMessage(userPrompt);
-          break;
-
-          case "gemini":
-            chatInput = new GeminiInput("You are a helpful assistant.", {
-            });
-            chatInput.addUserMessage(userPrompt);
-            break;
-
-          case "anthropic":
-            chatInput = new AnthropicInput("You are a helpful assistant.", {
-              model: model,
-            });
-            chatInput.addUserMessage(userPrompt);
-            break;
-
           case "mistral":
             chatInput = new MistralInput("You are a helpful assistant.", {
               model: model
