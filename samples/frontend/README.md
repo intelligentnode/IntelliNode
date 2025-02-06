@@ -1,6 +1,6 @@
 # IntelliNode Frontend
 
-Intellinode provide a frontend version that run on your browser.
+IntelliNode provides a frontend version that runs directly in your browser.
 
 
 ## Running Locally
@@ -13,12 +13,13 @@ Intellinode provide a frontend version that run on your browser.
 3. **Enter your API Key**, select the provider, write your prompt, and click **Send Request** 
 
 
-## Frontend js
-Add below CDN script to your html:
+## Frontend JavaScript
+
+Include the following CDN script in your HTML:
 ```
 <script src="https://cdn.jsdelivr.net/npm/intellinode@latest/front/intellinode.min.js"></script>
 ```
-*Alternative mirror link*
+*Alternative mirror link:*
 ```
 <script src="https://unpkg.com/intellinode@2.2.1/front/intellinode.min.js"></script>
 ```
