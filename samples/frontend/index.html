@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>IntelliNode Chat Demo</title>
+  <style>
+    /* ---------- Body ---------- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f6f8fa;
+      color: #333;
+      line-height: 1.4;
+    }
+
+    /* ---------- HEADER STYLES ---------- */
+    header {
+      background: linear-gradient(135deg, #4e79f2, #879af3);
+      padding: 1.5rem;
+      text-align: center;
+      color: #fff;
+      margin-bottom: 2rem;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      margin: 0;
+    }
+    header p {
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+      opacity: 0.9;
+    }
+
+    /* ---------- CONTAINER ---------- */
+    .container {
+      max-width: 720px;
+      margin: 0 auto 2rem;
+      padding: 1.5rem;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    .container h2 {
+      text-align: center;
+      margin-bottom: 1rem;
+      color: #444;
+    }
+
+    /* ---------- FORM FIELDS ---------- */
+    .field {
+      margin-bottom: 1.2rem;
+    }
+    .field label {
+      display: block;
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .field input[type="text"],
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .field input[type="text"]:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: #4e79f2;
+    }
+    .field textarea {
+      resize: vertical;
+    }
+
+    /* ---------- BUTTON ---------- */
+    .btn {
+      background-color: #4e79f2;
+      color: #fff;
+      padding: 0.7rem 1.4rem;
+      font-size: 1rem;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .btn:hover {
+      background-color: #3b64d9;
+    }
+
+    /* ---------- OUTPUT BOX ---------- */
+    #output {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border: 1px solid #eee;
+      background: #fafafa;
+      border-radius: 4px;
+      min-height: 2rem;
+      white-space: pre-wrap;
+    }
+
+    /* ---------- FOOTER ---------- */
+    .footer {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #777;
+      margin: 2rem 0;
+    }
+    .footer a {
+      color: #4e79f2;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>IntelliNode Chat Demo</h1>
+    <p>Quickly access multiple AI providers and models</p>
+  </header>
+
+  <div class="container">
+    <h2>Chat Playground</h2>
+    <!-- API Key Field -->
+    <div class="field">
+      <label for="apiKey">API Key</label>
+      <input id="apiKey" type="text" placeholder="Enter your API key here..." />
+    </div>
+
+    <!-- Provider Selector -->
+    <div class="field">
+      <label for="provider">Choose Provider</label>
+      <select id="provider" onchange="onProviderChange()">
+        <option value="openai">OpenAI</option>
+        <option value="cohere">Cohere</option>
+        <option value="mistral">Mistral</option>
+        <!-- Add more if you want to handle them in code -->
+      </select>
+    </div>
+
+    <!-- Model Selector -->
+    <div class="field">
+      <label for="model">Choose Model</label>
+      <select id="model">
+        <!-- Dynamically filled by JavaScript -->
+      </select>
+    </div>
+
+    <!-- User Prompt -->
+    <div class="field">
+      <label for="userPrompt">Your Prompt</label>
+      <textarea id="userPrompt" rows="4" placeholder="Type your request here..."></textarea>
+    </div>
+
+    <!-- Send Button -->
+    <button class="btn" onclick="sendRequest()">Send Request</button>
+
+    <!-- Output Container -->
+    <div id="output"></div>
+  </div>
+
+  <div class="footer">
+    <p>
+      Powered by <a href="https://www.npmjs.com/package/intellinode" target="_blank">IntelliNode</a> –
+      a multi-agent integration library.
+    </p>
+  </div>
+
+  <!-- IntelliNode JS from your CDN build -->
+  <script src="https://cdn.jsdelivr.net/npm/intellinode@latest/front/intellinode.min.js"></script>
+
+  <script>
+    /**
+     * A map of providers and their available chat models.
+     * For demonstration, we include only some known model IDs.
+     * Adjust or expand as your usage requires.
+     */
+    const PROVIDER_MODELS = {
+      openai: ["gpt-4o", "o1", "o1-mini", "o3-mini"],
+      cohere: ["command", "command-r", "command-r-plus"],
+      nvidia: ["deepseek-ai/deepseek-r1", "meta/llama-3.3-70b-instruct"],
+      mistral: ["mistral-tiny", "mistral-medium", "mistral-large"]
+    };
+
+    // When the user changes provider, update the "model" dropdown
+    function onProviderChange() {
+      const provider = document.getElementById("provider").value;
+      const modelSelect = document.getElementById("model");
+      modelSelect.innerHTML = ""; // clear previous options
+
+      const models = PROVIDER_MODELS[provider] || [];
+      models.forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        modelSelect.appendChild(opt);
+      });
+    }
+
+    // Initialize model dropdown on page load
+    window.addEventListener("DOMContentLoaded", () => {
+      onProviderChange();
+    });
+
+    async function sendRequest() {
+      const apiKey = document.getElementById("apiKey").value.trim();
+      const provider = document.getElementById("provider").value;
+      const model = document.getElementById("model").value;
+      const userPrompt = document.getElementById("userPrompt").value.trim();
+      const outputDiv = document.getElementById("output");
+
+      if (!apiKey || !userPrompt) {
+        alert("Please enter your API Key and a prompt.");
+        return;
+      }
+
+      outputDiv.textContent = "Thinking...";
+
+      try {
+        /* 
+          IntelliNode classes:
+            Chatbot is the main orchestrator for chat
+            Then we pick input classes based on provider:
+              - ChatGPTInput (OpenAI)
+              - CohereInput   (Cohere)
+              - NvidiaInput   (NVIDIA)
+              - GeminiInput   (Gemini)
+              - AnthropicInput (Anthropic)
+              - MistralInput   (Mistral)
+        */
+        const {
+          Chatbot,
+          ChatGPTInput,
+          CohereInput,
+          NvidiaInput,
+          GeminiInput,
+          AnthropicInput,
+          MistralInput
+        } = IntelliNode;
+
+        // Create a chatbot instance
+        const chatbot = new Chatbot(apiKey, provider);
+
+        // Prepare the correct input type
+        let chatInput;
+        switch (provider) {
+          case "openai":
+            chatInput = new ChatGPTInput("You are a helpful assistant.", {
+              model: model,
+            });
+            chatInput.addUserMessage(userPrompt);
+            break;
+
+          case "cohere":
+            chatInput = new CohereInput("You are a helpful assistant.", {
+              model: model
+            });
+            chatInput.addUserMessage(userPrompt);
+            break;
+
+          case "nvidia":
+            chatInput = new NvidiaInput("You are a helpful assistant.", {
+            model: model,
+          });
+          chatInput.addUserMessage(userPrompt);
+          break;
+
+          case "gemini":
+            chatInput = new GeminiInput("You are a helpful assistant.", {
+            });
+            chatInput.addUserMessage(userPrompt);
+            break;
+
+          case "anthropic":
+            chatInput = new AnthropicInput("You are a helpful assistant.", {
+              model: model,
+            });
+            chatInput.addUserMessage(userPrompt);
+            break;
+
+          case "mistral":
+            chatInput = new MistralInput("You are a helpful assistant.", {
+              model: model
+            });
+            chatInput.addUserMessage(userPrompt);
+            break;
+
+          default:
+            // Fallback to ChatGPTInput if unknown
+            chatInput = new ChatGPTInput("You are a helpful assistant.", {
+              model: model
+            });
+            chatInput.addUserMessage(
+              "[Warning: provider not recognized; using default.]\n" + userPrompt
+            );
+            break;
+        }
+
+        const responses = await chatbot.chat(chatInput);
+        outputDiv.textContent = responses && responses[0] ? responses[0] : "(No response)";
+      } catch (error) {
+        outputDiv.textContent = "Error: " + error.message;
+        console.error(error);
+      }
+    }
+  </script>
+</body>
+</html>
