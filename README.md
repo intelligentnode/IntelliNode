@@ -88,7 +88,25 @@ const geminiBot = new Chatbot(apiKey, SupportedChatModels.GEMINI);
 const responses = await geminiBot.chat(input);
 ```
 
-The documentation to switch the chatbot provider between ChatGPT, LLama, Cohere, Mistral and more can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
+### Nvidia DeepSeek
+
+1. Import:
+```js
+const { Chatbot, NvidiaInput, SupportedChatModels } = require("intellinode");
+```
+
+2. Call:
+```js
+const input = new NvidiaInput("You are an insightful assistant.", {model: 'deepseek-ai/deepseek-r1'});
+input.addUserMessage("What's the summary of the Inception movie?");
+
+// visit build.nvidia.com to get your key.
+const nvidiaBot = new Chatbot(NVIDIA_API_KEY, SupportedChatModels.NVIDIA);
+const responses = await nvidiaBot.chat(input);
+```
+
+
+The documentation to switch the chatbot between ChatGPT, LLama, Cohere, Mistral and more can be found in the [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki/ChatBot).
 
 ### Semantic search
 import:
