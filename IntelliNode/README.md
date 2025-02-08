@@ -45,7 +45,7 @@ const input = new ChatGPTInput('You are a helpful assistant.');
 input.addUserMessage('What is the distance between the Earth and the Moon?');
 
 // get chatGPT responses.
-const bot = new Chatbot(apiKey);
+const bot = new Chatbot(openaiKey);
 const responses = await bot.chat(input);
 ```
 
@@ -65,7 +65,7 @@ const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI);
 const responses = await geminiBot.chat(geminiInput);
 ```
 
-The documentation on how to switch between ChatGPT, Mistral, Anthropic and LLama can be found in the [IntelliNode Wiki](https://docs.intellinode.ai/docs/npm/chatbot/get-started).
+The documentation on how to switch between ChatGPT, Mistral, Anthropic, and LLama can be found in the [IntelliNode Wiki](https://docs.intellinode.ai/docs/npm/chatbot/get-started).
 
 ### Semantic Search
 1. imports:
