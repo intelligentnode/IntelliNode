@@ -77,7 +77,13 @@ class Chatbot {
         } else if (provider === SupportedChatModels.ANTHROPIC) {
             this.anthropicWrapper = new AnthropicWrapper(keyValue);
         } else if (provider === SupportedChatModels.NVIDIA) {
-            this.nvidiaWrapper = new NvidiaWrapper(keyValue, options.nvidiaOptions || {});
+            const my_options = options || {};
+            const baseUrl = (my_options.nvidiaOptions && my_options.nvidiaOptions.baseUrl) || my_options.baseUrl;
+            if (baseUrl) {
+                this.nvidiaWrapper = new NvidiaWrapper(keyValue, { baseUrl: baseUrl });
+            } else {
+                this.nvidiaWrapper = new NvidiaWrapper(keyValue);
+            }
         } else {
             throw new Error("Invalid provider name");
         }
