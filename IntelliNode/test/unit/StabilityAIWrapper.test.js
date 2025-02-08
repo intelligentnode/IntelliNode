@@ -12,7 +12,7 @@ function testStabilityAIWrapper() {
     'API key should be set'
   );
   assert.ok(
-    stabilityAIWrapper.httpClient,
+    stabilityAIWrapper.client,
     'httpClient should be created'
   );
 
@@ -21,12 +21,12 @@ function testStabilityAIWrapper() {
   const expectedAuthHeader = `Bearer ${apiKey}`;
 
   assert.strictEqual(
-    stabilityAIWrapper.httpClient.defaults.baseURL,
+    stabilityAIWrapper.client.baseURL,
     expectedBaseURL,
     'httpClient baseURL should be set correctly'
   );
   assert.strictEqual(
-    stabilityAIWrapper.httpClient.defaults.headers['Authorization'],
+    stabilityAIWrapper.client.defaultHeaders['Authorization'],
     expectedAuthHeader,
     'httpClient Authorization header should be set correctly'
   );

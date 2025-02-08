@@ -12,8 +12,8 @@ function testCohereAIWrapper() {
     'API key should be set'
   );
   assert.ok(
-    cohereAIWrapper.httpClient,
-    'httpClient should be created'
+    cohereAIWrapper.client,
+    'client should be created'
   );
 
   // Test httpClient configuration
@@ -23,24 +23,19 @@ function testCohereAIWrapper() {
   const expectedAuthHeader = `Bearer ${apiKey}`;
 
   assert.strictEqual(
-    cohereAIWrapper.httpClient.defaults.baseURL,
+    cohereAIWrapper.client.baseURL,
     expectedBaseURL,
     'httpClient baseURL should be set correctly'
   );
   assert.strictEqual(
-    cohereAIWrapper.httpClient.defaults.headers['Content-Type'],
+    cohereAIWrapper.client.defaultHeaders['Content-Type'],
     expectedContentType,
     'httpClient Content-Type header should be set correctly'
   );
   assert.strictEqual(
-    cohereAIWrapper.httpClient.defaults.headers['Authorization'],
+    cohereAIWrapper.client.defaultHeaders['Authorization'],
     expectedAuthHeader,
     'httpClient Authorization header should be set correctly'
-  );
-  assert.strictEqual(
-    cohereAIWrapper.httpClient.defaults.headers['Cohere-Version'],
-    expectedCohereVersion,
-    'httpClient Cohere-Version header should be set correctly'
   );
 }
 

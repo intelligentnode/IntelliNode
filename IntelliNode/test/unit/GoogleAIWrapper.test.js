@@ -12,8 +12,8 @@ function testGoogleAIWrapper() {
     'API key should be set'
   );
   assert.ok(
-    googleAIWrapper.httpClient,
-    'httpClient should be created'
+    googleAIWrapper.client,
+    'client should be created'
   );
 
   // Test httpClient configuration
@@ -24,17 +24,17 @@ function testGoogleAIWrapper() {
   const expectedContentType = 'application/json; charset=utf-8';
 
   assert.strictEqual(
-    googleAIWrapper.httpClient.defaults.baseURL,
+    googleAIWrapper.client.baseURL,
     expectedBaseURL,
     'httpClient baseURL should be set correctly'
   );
   assert.strictEqual(
-    googleAIWrapper.httpClient.defaults.headers['Content-Type'],
+    googleAIWrapper.client.defaultHeaders['Content-Type'],
     expectedContentType,
     'httpClient Content-Type header should be set correctly'
   );
   assert.strictEqual(
-    googleAIWrapper.httpClient.defaults.headers['X-Goog-Api-Key'],
+    googleAIWrapper.client.defaultHeaders['X-Goog-Api-Key'],
     apiKey,
     'httpClient X-Goog-Api-Key header should be set correctly'
   );

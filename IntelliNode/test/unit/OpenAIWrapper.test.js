@@ -12,7 +12,7 @@ function testOpenAIWrapper() {
     apiKey,
     'API key should be set'
   );
-  assert.ok(openAIWrapper.httpClient, 'httpClient should be created');
+  assert.ok(openAIWrapper.client, 'httpClient should be created');
 
   // Test httpClient configuration
   const expectedBaseURL = proxyHelper.getOpenaiURL();
@@ -20,17 +20,17 @@ function testOpenAIWrapper() {
   const expectedAuthHeader = `Bearer ${apiKey}`;
 
   assert.strictEqual(
-    openAIWrapper.httpClient.defaults.baseURL,
+    openAIWrapper.client.baseURL,
     expectedBaseURL,
     'httpClient baseURL should be set correctly'
   );
   assert.strictEqual(
-    openAIWrapper.httpClient.defaults.headers['Content-Type'],
+    openAIWrapper.client.defaultHeaders['Content-Type'],
     expectedContentType,
     'httpClient Content-Type header should be set correctly'
   );
   assert.strictEqual(
-    openAIWrapper.httpClient.defaults.headers['Authorization'],
+    openAIWrapper.client.defaultHeaders['Authorization'],
     expectedAuthHeader,
     'httpClient Authorization header should be set correctly'
   );
