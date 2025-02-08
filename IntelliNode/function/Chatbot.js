@@ -77,7 +77,7 @@ class Chatbot {
         } else if (provider === SupportedChatModels.ANTHROPIC) {
             this.anthropicWrapper = new AnthropicWrapper(keyValue);
         } else if (provider === SupportedChatModels.NVIDIA) {
-            this.nvidiaWrapper = new NvidiaWrapper(keyValue);
+            this.nvidiaWrapper = new NvidiaWrapper(keyValue, options.nvidiaOptions || {});
         } else {
             throw new Error("Invalid provider name");
         }

@@ -37,14 +37,24 @@ class EmbedInput {
     };
   }
 
-    getGeminiInputs() {
-        return {
-            model: this.model,
-            content: {
-                parts: this.texts.map(text => ({text}))
-            }
-        };
-    }
+  getGeminiInputs() {
+      return {
+          model: this.model,
+          content: {
+              parts: this.texts.map(text => ({text}))
+          }
+      };
+  }
+
+  getNvidiaInputs(input_type="query") {
+    return {
+      input: this.texts,
+      model: this.model,
+      input_type: input_type,
+      encoding_format: "float",
+      truncate: "NONE"
+    };
+  }
 
   setDefaultValues(provider) {
     if (provider === "openai") {

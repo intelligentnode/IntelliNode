@@ -9,6 +9,7 @@ const SupportedEmbedModels = {
   COHERE: 'cohere',
   REPLICATE: 'replicate',
   GEMINI: 'gemini',
+  NVIDIA: 'nvidia'
 };
 
 class RemoteEmbedModel {
@@ -38,6 +39,8 @@ class RemoteEmbedModel {
       this.replicateWrapper = new ReplicateWrapper(keyValue);
     } else if (keyType === SupportedEmbedModels.GEMINI) {
         this.geminiWrapper = new GeminiAIWrapper(keyValue);
+    } else if (keyType === SupportedEmbedModels.NVIDIA) {
+      this.nvidiaWrapper = new NvidiaWrapper(keyValue, customProxyHelper);
     } else {
       throw new Error('Invalid provider name');
     }
@@ -59,6 +62,8 @@ class RemoteEmbedModel {
         inputs = embedInput.getLlamaReplicateInput();
       } else if (this.keyType === SupportedEmbedModels.GEMINI) {
         inputs = embedInput.getGeminiInputs();
+      } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
+        inputs = embedInput.getNvidiaInputs();
       } else {
         throw new Error('The keyType is not supported');
       }
@@ -115,8 +120,10 @@ class RemoteEmbedModel {
         }, 1000);
       });
     } else if (this.keyType === SupportedEmbedModels.GEMINI) {
-      inputs = embedInput.getGeminiInputs();
       return await this.geminiWrapper.getEmbeddings(inputs);
+    } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
+      const result = await this.nvidiaWrapper.generateRetrieval(inputs);
+      return Array.isArray(result) ? result : [];
     } else {
       throw new Error('The keyType is not supported');
     }

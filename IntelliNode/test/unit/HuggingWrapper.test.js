@@ -12,7 +12,7 @@ function testHuggingWrapper() {
     'API key should be set'
   );
   assert.ok(
-    huggingWrapper.httpClient,
+    huggingWrapper.client,
     'httpClient should be created'
   );
 
@@ -22,17 +22,17 @@ function testHuggingWrapper() {
   const expectedAuthHeader = `Bearer ${apiKey}`;
 
   assert.strictEqual(
-    huggingWrapper.httpClient.defaults.baseURL,
+    huggingWrapper.client.baseURL,
     expectedBaseURL,
     'httpClient baseURL should be set correctly'
   );
   assert.strictEqual(
-    huggingWrapper.httpClient.defaults.headers['Content-Type'],
+    huggingWrapper.client.defaultHeaders['Content-Type'],
     expectedContentType,
     'httpClient Content-Type header should be set correctly'
   );
   assert.strictEqual(
-    huggingWrapper.httpClient.defaults.headers['Authorization'],
+    huggingWrapper.client.defaultHeaders['Authorization'],
     expectedAuthHeader,
     'httpClient Authorization header should be set correctly'
   );

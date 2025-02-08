@@ -45,7 +45,7 @@ const input = new ChatGPTInput('You are a helpful assistant.');
 input.addUserMessage('What is the distance between the Earth and the Moon?');
 
 // get chatGPT responses.
-const bot = new Chatbot(apiKey);
+const bot = new Chatbot(openaiKey);
 const responses = await bot.chat(input);
 ```
 
@@ -65,7 +65,7 @@ const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI);
 const responses = await geminiBot.chat(geminiInput);
 ```
 
-The documentation on how to switch between ChatGPT, Mistral, Anthropic and LLama can be found in the [IntelliNode Wiki](https://docs.intellinode.ai/docs/npm/chatbot/get-started).
+The documentation on how to switch between ChatGPT, Mistral, Anthropic, and LLama can be found in the [IntelliNode Wiki](https://docs.intellinode.ai/docs/npm/chatbot/get-started).
 
 ### Semantic Search
 1. imports:
@@ -127,31 +127,6 @@ provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
 
-### Language models
-1. imports:
-```js
-const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
-```
-2. call openai model:
-```js
-const langModel = new RemoteLanguageModel('openai-key', 'openai');
-model_name = 'gpt-4o'
-
-const results = await langModel.generateText(new LanguageModelInput({
-  prompt: 'Write a product description for smart plug that works with voice assistant.',
-  model: model_name,
-  temperature: 0.7
-}));
-
-console.log('Generated text:', results[0]);
-```
-3. change to call cohere models:
-
-```js
-const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
-model_name = 'command'
-// ... same code
-```
 ### Speech Synthesis
 1. imports:
 ```js
@@ -198,6 +173,7 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 ### Custom proxy
 Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js).
 
+
 # :closed_book: Documentation
 - [IntelliNode Docs](https://doc.intellinode.ai/docs/npm): Detailed documentation about IntelliNode.
 - [Showcase](https://show.intellinode.ai/): Explore interactive demonstrations of IntelliNode's capabilities.
@@ -206,6 +182,7 @@ Check the code to access the chatbot through a proxy: [proxy chatbot](https://gi
 - [LLM as Microservice](https://www.kdnuggets.com/building-microservice-for-multichat-backends-using-llama-and-chatgpt): For scalable production.
 - [Fine-tuning Tutorial](https://doc.intellinode.ai/docs/npm/controllers/fine-tuning): Learn how to tune LLMs with yout data.
 - [Chatbot With Your Docs](https://doc.intellinode.ai/docs/npm/chatbot/docs-chat): Tutorial to augment any LLM provider with your docs and images.
+- [Frontend connector](https://docs.intellinode.ai/docs/npm/frontend): Connect directly to models from your browser without the need for server-side integration.
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models
