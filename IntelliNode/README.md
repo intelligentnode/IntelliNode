@@ -173,6 +173,7 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 ### Custom proxy
 Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js).
 
+
 # :closed_book: Documentation
 - [IntelliNode Docs](https://doc.intellinode.ai/docs/npm): Detailed documentation about IntelliNode.
 - [Showcase](https://show.intellinode.ai/): Explore interactive demonstrations of IntelliNode's capabilities.
@@ -181,6 +182,7 @@ Check the code to access the chatbot through a proxy: [proxy chatbot](https://gi
 - [LLM as Microservice](https://www.kdnuggets.com/building-microservice-for-multichat-backends-using-llama-and-chatgpt): For scalable production.
 - [Fine-tuning Tutorial](https://doc.intellinode.ai/docs/npm/controllers/fine-tuning): Learn how to tune LLMs with yout data.
 - [Chatbot With Your Docs](https://doc.intellinode.ai/docs/npm/chatbot/docs-chat): Tutorial to augment any LLM provider with your docs and images.
+- [Frontend connector](https://docs.intellinode.ai/docs/npm/frontend): Connect directly to models from your browser without the need for server-side integration.
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models
