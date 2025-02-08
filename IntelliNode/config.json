@@ -76,6 +76,7 @@
   "nvidia": {
     "base": "https://integrate.api.nvidia.com",
     "chat": "/v1/chat/completions",
+    "embedding": "/v1/retrieval",
     "version": "v1"
   },
   "models": {
