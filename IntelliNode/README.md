@@ -127,31 +127,6 @@ provider=SupportedImageModels.STABILITY;
 // ... same code
 ```
 
-### Language models
-1. imports:
-```js
-const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
-```
-2. call openai model:
-```js
-const langModel = new RemoteLanguageModel('openai-key', 'openai');
-model_name = 'gpt-4o'
-
-const results = await langModel.generateText(new LanguageModelInput({
-  prompt: 'Write a product description for smart plug that works with voice assistant.',
-  model: model_name,
-  temperature: 0.7
-}));
-
-console.log('Generated text:', results[0]);
-```
-3. change to call cohere models:
-
-```js
-const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
-model_name = 'command'
-// ... same code
-```
 ### Speech Synthesis
 1. imports:
 ```js

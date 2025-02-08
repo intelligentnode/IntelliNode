@@ -60,12 +60,13 @@ class NvidiaWrapper {
    *
    * @param {object} params - Must include `model` and other required fields.
    */
-  async generateEmbeddings(params) {
+  async generateRetrieval(params) {
     if (!params.model) {
       throw new Error("Missing 'model' parameter for embeddings");
     }
-    // Use the embedding base endpoint from config and append the user-specified model name.
-    const baseEmbedding = config.nvidia.embedding || '/v1/retrieval';
+    // use the embedding base endpoint from config and append the user-specified model name.
+    const baseEmbedding = config.nvidia.retrieval;
+    // model name example snowflake/arctic-embed
     const embeddingEndpoint = `${baseEmbedding}/${params.model}/embeddings`;
     try {
       return await this.client.post(embeddingEndpoint, params);
