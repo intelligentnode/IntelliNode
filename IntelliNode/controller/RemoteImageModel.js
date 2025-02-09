@@ -2,8 +2,6 @@
 Apache License
 
 Copyright 2023 Github.com/Barqawiz/IntelliNode
-
-   Licensed under the Apache License, Version 2.0 (the "License");
 */
 const SupportedImageModels = {
   OPENAI: "openai",
