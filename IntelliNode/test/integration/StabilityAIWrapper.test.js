@@ -43,6 +43,5 @@ async function testV2BetaCore() {
 
 
 (async () => {
-  // await testGenerateTextToImage(); //v1
   await testV2BetaCore(); //v2
 })();

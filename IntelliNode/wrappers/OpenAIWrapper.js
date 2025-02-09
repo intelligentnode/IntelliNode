@@ -41,6 +41,7 @@ class OpenAIWrapper {
   }
 
   async generateText(params) {
+    /*deprecated*/
     const endpoint = this.proxyHelper.getOpenaiCompletion(params.model);
     try {
       return await this.client.post(endpoint, params);
@@ -145,6 +146,18 @@ class OpenAIWrapper {
     const endpoint = this.proxyHelper.getOpenaiChat();
     try {
       return await this.client.post(endpoint, params, { headers });
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async generateChatAudio(params) {
+    
+    const endpoint = this.proxyHelper.getOpenaiChat(params.model);
+  
+    try {
+      // "params" should include { model, modalities, audio, messages, etc. }
+      return await this.client.post(endpoint, params);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }

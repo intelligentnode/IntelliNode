@@ -165,7 +165,7 @@ class StabilityAIWrapper {
         accept = "application/json"
     }) {
         // v2beta: /v2beta/stable-image/edit/inpaint
-        const endpoint = "/v2beta/stable-image/edit/inpaint";
+        const endpoint = config.url.stability.inpaint;
 
         const formData = new FormData();
         formData.append("image", fs.createReadStream(imagePath));
@@ -196,7 +196,7 @@ class StabilityAIWrapper {
         accept = "application/json"
     }) {
         // v2beta: /v2beta/stable-image/edit/outpaint
-        const endpoint = "/v2beta/stable-image/edit/outpaint";
+        const endpoint = config.url.stability.outpaint;
 
         const formData = new FormData();
         formData.append("image", fs.createReadStream(imagePath));
@@ -227,7 +227,7 @@ class StabilityAIWrapper {
         accept = "application/json"
     }) {
         // Step 1: Start generation
-        const endpoint = "/v2beta/image-to-video";
+        const endpoint = config.url.stability.image_to_video;
 
         const formData = new FormData();
         formData.append("image", fs.createReadStream(imagePath));
@@ -249,8 +249,9 @@ class StabilityAIWrapper {
     }
 
     async fetchVideoResult(generation_id, accept = "video/*") {
-
-        const endpoint = `/v2beta/image-to-video/result/${generation_id}`;
+        
+        
+        const endpoint = `${config.url.stability.fetch_video}${generation_id}`;
 
         try {
             const response = await this.client.get(endpoint, {
@@ -266,6 +267,136 @@ class StabilityAIWrapper {
             throw new Error(connHelper.getErrorMessage(error));
         }
     }
+
+    /**
+   * Control: Sketch
+   * POST /v2beta/stable-image/control/sketch
+   *
+   * Required: image, prompt
+   * Optional: control_strength, negative_prompt, seed, output_format, style_preset
+   */
+  async controlSketch({
+    imagePath,
+    prompt,
+    control_strength,
+    negative_prompt,
+    seed,
+    output_format,
+    style_preset,
+    accept = 'image/*' // or 'application/json'
+  }) {
+    const endpoint = config.url.stability.control_sketch;
+    const formData = new FormData();
+
+    // Required
+    formData.append('image', fs.createReadStream(imagePath));
+    formData.append('prompt', prompt);
+
+    // Optional
+    if (control_strength !== undefined) formData.append('control_strength', control_strength);
+    if (negative_prompt) formData.append('negative_prompt', negative_prompt);
+    if (seed !== undefined) formData.append('seed', seed);
+    if (output_format) formData.append('output_format', output_format);
+    if (style_preset) formData.append('style_preset', style_preset);
+
+    try {
+      // If accept is image/*, we want the raw image (arraybuffer).
+      // If accept is application/json, we get a base64 JSON.
+      const response = await this.client.post(endpoint, formData, {
+        headers: { Accept: accept },
+        responseType: accept.startsWith('image/') ? 'arraybuffer' : undefined
+      });
+      return response;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  /**
+   * Control: Structure
+   * POST /v2beta/stable-image/control/structure
+   *
+   * Required: image, prompt
+   * Optional: control_strength, negative_prompt, seed, output_format, style_preset
+   */
+  async controlStructure({
+    imagePath,
+    prompt,
+    control_strength,
+    negative_prompt,
+    seed,
+    output_format,
+    style_preset,
+    accept = 'image/*'
+  }) {
+    const endpoint = config.url.stability.control_structure;
+    const formData = new FormData();
+
+    // Required
+    formData.append('image', fs.createReadStream(imagePath));
+    formData.append('prompt', prompt);
+
+    // Optional
+    if (control_strength !== undefined) formData.append('control_strength', control_strength);
+    if (negative_prompt) formData.append('negative_prompt', negative_prompt);
+    if (seed !== undefined) formData.append('seed', seed);
+    if (output_format) formData.append('output_format', output_format);
+    if (style_preset) formData.append('style_preset', style_preset);
+
+    try {
+      const response = await this.client.post(endpoint, formData, {
+        headers: { Accept: accept },
+        responseType: accept.startsWith('image/') ? 'arraybuffer' : undefined
+      });
+      return response;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  /**
+   * Control: Style
+   * POST /v2beta/stable-image/control/style
+   *
+   * Required: image, prompt
+   * Optional: negative_prompt, aspect_ratio, fidelity, seed, output_format, style_preset
+   */
+  async controlStyle({
+    imagePath,
+    prompt,
+    negative_prompt,
+    aspect_ratio,
+    fidelity,
+    seed,
+    output_format,
+    style_preset,
+    accept = 'image/*'
+  }) {
+    const endpoint = '/v2beta/stable-image/control/style';
+    const formData = new FormData();
+
+    // Required
+    formData.append('image', fs.createReadStream(imagePath));
+    formData.append('prompt', prompt);
+
+    // Optional
+    if (negative_prompt) formData.append('negative_prompt', negative_prompt);
+    if (aspect_ratio) formData.append('aspect_ratio', aspect_ratio);
+    if (fidelity !== undefined) formData.append('fidelity', fidelity);
+    if (seed !== undefined) formData.append('seed', seed);
+    if (output_format) formData.append('output_format', output_format);
+    if (style_preset) formData.append('style_preset', style_preset);
+
+    try {
+      const response = await this.client.post(endpoint, formData, {
+        headers: { Accept: accept },
+        responseType: accept.startsWith('image/') ? 'arraybuffer' : undefined
+      });
+      return response;
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
 }
 
 module.exports = StabilityAIWrapper;

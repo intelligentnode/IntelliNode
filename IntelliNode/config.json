@@ -46,7 +46,14 @@
       "base": "https://api.stability.ai",
       "text_to_image": "/v1/generation/{1}/text-to-image",
       "upscale": "/v1/generation/{1}/image-to-image/upscale",
-      "image_to_image": "/v1/generation/{1}/image-to-image"
+      "image_to_image": "/v1/generation/{1}/image-to-image",
+      "inpaint": "/v2beta/stable-image/edit/inpaint",
+      "outpaint": "/v2beta/stable-image/edit/outpaint",
+      "image_to_video": "/v2beta/image-to-video",
+      "fetch_video": "/v2beta/image-to-video/result/",
+      "control_sketch": "/v2beta/stable-image/control/sketch",
+      "control_structure": "/v2beta/stable-image/control/structure",
+      "control_style": "/v2beta/stable-image/control/style"
     },
     "huggingface": {
       "base": "https://api-inference.huggingface.co/models"
