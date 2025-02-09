@@ -76,7 +76,8 @@ async function testStabilityImageRemoteModel() {
 
     if (stabilityKey === "") return;
 
-    const images = await wrapper.generateImages(new ImageModelInput({prompt:prompt, numberOfImages:1, width: 512, height: 512}));
+    const images = await wrapper.generateImages(new ImageModelInput({prompt:prompt, numberOfImages:1, 
+                                                  width: 1024, height: 1024}));
 
     for (const image of images) {
       console.log("- ", image, "\n");
