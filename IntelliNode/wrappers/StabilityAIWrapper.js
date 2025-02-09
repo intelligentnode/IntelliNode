@@ -7,6 +7,7 @@ const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
 
 class StabilityAIWrapper {
+    
     constructor(apiKey) {
         // Base URL from config.
         this.API_BASE_URL = config.url.stability.base;
@@ -18,7 +19,31 @@ class StabilityAIWrapper {
                 Authorization: `Bearer ${this.API_KEY}`
             }
         });
+
+        this.V2_BETA_MODELS = ["core", "ultra", "sd3", "sd3-large", "sd3-large-turbo", "sd3-medium"];
     }
+
+    async generateImageDispatcher(inputs) {
+        // If user sets inputs.model to something in V2_BETA_MODELS, we do v2.
+        const modelName = inputs.model || "";
+        const isV2Beta = this.V2_BETA_MODELS.includes(modelName);
+    
+        if (isV2Beta) {
+          
+          const v2Resp = await this.generateStableImageV2Beta(inputs);
+          // 2) Convert v2 response => same shape as v1 => { artifacts: [ { base64: ... }, ... ] }
+          return {
+            artifacts: [
+              {
+                base64: v2Resp.image // v2 returns { image, seed, finish_reason }
+              }
+            ]
+          };
+        } else {
+          // old v1 approach
+          return await this.generateTextToImage(inputs);
+        }
+      }
 
     /**
      * ===============

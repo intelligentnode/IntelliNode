@@ -82,9 +82,8 @@ class RemoteImageModel {
 
     } else if (this.keyType === SupportedImageModels.STABILITY) {
       
-      const results = await this.stabilityWrapper.generateTextToImage(inputs);
-
-      /*console.log('results: ', results);*/
+      const results = await this.stabilityWrapper.generateImageDispatcher(inputs);
+      
       return results.artifacts.map((imageObj) => imageObj.base64);
 
     } else {
