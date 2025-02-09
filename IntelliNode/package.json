@@ -1,6 +1,6 @@
 {
   "name": "intellinode",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "Create AI agents using the latest models, including ChatGPT, Llama, Diffusion, Cohere, Gemini, and Hugging Face.",
   "main": "index.js",
   "keywords": [

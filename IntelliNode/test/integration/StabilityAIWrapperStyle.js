@@ -28,7 +28,7 @@ async function testControlSketch() {
   try {
     const responseBuffer = await stability.controlSketch({
       imagePath,
-      prompt: 'a medieval castle on a hill, fantasy illustration',
+      prompt: 'A medieval castle on a hill, painterly style',
       control_strength: 0.7,
       output_format: 'png',
       // style_preset: 'photographic', // optional example
@@ -52,7 +52,7 @@ async function testControlStructure() {
   try {
     const responseBuffer = await stability.controlStructure({
       imagePath,
-      prompt: 'a well manicured shrub in an english garden, topiary artwork',
+      prompt: 'A well manicured shrub in an English garden, photorealistic',
       control_strength: 0.7,
       output_format: 'webp',
       accept: 'image/*'
@@ -72,7 +72,7 @@ async function testControlStyle() {
   try {
     const responseBuffer = await stability.controlStyle({
       imagePath,
-      prompt: 'a majestic portrait of a chicken',
+      prompt: 'Oil painting portrait of me as a Victorian king, highly detailed, dramatic lighting',
       // optional extras:
       // negative_prompt: 'blurry, lowres',
       // aspect_ratio: '16:9',
