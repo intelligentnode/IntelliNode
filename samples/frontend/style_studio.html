@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stability Control Studio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: #f9f9f9;
+      color: #333;
+    }
+    header {
+      background: #596fc2;
+      color: #fff;
+      padding: 1rem;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.6rem;
+    }
+
+    /* Main container as flex row, wrapping for smaller screens */
+    .main-container {
+      display: flex;
+      flex-wrap: wrap;
+      max-width: 1200px;
+      margin: 1.5rem auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .panel-left, .panel-right {
+      flex: 1 1 50%;
+      padding: 1.5rem;
+      min-width: 320px;
+    }
+    .panel-left {
+      border-right: 1px solid #eee;
+    }
+
+    @media (max-width: 768px) {
+      .panel-left, .panel-right {
+        flex: 1 1 100%;
+        border-right: none;
+        border-bottom: 1px solid #eee;
+      }
+    }
+
+    .panel-left h2, .panel-right h2 {
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+    }
+
+    .field {
+      margin-bottom: 1.2rem;
+    }
+    .field label {
+      display: block;
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+    }
+    .field input[type="text"],
+    .field textarea,
+    .field select {
+      width: 100%;
+      padding: 0.6rem;
+      font-size: 0.95rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      outline: none;
+    }
+    .field textarea { resize: vertical; }
+
+    .buttons {
+      margin-top: 1rem;
+    }
+    button {
+      background: #596fc2;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.6rem 1.2rem;
+      margin-right: 0.5rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #4b62ae;
+    }
+
+    #imgPreview, #styledImage {
+      display: none;
+      max-width: 100%;
+      margin-top: 0.8rem;
+      border: 1px solid #eee;
+      border-radius: 6px;
+    }
+
+    #resultBox {
+      margin-top: 0.8rem;
+      min-height: 60px;
+      padding: 1rem;
+      background: #fafafa;
+      border: 1px solid #ebebeb;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+    }
+    #resultBox.error {
+      color: #c00;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1rem;
+      color: #777;
+      font-size: 0.9rem;
+    }
+    footer a {
+      color: #596fc2;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Stability Control Studio</h1>
+  </header>
+
+  <div class="main-container">
+    <!-- LEFT PANEL: user input & original image -->
+    <div class="panel-left">
+      <h2>Configuration</h2>
+
+      <!-- OpenAI Key (optional) -->
+      <div class="field">
+        <label for="openaiKey">OpenAI Key (Optional):</label>
+        <input type="text" id="openaiKey" placeholder="sk-..." />
+      </div>
+
+      <!-- Stability Key (required) -->
+      <div class="field">
+        <label for="stabilityKey">Stability Key (Required):</label>
+        <input type="text" id="stabilityKey" placeholder="sk-..." />
+      </div>
+
+      <!-- Control Method -->
+      <div class="field">
+        <label for="controlMethod">Control Method:</label>
+        <select id="controlMethod">
+          <option value="style" selected>Style</option>
+          <option value="sketch">Sketch</option>
+          <option value="structure">Structure</option>
+        </select>
+      </div>
+
+      <!-- Image Upload -->
+      <div class="field">
+        <label for="imageInput">Upload Image (jpeg/png/webp):</label>
+        <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp" />
+        <img id="imgPreview" alt="Original Preview" />
+      </div>
+
+      <!-- Prompt Suggestions -->
+      <div class="field">
+        <label for="promptSuggestions">Preset Styles (Optional):</label>
+        <select id="promptSuggestions" onchange="onPresetChange()">
+          <option value="">-- None --</option>
+          <option value="Oil painting portrait of me as a Victorian king, highly detailed, dramatic lighting">
+            Victorian Oil Painting
+          </option>
+          <option value="80s Cartoon style, bright colors, fun youthful design">
+            80s Cartoon
+          </option>
+          <option value="Futuristic sci-fi anime style, neon city background">
+            Futuristic Anime
+          </option>
+          <option value="Vintage photorealistic film style, warm colors and high detail">
+            Vintage Film
+          </option>
+        </select>
+      </div>
+
+      <!-- Style Prompt -->
+      <div class="field">
+        <label for="prompt">Prompt:</label>
+        <textarea id="prompt" rows="2" placeholder="e.g. '80s cartoon with bright, fun vibe'"></textarea>
+      </div>
+
+      <div class="buttons">
+        <button onclick="improvePrompt()">Improve Prompt</button>
+        <button onclick="applyControl()">Apply Style</button>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: result & styled image -->
+    <div class="panel-right">
+      <h2>Result</h2>
+      <div id="resultBox"></div>
+      <img id="styledImage" alt="Styled Result" />
+    </div>
+  </div>
+
+  <footer>
+    Powered by <a href="https://www.npmjs.com/package/intellinode" target="_blank">IntelliNode</a>
+  </footer>
+
+  <!-- IntelliNode library (rebuilt to handle either path or File in the control methods) -->
+  <script src="https://cdn.jsdelivr.net/npm/intellinode@latest/front/intellinode.min.js"></script>
+
+  <script>
+    // ---------- A) Basic Dimension Validation ----------
+    let validImage = false;
+    const imageInput = document.getElementById("imageInput");
+    const preview = document.getElementById("imgPreview");
+    preview.style.display = "none";
+
+    imageInput.addEventListener("change", evt => {
+      const file = evt.target.files[0];
+      validImage = false;
+      const resultBox = document.getElementById("resultBox");
+      resultBox.textContent = "";
+      resultBox.classList.remove("error");
+      preview.style.display = "none";
+      preview.src = "";
+
+      if (file) {
+        const tempImg = new Image();
+        tempImg.onload = () => {
+          const w = tempImg.width, h = tempImg.height;
+          const pixels = w * h;
+          const ratio = w / h;
+
+          if (w < 64 || h < 64) {
+            setError("Each side must be >=64px. Please use a larger image.");
+            return;
+          }
+          if (pixels < 4096 || pixels > 9437184) {
+            setError("Total pixels must be 4,096 to 9,437,184.");
+            return;
+          }
+          if (ratio < 0.4 || ratio > 2.5) {
+            setError("Aspect ratio must be between 1:2.5 and 2.5:1.");
+            return;
+          }
+
+          validImage = true;
+          preview.src = URL.createObjectURL(file);
+          preview.style.display = "block";
+        };
+        tempImg.onerror = () => {
+          setError("Could not read this file. Please try another image.");
+        };
+        tempImg.src = URL.createObjectURL(file);
+      }
+    });
+
+    function setError(msg) {
+      const rb = document.getElementById("resultBox");
+      rb.textContent = msg;
+      rb.classList.add("error");
+    }
+
+    // ---------- B) Prompt Suggestions ----------
+    function onPresetChange() {
+      const selected = document.getElementById("promptSuggestions").value;
+      if (selected) {
+        document.getElementById("prompt").value = selected;
+      }
+    }
+
+    // ---------- C) Improve Prompt (OpenAI) ----------
+    async function improvePrompt() {
+      const openaiKey = document.getElementById("openaiKey").value.trim();
+      const promptElem = document.getElementById("prompt");
+      const promptText = promptElem.value.trim();
+      const resultBox = document.getElementById("resultBox");
+      resultBox.textContent = "";
+      resultBox.classList.remove("error");
+
+      if (!openaiKey) {
+        alert("OpenAI key is missing - needed to improve prompt.");
+        return;
+      }
+      if (!promptText) {
+        alert("Enter a prompt first.");
+        return;
+      }
+
+      try {
+        resultBox.textContent = "Improving prompt with OpenAI...";
+        const { Chatbot, ChatGPTInput } = IntelliNode;
+        const chatbot = new Chatbot(openaiKey, "openai");
+        const input = new ChatGPTInput("Improve this style prompt for an art generation task", {
+          model: "gpt-4o",
+          temperature: 0.7
+        });
+        input.addUserMessage(promptText);
+
+        const responses = await chatbot.chat(input);
+        if (responses && responses[0]) {
+          promptElem.value = responses[0].trim();
+          resultBox.textContent = "Prompt improved!";
+        } else {
+          resultBox.textContent = "No response from OpenAI.";
+        }
+      } catch (err) {
+        setError("Error: " + err.message);
+      }
+    }
+
+    // ---------- D) Apply Control (Sketch/Structure/Style) ----------
+    async function applyControl() {
+      const stabilityKey = document.getElementById("stabilityKey").value.trim();
+      const method = document.getElementById("controlMethod").value;
+      const fileElem = document.getElementById("imageInput");
+      const promptVal = document.getElementById("prompt").value.trim();
+      const resultBox = document.getElementById("resultBox");
+      const styledImage = document.getElementById("styledImage");
+
+      resultBox.textContent = "";
+      resultBox.classList.remove("error");
+      styledImage.style.display = "none";
+      styledImage.src = "";
+
+      if (!stabilityKey) {
+        alert("Stability key is required.");
+        return;
+      }
+      if (!fileElem.files[0]) {
+        alert("Upload an image first.");
+        return;
+      }
+      if (!validImage) {
+        alert("The selected image doesn't meet dimension constraints.");
+        return;
+      }
+      if (!promptVal) {
+        alert("Enter a prompt for the control method.");
+        return;
+      }
+
+      try {
+        resultBox.textContent = `Applying ${method}...`;
+        const stability = new IntelliNode.StabilityAIWrapper(stabilityKey);
+
+        let rawResult;
+        if (method === 'sketch') {
+          rawResult = await stability.controlSketch({
+            imagePath: fileElem.files[0],
+            prompt: promptVal,
+            output_format: 'png',
+            accept: 'image/*'
+          });
+        } else if (method === 'structure') {
+          rawResult = await stability.controlStructure({
+            imagePath: fileElem.files[0],
+            prompt: promptVal,
+            output_format: 'png',
+            accept: 'image/*'
+          });
+        } else {
+          // Default: style
+          rawResult = await stability.controlStyle({
+            imagePath: fileElem.files[0],
+            prompt: promptVal,
+            output_format: 'png',
+            accept: 'image/*'
+          });
+        }
+
+        const blob = new Blob([rawResult], { type: 'image/png' });
+        const objectURL = URL.createObjectURL(blob);
+
+        styledImage.src = objectURL;
+        styledImage.style.display = "block";
+        resultBox.textContent = "Done!";
+      } catch (err) {
+        setError("Error applying control: " + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
