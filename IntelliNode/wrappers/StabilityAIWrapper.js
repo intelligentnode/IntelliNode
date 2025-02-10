@@ -289,7 +289,14 @@ class StabilityAIWrapper {
     const formData = new FormData();
 
     // Required
-    formData.append('image', fs.createReadStream(imagePath));
+    if (typeof imagePath === 'string') {
+        // Node usage
+        const fs = require('fs');
+        formData.append('image', fs.createReadStream(imagePath));
+    } else {
+        // Browser usage - assume it's a File or Blob
+        formData.append('image', imagePath);
+    }
     formData.append('prompt', prompt);
 
     // Optional
@@ -333,7 +340,14 @@ class StabilityAIWrapper {
     const formData = new FormData();
 
     // Required
-    formData.append('image', fs.createReadStream(imagePath));
+    if (typeof imagePath === 'string') {
+        // Node usage
+        const fs = require('fs');
+        formData.append('image', fs.createReadStream(imagePath));
+    } else {
+        // Browser usage - assume it's a File or Blob
+        formData.append('image', imagePath);
+    }
     formData.append('prompt', prompt);
 
     // Optional
@@ -376,7 +390,14 @@ class StabilityAIWrapper {
     const formData = new FormData();
 
     // Required
-    formData.append('image', fs.createReadStream(imagePath));
+    if (typeof imagePath === 'string') {
+        // Node usage
+        const fs = require('fs');
+        formData.append('image', fs.createReadStream(imagePath));
+    } else {
+        // Browser usage - assume it's a File or Blob
+        formData.append('image', imagePath);
+    }
     formData.append('prompt', prompt);
 
     // Optional

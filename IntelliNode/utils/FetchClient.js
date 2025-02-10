@@ -37,7 +37,7 @@ class FetchClient {
     };
 
     // If using FormData in Node, merge the form's headers
-    if (data instanceof FormData) {
+    if (data instanceof FormData && typeof data.getHeaders === 'function') {
       Object.assign(headers, data.getHeaders());
     }
 
