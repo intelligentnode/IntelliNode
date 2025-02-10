@@ -6,53 +6,42 @@ const stabilityAI = new StabilityAIWrapper(process.env.STABILITY_API_KEY);
 
 async function testGenerateTextToImage() {
   try {
-    const imageInput = new ImageModelInput({
-      prompt: "A black and red gaming chair with a futuristic look that resembles the cockpit of a spaceship, made of high-quality materials and fully adjustable for comfortable gaming sessions.",
-      numberOfImages: 1,
-    });
+    // The v1 endpoint expects a JSON body
+    const params = {
+      text_prompts: [{ text: "A black and red gaming chair...", weight: 1.0 }],
+      cfg_scale: 7,
+      samples: 1,
+      steps: 30
+      // etc.
+    };
 
-    const result = await stabilityAI.generateTextToImage(imageInput.getStabilityInputs());
+    const result = await stabilityAI.generateTextToImage(params);
 
     console.log("Text to Image Result:", result);
+    fs.writeFileSync('test_output.png', result.artifacts[0].base64, { encoding: 'base64' });
   } catch (error) {
     console.error("Text to Image Error:", error);
   }
 }
 
-async function testGenerateImageToImage(imagePath) {
+async function testV2BetaCore() {
   try {
-    const params = {
-      text_prompts: [
-        { text: "apply manga style to the human image and make him ninja.", weight: 0.6 },
-      ],
-      image_strength: 0.45,
-      imagePath: imagePath,
-      cfg_scale: 8.0,
-      clip_guidance_preset: "FAST_BLUE",
-      samples: 1,
-      steps: 50,
-      // sampler: "K_LMS",
-    };
-
-    const result = await stabilityAI.generateImageToImage(params);
-    image = result['artifacts'][0]['base64']
-    fs.writeFileSync('../temp/test_style_image.png', image, { encoding: 'base64' });
-
-    // console.log("Image to Image Result:", result);
+    const response = await stabilityAI.generateStableImageV2Beta({
+      model: 'core',
+      prompt: "Teddy writing a blog in Times Square, photorealistic",
+      output_format: "webp",
+      width: 512,
+      height: 512,
+      accept: "application/json"
+    });
+    console.log("v2beta (Core) JSON response:", response);
+    fs.writeFileSync('test_v2beta_core.webp', response.image, { encoding: 'base64' });
   } catch (error) {
-    console.error("Image to Image Error:", error);
+    console.error("testV2BetaCore Error:", error);
   }
 }
 
+
 (async () => {
-  await testGenerateTextToImage();
-
-  const args = process.argv.slice(2);
-  const imagePath = args[0];
-
-  if (imagePath) {
-    await testGenerateImageToImage(imagePath);
-  } else {
-    console.log("Image file not provided. Skipping Image to Image Task.");
-  }
+  await testV2BetaCore(); //v2
 })();

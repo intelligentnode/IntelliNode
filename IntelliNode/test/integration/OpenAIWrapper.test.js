@@ -6,28 +6,9 @@ const OpenAIWrapper = require('../../wrappers/OpenAIWrapper');
 const {
     createReadStream, readFileSync, createWriteStream, existsSync
 } = require('fs');
+const AudioHelper = require('../../utils/AudioHelper');
 
 const openAI = new OpenAIWrapper(process.env.OPENAI_API_KEY);
-
-async function testLanguageModel() {
-    try {
-        const params = {
-            model: 'gpt-4o',
-            prompt: 'Summarize the plot of the Inception movie in two sentences',
-            max_tokens: 50,
-            n: 1,
-            stop: '<stop>',
-            temperature: 0.7
-        };
-
-        const result = await openAI.generateText(params);
-        const responseText = result['choices'][0]['text'].trim();
-        console.log('Language Model Result:\n', responseText, '\n');
-        assert(responseText.length > 0, 'testLanguageModel response length should be greater than 0');
-    } catch (error) {
-        console.error('Language Model Error:', error);
-    }
-}
 
 async function testChatGPT() {
     try {
@@ -236,8 +217,58 @@ async function testFineTuning() {
     }
 }
 
+async function testGenerateChatAudio() {
+    console.log('\n### testGenerateChatAudio ###\n');
+    
+    try {
+      // 1) Build parameters for OpenAI's audio generation
+      const audioParams = {
+        model: 'gpt-4o-audio-preview',
+        modalities: ['text', 'audio'],
+        audio: {
+          voice: 'alloy',
+          format: 'wav'
+        },
+        messages: [
+          {
+            role: 'user',
+            content: 'Fragaria vesca, commonly called the wild strawberry among other names, is a perennial herbaceous plant in the rose family that grows naturally throughout much of the Northern Hemisphere.'
+          }
+        ]
+      };
+  
+      // 2) Call wrapper method
+      const result = await openAI.generateChatAudio(audioParams);
+  
+      // 3) Parse response; e.g. result.choices[0].message.audio.data is base64
+      const choice = result.choices?.[0];
+      if (!choice || !choice.message?.audio?.data) {
+        throw new Error('No audio data returned in choices[0].message.audio.data');
+      }
+  
+      const audioBase64 = choice.message.audio.data;
+      console.log('Audio base64 length:', audioBase64.length);
+  
+      // 4) Decode & save
+      const audioHelper = new AudioHelper();
+      const audioBuffer = audioHelper.decode(audioBase64); 
+      // If format is 'wav', let's name it "openai_audio.wav"
+      // If 'mp3', name it "openai_audio.mp3", etc.
+      const fileName = 'openai_audio.wav';
+      const saveOk = audioHelper.saveAudio(audioBuffer, '../temp', fileName);
+  
+      if (!saveOk) {
+        throw new Error('Audio file failed to save');
+      }
+      console.log(`Audio saved to ../temp/${fileName}`);
+  
+    } catch (error) {
+      console.error('testGenerateChatAudio Error:', error);
+    }
+  }
+
 (async () => {
-    await testLanguageModel();
+    /*
     await testChatGPT();
     await testImageModel();
     await testEmbeddings();
@@ -245,5 +276,6 @@ async function testFineTuning() {
     await testChatGPTStream();
     await testVisionImageToText();
     await testTextToSpeech();
-    await testFineTuning();
+    await testFineTuning();*/
+    await testGenerateChatAudio();
 })();
