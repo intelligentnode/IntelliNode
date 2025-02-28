@@ -18,9 +18,10 @@
 Integrate your data with the latest language models and deep learning frameworks using intellinode **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
-- Adjust the module to work backend and frontend.
-- Support Nvidia hosted models deepseek and llama3 🦙.
-- Add Anthropic claude 3.5 chat.
+- Add support for self-hosted vLLM models.
+- Generate frontend version from intellinode.
+- Integrated Nvidia-hosted models (DeepSeek and Llama3 🦙).
+- Add Anthropic claude 3.7 chat.
 - Add Google Gemini chat and vision.
 - Update stable diffusion to use the XL model engine. 🎨
 - Add support for hugging face inference. 🤗

@@ -4,7 +4,10 @@ const testHuggingWrapper = require('./HuggingWrapper.test');
 const {testOpenAIWrapper, testOpenAIOrganization} = require('./OpenAIWrapper.test');
 const testStabilityAIWrapper = require('./StabilityAIWrapper.test');
 const testPrompt = require('./Prompt.test');
+const IntelliNode = require('../../index');
 
+console.log('Sanity Check...');
+console.log(Object.keys(IntelliNode));
 
 console.log('Running Prompt unit tests...');
 testPrompt();
