@@ -10,7 +10,8 @@ const SupportedEmbedModels = {
   COHERE: 'cohere',
   REPLICATE: 'replicate',
   GEMINI: 'gemini',
-  NVIDIA: 'nvidia'
+  NVIDIA: 'nvidia',
+  VLLM: "vllm"
 };
 
 class RemoteEmbedModel {

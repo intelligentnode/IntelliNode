@@ -236,12 +236,30 @@ class Chatbot {
     async _chatVLLM(modelInput) {
       let params = modelInput instanceof ChatModelInput ? modelInput.getChatInput() : modelInput;
 
-      const isChat = Array.isArray(params.messages);
-      const result = isChat
-        ? await this.vllmWrapper.generateChatText(params)
-        : await this.vllmWrapper.generateText(params);
+      // Explicit for Gemma (completion-only model)
+      const completionOnlyModels = ["google/gemma-2-2b-it",];
 
-      return result.choices.map(c => isChat ? c.message.content : c.text);
+      const isCompletionOnly = completionOnlyModels.includes(params.model);
+
+      if (isCompletionOnly) {
+        // Convert messages to prompt string
+        const promptMessages = params.messages
+          .map(msg => `${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}: ${msg.content}`)
+          .join("\n") + "\nAssistant:";
+
+        const completionParams = {
+          model: params.model,
+          prompt: promptMessages,
+          max_tokens: params.max_tokens || 100,
+          temperature: params.temperature || 0.7,
+        };
+
+        const result = await this.vllmWrapper.generateText(completionParams);
+        return result.choices.map(c => c.text.trim());
+      } else {
+        const result = await this.vllmWrapper.generateChatText(params);
+        return result.choices.map(c => c.message.content);
+      }
     }
 
     async *_chatGPTStream(modelInput) {

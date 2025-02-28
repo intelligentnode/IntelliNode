@@ -45,7 +45,8 @@ const {
   MistralInput,
   GeminiInput,
   AnthropicInput,
-  NvidiaInput
+  NvidiaInput,
+  VLLMInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
@@ -130,5 +131,6 @@ module.exports = {
   AnthropicWrapper,
   NvidiaInput,
   NvidiaWrapper,
-  VLLMWrapper
+  VLLMWrapper,
+  VLLMInput
 };
