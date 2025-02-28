@@ -56,6 +56,12 @@ class EmbedInput {
     };
   }
 
+  getVLLMInputs() {
+      return {
+        texts: this.texts,
+      };
+  }
+
   setDefaultValues(provider) {
     if (provider === "openai") {
       this.model = "text-embedding-3-small";
@@ -65,6 +71,8 @@ class EmbedInput {
         this.model = config.models.replicate.llama['llama-2-13b-embeddings-version'];
     } else if (provider === "gemini") {
         this.model = "models/embedding-001";
+    } else if (provider === "vllm") {
+        this.model = null;
     } else {
       throw new Error("Invalid provider name");
     }

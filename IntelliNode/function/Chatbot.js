@@ -17,6 +17,7 @@ const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('../wrappers/AnthropicWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
+const VLLMWrapper = require('../wrappers/VLLMWrapper');
 
 const {
     ChatGPTInput,
@@ -41,6 +42,7 @@ const SupportedChatModels = {
     GEMINI: "gemini",
     ANTHROPIC: "anthropic",
     NVIDIA: "nvidia",
+    VLLM: "vllm"
 };
 
 class Chatbot {
@@ -84,6 +86,10 @@ class Chatbot {
             } else {
                 this.nvidiaWrapper = new NvidiaWrapper(keyValue);
             }
+        } else if (provider === SupportedChatModels.VLLM) {
+            const baseUrl = options.baseUrl;
+            if (!baseUrl) throw new Error("VLLM requires 'baseUrl' in options.");
+            this.vllmWrapper = new VLLMWrapper(baseUrl);
         } else {
             throw new Error("Invalid provider name");
         }
@@ -135,6 +141,8 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.NVIDIA) {
             let result = await this._chatNvidia(modelInput);
             return modelInput.attachReference ? { result: result, references } : result;
+        } else if (this.provider === SupportedChatModels.VLLM) {
+            return await this._chatVLLM(modelInput);
         } else {
             throw new Error("The provider is not supported");
         }
@@ -223,6 +231,17 @@ class Chatbot {
         }
         
         return references;
+    }
+
+    async _chatVLLM(modelInput) {
+      let params = modelInput instanceof ChatModelInput ? modelInput.getChatInput() : modelInput;
+
+      const isChat = Array.isArray(params.messages);
+      const result = isChat
+        ? await this.vllmWrapper.generateChatText(params)
+        : await this.vllmWrapper.generateText(params);
+
+      return result.choices.map(c => isChat ? c.message.content : c.text);
     }
 
     async *_chatGPTStream(modelInput) {

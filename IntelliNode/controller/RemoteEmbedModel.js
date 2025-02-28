@@ -3,6 +3,7 @@ const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const EmbedInput = require('../model/input/EmbedInput');
+const VLLMWrapper = require('../wrappers/VLLMWrapper');
 
 const SupportedEmbedModels = {
   OPENAI: 'openai',
@@ -41,6 +42,9 @@ class RemoteEmbedModel {
         this.geminiWrapper = new GeminiAIWrapper(keyValue);
     } else if (keyType === SupportedEmbedModels.NVIDIA) {
       this.nvidiaWrapper = new NvidiaWrapper(keyValue, customProxyHelper);
+    } else if (keyType === SupportedEmbedModels.VLLM) {
+      const baseUrl = customProxyHelper.baseUrl;
+      this.vllmWrapper = new VLLMWrapper(baseUrl);
     } else {
       throw new Error('Invalid provider name');
     }
@@ -64,7 +68,9 @@ class RemoteEmbedModel {
         inputs = embedInput.getGeminiInputs();
       } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
         inputs = embedInput.getNvidiaInputs();
-      } else {
+      } else if (this.keyType === SupportedEmbedModels.VLLM) {
+        inputs = embedInput.getVLLMInputs();
+     } else {
         throw new Error('The keyType is not supported');
       }
     } else if (typeof embedInput === 'object') {
@@ -124,7 +130,14 @@ class RemoteEmbedModel {
     } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
       const result = await this.nvidiaWrapper.generateRetrieval(inputs);
       return Array.isArray(result) ? result : [];
-    } else {
+    } else if (this.keyType === SupportedEmbedModels.VLLM) {
+      const results = await this.vllmWrapper.getEmbeddings(inputs.texts);
+      return results.embeddings.map((embedding, index) => ({
+        object: "embedding",
+        index: index,
+        embedding: embedding
+      }));
+    }else {
       throw new Error('The keyType is not supported');
     }
   }

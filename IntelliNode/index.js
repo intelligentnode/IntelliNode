@@ -63,6 +63,7 @@ const MistralAIWrapper = require('./wrappers/MistralAIWrapper');
 const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('./wrappers/AnthropicWrapper');
 const NvidiaWrapper = require('./wrappers/NvidiaWrapper');
+const VLLMWrapper = require('./wrappers/VLLMWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -129,4 +130,5 @@ module.exports = {
   AnthropicWrapper,
   NvidiaInput,
   NvidiaWrapper,
+  VLLMWrapper
 };

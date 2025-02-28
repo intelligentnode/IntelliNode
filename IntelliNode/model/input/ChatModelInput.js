@@ -518,6 +518,32 @@ class NvidiaInput extends ChatModelInput {
   }
 }
 
+class VLLMInput extends ChatGPTInput {
+  constructor(systemMessage, options = {}) {
+    super(systemMessage, options);
+    this.model = options.model || 'Qwen/Qwen2.5-1.5B-Instruct';
+    this.maxTokens = options.maxTokens || 1024;
+    this.temperature = options.temperature || 0.7;
+    this.top_p = options.top_p || 1.0;
+  }
+
+  getChatInput() {
+    const messages = this.messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+
+    return {
+      model: this.model,
+      messages: messages,
+      max_tokens: this.maxTokens,
+      temperature: this.temperature,
+      top_p: this.top_p,
+    };
+  }
+}
+
+
 module.exports = {
   ChatGPTInput,
   ChatModelInput,
@@ -529,5 +555,6 @@ module.exports = {
   MistralInput,
   GeminiInput,
   AnthropicInput,
-  NvidiaInput
+  NvidiaInput,
+  VLLMInput
 };
