@@ -1,4 +1,3 @@
-/*Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.IntelliNode = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 module.exports={
   "url": {
@@ -115,13 +114,15 @@ const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const EmbedInput = require('../model/input/EmbedInput');
+const VLLMWrapper = require('../wrappers/VLLMWrapper');
 
 const SupportedEmbedModels = {
   OPENAI: 'openai',
   COHERE: 'cohere',
   REPLICATE: 'replicate',
   GEMINI: 'gemini',
-  NVIDIA: 'nvidia'
+  NVIDIA: 'nvidia',
+  VLLM: "vllm"
 };
 
 class RemoteEmbedModel {
@@ -153,6 +154,9 @@ class RemoteEmbedModel {
         this.geminiWrapper = new GeminiAIWrapper(keyValue);
     } else if (keyType === SupportedEmbedModels.NVIDIA) {
       this.nvidiaWrapper = new NvidiaWrapper(keyValue, customProxyHelper);
+    } else if (keyType === SupportedEmbedModels.VLLM) {
+      const baseUrl = customProxyHelper.baseUrl;
+      this.vllmWrapper = new VLLMWrapper(baseUrl);
     } else {
       throw new Error('Invalid provider name');
     }
@@ -176,7 +180,9 @@ class RemoteEmbedModel {
         inputs = embedInput.getGeminiInputs();
       } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
         inputs = embedInput.getNvidiaInputs();
-      } else {
+      } else if (this.keyType === SupportedEmbedModels.VLLM) {
+        inputs = embedInput.getVLLMInputs();
+     } else {
         throw new Error('The keyType is not supported');
       }
     } else if (typeof embedInput === 'object') {
@@ -236,7 +242,14 @@ class RemoteEmbedModel {
     } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
       const result = await this.nvidiaWrapper.generateRetrieval(inputs);
       return Array.isArray(result) ? result : [];
-    } else {
+    } else if (this.keyType === SupportedEmbedModels.VLLM) {
+      const results = await this.vllmWrapper.getEmbeddings(inputs.texts);
+      return results.embeddings.map((embedding, index) => ({
+        object: "embedding",
+        index: index,
+        embedding: embedding
+      }));
+    }else {
       throw new Error('The keyType is not supported');
     }
   }
@@ -246,7 +259,7 @@ module.exports = {
   RemoteEmbedModel,
   SupportedEmbedModels,
 };
-},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":42,"../wrappers/GeminiAIWrapper":43,"../wrappers/OpenAIWrapper":49,"../wrappers/ReplicateWrapper":50}],3:[function(require,module,exports){
+},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":42,"../wrappers/GeminiAIWrapper":43,"../wrappers/OpenAIWrapper":49,"../wrappers/ReplicateWrapper":50,"../wrappers/VLLMWrapper":52}],3:[function(require,module,exports){
 /*
 Apache License
 
@@ -621,6 +634,7 @@ const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('../wrappers/AnthropicWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
+const VLLMWrapper = require('../wrappers/VLLMWrapper');
 
 const {
     ChatGPTInput,
@@ -645,6 +659,7 @@ const SupportedChatModels = {
     GEMINI: "gemini",
     ANTHROPIC: "anthropic",
     NVIDIA: "nvidia",
+    VLLM: "vllm"
 };
 
 class Chatbot {
@@ -688,6 +703,10 @@ class Chatbot {
             } else {
                 this.nvidiaWrapper = new NvidiaWrapper(keyValue);
             }
+        } else if (provider === SupportedChatModels.VLLM) {
+            const baseUrl = options.baseUrl;
+            if (!baseUrl) throw new Error("VLLM requires 'baseUrl' in options.");
+            this.vllmWrapper = new VLLMWrapper(baseUrl);
         } else {
             throw new Error("Invalid provider name");
         }
@@ -739,6 +758,8 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.NVIDIA) {
             let result = await this._chatNvidia(modelInput);
             return modelInput.attachReference ? { result: result, references } : result;
+        } else if (this.provider === SupportedChatModels.VLLM) {
+            return await this._chatVLLM(modelInput);
         } else {
             throw new Error("The provider is not supported");
         }
@@ -827,6 +848,35 @@ class Chatbot {
         }
         
         return references;
+    }
+
+    async _chatVLLM(modelInput) {
+      let params = modelInput instanceof ChatModelInput ? modelInput.getChatInput() : modelInput;
+
+      // Explicit for Gemma (completion-only model)
+      const completionOnlyModels = ["google/gemma-2-2b-it",];
+
+      const isCompletionOnly = completionOnlyModels.includes(params.model);
+
+      if (isCompletionOnly) {
+        // Convert messages to prompt string
+        const promptMessages = params.messages
+          .map(msg => `${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}: ${msg.content}`)
+          .join("\n") + "\nAssistant:";
+
+        const completionParams = {
+          model: params.model,
+          prompt: promptMessages,
+          max_tokens: params.max_tokens || 100,
+          temperature: params.temperature || 0.7,
+        };
+
+        const result = await this.vllmWrapper.generateText(completionParams);
+        return result.choices.map(c => c.text.trim());
+      } else {
+        const result = await this.vllmWrapper.generateChatText(params);
+        return result.choices.map(c => c.message.content);
+      }
     }
 
     async *_chatGPTStream(modelInput) {
@@ -1088,7 +1138,7 @@ module.exports = {
     Chatbot,
     SupportedChatModels,
 };
-},{"../model/input/ChatModelInput":13,"../utils/StreamParser":38,"../utils/SystemHelper":39,"../wrappers/AWSEndpointWrapper":40,"../wrappers/AnthropicWrapper":41,"../wrappers/CohereAIWrapper":42,"../wrappers/GeminiAIWrapper":43,"../wrappers/IntellicloudWrapper":46,"../wrappers/MistralAIWrapper":47,"../wrappers/NvidiaWrapper":48,"../wrappers/OpenAIWrapper":49,"../wrappers/ReplicateWrapper":50}],8:[function(require,module,exports){
+},{"../model/input/ChatModelInput":13,"../utils/StreamParser":38,"../utils/SystemHelper":39,"../wrappers/AWSEndpointWrapper":40,"../wrappers/AnthropicWrapper":41,"../wrappers/CohereAIWrapper":42,"../wrappers/GeminiAIWrapper":43,"../wrappers/IntellicloudWrapper":46,"../wrappers/MistralAIWrapper":47,"../wrappers/NvidiaWrapper":48,"../wrappers/OpenAIWrapper":49,"../wrappers/ReplicateWrapper":50,"../wrappers/VLLMWrapper":52}],8:[function(require,module,exports){
 (function (Buffer){(function (){
 // Gen.js
 const { RemoteLanguageModel } = require("../controller/RemoteLanguageModel");
@@ -1543,7 +1593,8 @@ const {
   MistralInput,
   GeminiInput,
   AnthropicInput,
-  NvidiaInput
+  NvidiaInput,
+  VLLMInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
@@ -1561,6 +1612,7 @@ const MistralAIWrapper = require('./wrappers/MistralAIWrapper');
 const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('./wrappers/AnthropicWrapper');
 const NvidiaWrapper = require('./wrappers/NvidiaWrapper');
+const VLLMWrapper = require('./wrappers/VLLMWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -1627,9 +1679,11 @@ module.exports = {
   AnthropicWrapper,
   NvidiaInput,
   NvidiaWrapper,
+  VLLMWrapper,
+  VLLMInput
 };
 
-},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":28,"./utils/ChatContext":29,"./utils/ConnHelper":30,"./utils/LLMEvaluation":33,"./utils/MatchHelpers":34,"./utils/Prompt":36,"./utils/ProxyHelper":37,"./utils/StreamParser":38,"./utils/SystemHelper":39,"./wrappers/AWSEndpointWrapper":40,"./wrappers/AnthropicWrapper":41,"./wrappers/CohereAIWrapper":42,"./wrappers/GeminiAIWrapper":43,"./wrappers/GoogleAIWrapper":44,"./wrappers/HuggingWrapper":45,"./wrappers/IntellicloudWrapper":46,"./wrappers/MistralAIWrapper":47,"./wrappers/NvidiaWrapper":48,"./wrappers/OpenAIWrapper":49,"./wrappers/ReplicateWrapper":50,"./wrappers/StabilityAIWrapper":51}],13:[function(require,module,exports){
+},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":28,"./utils/ChatContext":29,"./utils/ConnHelper":30,"./utils/LLMEvaluation":33,"./utils/MatchHelpers":34,"./utils/Prompt":36,"./utils/ProxyHelper":37,"./utils/StreamParser":38,"./utils/SystemHelper":39,"./wrappers/AWSEndpointWrapper":40,"./wrappers/AnthropicWrapper":41,"./wrappers/CohereAIWrapper":42,"./wrappers/GeminiAIWrapper":43,"./wrappers/GoogleAIWrapper":44,"./wrappers/HuggingWrapper":45,"./wrappers/IntellicloudWrapper":46,"./wrappers/MistralAIWrapper":47,"./wrappers/NvidiaWrapper":48,"./wrappers/OpenAIWrapper":49,"./wrappers/ReplicateWrapper":50,"./wrappers/StabilityAIWrapper":51,"./wrappers/VLLMWrapper":52}],13:[function(require,module,exports){
 /*
 Apache License
 
@@ -2150,6 +2204,32 @@ class NvidiaInput extends ChatModelInput {
   }
 }
 
+class VLLMInput extends ChatGPTInput {
+  constructor(systemMessage, options = {}) {
+    super(systemMessage, options);
+    this.model = options.model || 'Qwen/Qwen2.5-1.5B-Instruct';
+    this.maxTokens = options.maxTokens || 1024;
+    this.temperature = options.temperature || 0.7;
+    this.top_p = options.top_p || 1.0;
+  }
+
+  getChatInput() {
+    const messages = this.messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+
+    return {
+      model: this.model,
+      messages: messages,
+      max_tokens: this.maxTokens,
+      temperature: this.temperature,
+      top_p: this.top_p,
+    };
+  }
+}
+
+
 module.exports = {
   ChatGPTInput,
   ChatModelInput,
@@ -2161,7 +2241,8 @@ module.exports = {
   MistralInput,
   GeminiInput,
   AnthropicInput,
-  NvidiaInput
+  NvidiaInput,
+  VLLMInput
 };
 
 },{"../../config.json":1}],14:[function(require,module,exports){
@@ -2223,6 +2304,12 @@ class EmbedInput {
     };
   }
 
+  getVLLMInputs() {
+      return {
+        texts: this.texts,
+      };
+  }
+
   setDefaultValues(provider) {
     if (provider === "openai") {
       this.model = "text-embedding-3-small";
@@ -2232,6 +2319,8 @@ class EmbedInput {
         this.model = config.models.replicate.llama['llama-2-13b-embeddings-version'];
     } else if (provider === "gemini") {
         this.model = "models/embedding-001";
+    } else if (provider === "vllm") {
+        this.model = null;
     } else {
       throw new Error("Invalid provider name");
     }
@@ -8027,5 +8116,49 @@ class StabilityAIWrapper {
 }
 
 module.exports = StabilityAIWrapper;
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24,"fs":21}]},{},[12])(12)
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24,"fs":21}],52:[function(require,module,exports){
+const FetchClient = require('../utils/FetchClient');
+const connHelper = require('../utils/ConnHelper');
+
+class VLLMWrapper {
+  constructor(apiBaseUrl) {
+    this.client = new FetchClient({
+      baseURL: apiBaseUrl,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  }
+
+  async generateText(params) {
+    const endpoint = '/v1/completions';
+    try {
+      return await this.client.post(endpoint, params);
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async generateChatText(params) {
+    const endpoint = '/v1/chat/completions';
+    try {
+      return await this.client.post(endpoint, params);
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async getEmbeddings(texts) {
+    const endpoint = '/embed';
+    try {
+      return await this.client.post(endpoint, { texts });
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+}
+
+module.exports = VLLMWrapper;
+
+},{"../utils/ConnHelper":30,"../utils/FetchClient":31}]},{},[12])(12)
 });

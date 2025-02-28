@@ -8,39 +8,39 @@ STABILITY_API_KEY=<key_value>
 
 
 2- run openAI wrapper unit test cases:
-node test/OpenAIWrapper.test.js
+node test/integration/OpenAIWrapper.test.js
 
 
 3- run cohere wrapper unit test cases:
-node test/CohereAIWrapper.test.js
+node test/integration/CohereAIWrapper.test.js
 
 
 4- run Google wrapper unit test cases:
-node test/GoogleAIWrapper.test.js
+node test/integration/GoogleAIWrapper.test.js
 
 
 ## Input objects ##
 
 1- Language model input test cases:
-node test/LanguageModelInput.test.js
+node test/integration/LanguageModelInput.test.js
 
 
 
 ## Remote models ##
 1- run the remote language models test cases:
-node test/RemoteLanguageModel.test.js
+node test/integration/RemoteLanguageModel.test.js
 
 
 2- run the remote image models test cases:
-node test/RemoteImageModel.test.js
+node test/integration/RemoteImageModel.test.js
 
 
 3- run the remote speech models test cases:
-node test/RemoteSpeechModel.test.js
+node test/integration/RemoteSpeechModel.test.js
 
 
 4- run the chatBot test cases:
-node test/Chatbot.test.js
+node test/integration/Chatbot.test.js
 
 # publish command
 # npm publish

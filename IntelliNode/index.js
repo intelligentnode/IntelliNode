@@ -45,7 +45,8 @@ const {
   MistralInput,
   GeminiInput,
   AnthropicInput,
-  NvidiaInput
+  NvidiaInput,
+  VLLMInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
@@ -63,6 +64,7 @@ const MistralAIWrapper = require('./wrappers/MistralAIWrapper');
 const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('./wrappers/AnthropicWrapper');
 const NvidiaWrapper = require('./wrappers/NvidiaWrapper');
+const VLLMWrapper = require('./wrappers/VLLMWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -129,4 +131,6 @@ module.exports = {
   AnthropicWrapper,
   NvidiaInput,
   NvidiaWrapper,
+  VLLMWrapper,
+  VLLMInput
 };
