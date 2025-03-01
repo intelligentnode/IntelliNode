@@ -142,7 +142,8 @@ class Chatbot {
             let result = await this._chatNvidia(modelInput);
             return modelInput.attachReference ? { result: result, references } : result;
         } else if (this.provider === SupportedChatModels.VLLM) {
-            return await this._chatVLLM(modelInput);
+            let result = await this._chatVLLM(modelInput);
+            return modelInput.attachReference ? { result: result, references } : result;
         } else {
             throw new Error("The provider is not supported");
         }
