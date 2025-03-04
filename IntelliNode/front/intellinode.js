@@ -625,8 +625,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('../wrappers/AWSEndpointWrapper');
-const { GPTStreamParser } = require('../utils/StreamParser');
-const { CohereStreamParser } = require('../utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser, VLLMStreamParser } = require('../utils/StreamParser');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const IntellicloudWrapper = require("../wrappers/IntellicloudWrapper");
 const MistralAIWrapper = require('../wrappers/MistralAIWrapper');
@@ -647,7 +646,8 @@ const {
     MistralInput,
     GeminiInput,
     AnthropicInput,
-    NvidiaInput
+    NvidiaInput,
+    VLLMInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
@@ -759,7 +759,8 @@ class Chatbot {
             let result = await this._chatNvidia(modelInput);
             return modelInput.attachReference ? { result: result, references } : result;
         } else if (this.provider === SupportedChatModels.VLLM) {
-            return await this._chatVLLM(modelInput);
+            let result = await this._chatVLLM(modelInput);
+            return modelInput.attachReference ? { result: result, references } : result;
         } else {
             throw new Error("The provider is not supported");
         }
@@ -775,9 +776,48 @@ class Chatbot {
             yield* this._streamCohere(modelInput)
         } else if (this.provider === SupportedChatModels.NVIDIA) {
             yield* this._streamNvidia(modelInput);
+        } else if (this.provider === SupportedChatModels.VLLM) {
+            yield* this._streamVLLM(modelInput);
         } else {
             throw new Error("The stream function support only chatGPT, for other providers use chat function.");
         }
+    }
+
+    async *_streamVLLM(modelInput) {
+      let params = modelInput instanceof VLLMInput ? modelInput.getChatInput() : modelInput;
+      params.stream = true;
+
+      // Check for completion-only models
+      const completionOnlyModels = ["google/gemma-2-2b-it"];
+      const isCompletionOnly = completionOnlyModels.includes(params.model);
+
+      let stream;
+      if (isCompletionOnly) {
+        // Convert messages to prompt string
+        const promptMessages = params.messages
+          .map(msg => `${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}: ${msg.content}`)
+          .join("\n") + "\nAssistant:";
+
+        const completionParams = {
+          model: params.model,
+          prompt: promptMessages,
+          max_tokens: params.max_tokens || 100,
+          temperature: params.temperature || 0.7,
+          stream: true
+        };
+
+        stream = await this.vllmWrapper.generateText(completionParams);
+      } else {
+        stream = await this.vllmWrapper.generateChatText(params);
+      }
+
+      const streamParser = new VLLMStreamParser();
+
+      // Process the streaming response
+      for await (const chunk of stream) {
+        const chunkText = chunk.toString('utf8');
+        yield* streamParser.feed(chunkText);
+      }
     }
 
     async getSemanticSearchContext(modelInput) {
@@ -1621,7 +1661,7 @@ const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
-const { GPTStreamParser, CohereStreamParser} = require('./utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser, VLLMStreamParser} = require('./utils/StreamParser');
 const ChatContext = require('./utils/ChatContext');
 
 module.exports = {
@@ -1680,7 +1720,8 @@ module.exports = {
   NvidiaInput,
   NvidiaWrapper,
   VLLMWrapper,
-  VLLMInput
+  VLLMInput,
+  VLLMStreamParser
 };
 
 },{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":28,"./utils/ChatContext":29,"./utils/ConnHelper":30,"./utils/LLMEvaluation":33,"./utils/MatchHelpers":34,"./utils/Prompt":36,"./utils/ProxyHelper":37,"./utils/StreamParser":38,"./utils/SystemHelper":39,"./wrappers/AWSEndpointWrapper":40,"./wrappers/AnthropicWrapper":41,"./wrappers/CohereAIWrapper":42,"./wrappers/GeminiAIWrapper":43,"./wrappers/GoogleAIWrapper":44,"./wrappers/HuggingWrapper":45,"./wrappers/IntellicloudWrapper":46,"./wrappers/MistralAIWrapper":47,"./wrappers/NvidiaWrapper":48,"./wrappers/OpenAIWrapper":49,"./wrappers/ReplicateWrapper":50,"./wrappers/StabilityAIWrapper":51,"./wrappers/VLLMWrapper":52}],13:[function(require,module,exports){
@@ -6852,6 +6893,75 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 class GPTStreamParser {
+    constructor(isLog = false) {
+        this.buffer = '';
+        this.isLog = isLog;
+    }
+
+    async * feed(data) {
+        this.buffer += data;
+
+        // check if the buffer contains events
+        while (this.buffer.includes('\n\n')) {
+            // find the end of the first complete event
+            const eventEndIndex = this.buffer.indexOf('\n\n');
+            let rawData = this.buffer.slice(0, eventEndIndex).trim();
+
+            // remove the processed event
+            this.buffer = this.buffer.slice(eventEndIndex + 2);
+
+            // look for the stop signal
+            if (rawData === "data: [DONE]") {
+                if (this.isLog) {
+                    console.log("Parsing finished.");
+                }
+                // stop processing if the stream is done
+                return;
+            }
+
+            // skip lines without "data: "
+            if (!rawData.startsWith("data: ")) {
+                continue;
+            }
+
+            try {
+                // parse the JSON
+                const jsonData = JSON.parse(rawData.substring(6));
+                const contentText = jsonData.choices?.[0]?.delta?.content;
+                if (contentText) {
+                    yield contentText;
+                }
+            } catch (error) {
+                console.error("Error parsing JSON in stream:", error);
+            }
+        }
+    }
+}
+class CohereStreamParser {
+    constructor(isLog = false) {
+        this.buffer = '';
+        this.isLog = false;
+    }
+
+    async * feed(data) {
+        this.buffer += data;
+
+        if (this.buffer.includes('\n')) {
+            const eventEndIndex = this.buffer.indexOf('\n');
+            const rawData = this.buffer.slice(0, eventEndIndex + 1).trim();
+
+            // Convert the rawData into JSON format
+            const jsonData = JSON.parse(rawData);
+            const contentText = jsonData.text;
+            if (contentText) {
+                yield contentText;
+            }
+            this.buffer = this.buffer.slice(eventEndIndex + 1);
+        }
+    }
+}
+
+class VLLMStreamParser {
   constructor(isLog = false) {
     this.buffer = '';
     this.isLog = isLog;
@@ -6860,33 +6970,42 @@ class GPTStreamParser {
   async *feed(data) {
     this.buffer += data;
 
-    // check if the buffer contains events
+    // Check if the buffer contains events
     while (this.buffer.includes('\n\n')) {
-      // find the end of the first complete event
       const eventEndIndex = this.buffer.indexOf('\n\n');
       let rawData = this.buffer.slice(0, eventEndIndex).trim();
-      
-      // remove the processed event
+
+      // Remove the processed event
       this.buffer = this.buffer.slice(eventEndIndex + 2);
 
-      // look for the stop signal
+      // Look for the stop signal
       if (rawData === "data: [DONE]") {
         if (this.isLog) {
           console.log("Parsing finished.");
         }
-        // stop processing if the stream is done
-        return; 
+        return;
       }
 
-      // skip lines without "data: "
+      // Skip lines without "data: "
       if (!rawData.startsWith("data: ")) {
         continue;
       }
-      
+
       try {
-        // parse the JSON
+        // Parse the JSON
         const jsonData = JSON.parse(rawData.substring(6));
-        const contentText = jsonData.choices?.[0]?.delta?.content;
+
+        // Handle both completion and chat completion formats
+        let contentText = null;
+
+        if (jsonData.choices?.[0]?.text) {
+          // Text completion format
+          contentText = jsonData.choices[0].text;
+        } else if (jsonData.choices?.[0]?.delta?.content) {
+          // Chat completion format
+          contentText = jsonData.choices[0].delta.content;
+        }
+
         if (contentText) {
           yield contentText;
         }
@@ -6896,31 +7015,13 @@ class GPTStreamParser {
     }
   }
 }
-class CohereStreamParser {
-    constructor(isLog = false) {
-      this.buffer = '';
-      this.isLog = false;
-    }
-  
-    async *feed(data) {
-      this.buffer += data;
-  
-      if (this.buffer.includes('\n')) {
-        const eventEndIndex = this.buffer.indexOf('\n');
-        const rawData = this.buffer.slice(0, eventEndIndex + 1).trim();
-  
-        // Convert the rawData into JSON format
-        const jsonData = JSON.parse(rawData);
-        const contentText = jsonData.text;
-        if (contentText) {
-          yield contentText;
-        }
-        this.buffer = this.buffer.slice(eventEndIndex + 1);
-      }
-    }
-  }
 
-module.exports = {GPTStreamParser, CohereStreamParser};
+
+module.exports = {
+    GPTStreamParser,
+    CohereStreamParser,
+    VLLMStreamParser
+};
 },{}],39:[function(require,module,exports){
 (function (__dirname){(function (){
 const FileHelper = require('./FileHelper')
@@ -8133,7 +8234,8 @@ class VLLMWrapper {
   async generateText(params) {
     const endpoint = '/v1/completions';
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
@@ -8142,7 +8244,8 @@ class VLLMWrapper {
   async generateChatText(params) {
     const endpoint = '/v1/chat/completions';
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
@@ -8159,6 +8262,5 @@ class VLLMWrapper {
 }
 
 module.exports = VLLMWrapper;
-
 },{"../utils/ConnHelper":30,"../utils/FetchClient":31}]},{},[12])(12)
 });
