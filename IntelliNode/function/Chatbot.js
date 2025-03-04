@@ -8,8 +8,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('../wrappers/AWSEndpointWrapper');
-const { GPTStreamParser } = require('../utils/StreamParser');
-const { CohereStreamParser } = require('../utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser, VLLMStreamParser } = require('../utils/StreamParser');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const IntellicloudWrapper = require("../wrappers/IntellicloudWrapper");
 const MistralAIWrapper = require('../wrappers/MistralAIWrapper');
@@ -30,7 +29,8 @@ const {
     MistralInput,
     GeminiInput,
     AnthropicInput,
-    NvidiaInput
+    NvidiaInput,
+    VLLMInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
@@ -159,9 +159,48 @@ class Chatbot {
             yield* this._streamCohere(modelInput)
         } else if (this.provider === SupportedChatModels.NVIDIA) {
             yield* this._streamNvidia(modelInput);
+        } else if (this.provider === SupportedChatModels.VLLM) {
+            yield* this._streamVLLM(modelInput);
         } else {
             throw new Error("The stream function support only chatGPT, for other providers use chat function.");
         }
+    }
+
+    async *_streamVLLM(modelInput) {
+      let params = modelInput instanceof VLLMInput ? modelInput.getChatInput() : modelInput;
+      params.stream = true;
+
+      // Check for completion-only models
+      const completionOnlyModels = ["google/gemma-2-2b-it"];
+      const isCompletionOnly = completionOnlyModels.includes(params.model);
+
+      let stream;
+      if (isCompletionOnly) {
+        // Convert messages to prompt string
+        const promptMessages = params.messages
+          .map(msg => `${msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}: ${msg.content}`)
+          .join("\n") + "\nAssistant:";
+
+        const completionParams = {
+          model: params.model,
+          prompt: promptMessages,
+          max_tokens: params.max_tokens || 100,
+          temperature: params.temperature || 0.7,
+          stream: true
+        };
+
+        stream = await this.vllmWrapper.generateText(completionParams);
+      } else {
+        stream = await this.vllmWrapper.generateChatText(params);
+      }
+
+      const streamParser = new VLLMStreamParser();
+
+      // Process the streaming response
+      for await (const chunk of stream) {
+        const chunkText = chunk.toString('utf8');
+        yield* streamParser.feed(chunkText);
+      }
     }
 
     async getSemanticSearchContext(modelInput) {

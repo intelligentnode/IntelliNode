@@ -14,7 +14,8 @@ class VLLMWrapper {
   async generateText(params) {
     const endpoint = '/v1/completions';
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
@@ -23,7 +24,8 @@ class VLLMWrapper {
   async generateChatText(params) {
     const endpoint = '/v1/chat/completions';
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }

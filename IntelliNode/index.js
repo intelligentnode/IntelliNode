@@ -73,7 +73,7 @@ const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
-const { GPTStreamParser, CohereStreamParser} = require('./utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser, VLLMStreamParser} = require('./utils/StreamParser');
 const ChatContext = require('./utils/ChatContext');
 
 module.exports = {
@@ -132,5 +132,6 @@ module.exports = {
   NvidiaInput,
   NvidiaWrapper,
   VLLMWrapper,
-  VLLMInput
+  VLLMInput,
+  VLLMStreamParser
 };
