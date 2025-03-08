@@ -254,18 +254,11 @@ The module foundation:
 Call for contributors:
 [registration form ](https://forms.gle/2JsEHAMaj2eMQHYc9).
 
-- [x] Add support to OpenAI completion & GPT4.
-- [x] Add support to OpenAI DALL·E 2.
-- [ ] Add support to other OpenAI functions.
-- [x] Add support to cohere generate models.
-- [ ] Add support to Google language models.
-- [x] Add support to Google speech models.
-- [x] Add support to LLaMa AWS private deployment.
-- [ ] Add support to Anthropic claude.
-- [ ] Add support to Midjourney image generation.
-- [x] Add support to Stable diffusion.
-- [x] Add support to hugging face inference.
-- [x] Add more high-level functions like semantic search, evaluation, etc.
+- [x] Add support for vllm offline models.
+- [x] Add support for Nvidia Nim for local and remote models
+- [x] Evaluate multiple models using a few lines.
+- [x] Add Gen function to do complex business cases with one command.
+- [ ] Audd auto agent capabilities.
 
 
 # License
