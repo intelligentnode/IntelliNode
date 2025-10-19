@@ -9,6 +9,7 @@ module.exports={
       "base": "https://api.openai.com",
       "completions": "/v1/completions",
       "chatgpt": "/v1/chat/completions",
+      "responses": "/v1/responses",
       "imagegenerate": "/v1/images/generations",
       "embeddings": "/v1/embeddings",
       "audiotranscriptions": "/v1/audio/transcriptions",
@@ -21,6 +22,7 @@ module.exports={
       "base": "https://{resource-name}.openai.azure.com/openai",
       "completions": "/deployments/{deployment-id}/completions?api-version={api-version}",
       "chatgpt": "/deployments/{deployment-id}/chat/completions?api-version={api-version}",
+      "responses": "/deployments/{deployment-id}/responses?api-version={api-version}",
       "imagegenerate": "/images/generations:submit?api-version={api-version}",
       "embeddings": "/deployments/{deployment-id}/embeddings?api-version={api-version}",
       "audiotranscriptions": "/deployments/{deployment-id}/audio/transcriptions?api-version={api-version}",
@@ -259,7 +261,7 @@ module.exports = {
   RemoteEmbedModel,
   SupportedEmbedModels,
 };
-},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":42,"../wrappers/GeminiAIWrapper":43,"../wrappers/OpenAIWrapper":49,"../wrappers/ReplicateWrapper":50,"../wrappers/VLLMWrapper":52}],3:[function(require,module,exports){
+},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":43,"../wrappers/GeminiAIWrapper":44,"../wrappers/OpenAIWrapper":50,"../wrappers/ReplicateWrapper":51,"../wrappers/VLLMWrapper":53}],3:[function(require,module,exports){
 /*
 Apache License
 
@@ -345,7 +347,7 @@ module.exports = {
     SupportedFineTuneModels,
 };
 
-},{"../model/input/FineTuneInput":15,"../wrappers/OpenAIWrapper":49}],4:[function(require,module,exports){
+},{"../model/input/FineTuneInput":15,"../wrappers/OpenAIWrapper":50}],4:[function(require,module,exports){
 /*
 Apache License
 
@@ -444,7 +446,7 @@ module.exports = {
   RemoteImageModel,
   SupportedImageModels,
 };
-},{"../model/input/ImageModelInput":17,"../wrappers/OpenAIWrapper":49,"../wrappers/StabilityAIWrapper":51}],5:[function(require,module,exports){
+},{"../model/input/ImageModelInput":17,"../wrappers/OpenAIWrapper":50,"../wrappers/StabilityAIWrapper":52}],5:[function(require,module,exports){
 /*
 Apache License
 
@@ -527,7 +529,7 @@ module.exports = {
   RemoteLanguageModel,
   SupportedLangModels,
 };
-},{"../model/input/LanguageModelInput":18,"../wrappers/CohereAIWrapper":42,"../wrappers/OpenAIWrapper":49}],6:[function(require,module,exports){
+},{"../model/input/LanguageModelInput":18,"../wrappers/CohereAIWrapper":43,"../wrappers/OpenAIWrapper":50}],6:[function(require,module,exports){
 /*
 Apache License
 
@@ -614,7 +616,7 @@ module.exports = {
   SupportedSpeechModels,
 };
 
-},{"../model/input/Text2SpeechInput":19,"../wrappers/GoogleAIWrapper":44,"../wrappers/OpenAIWrapper":49}],7:[function(require,module,exports){
+},{"../model/input/Text2SpeechInput":19,"../wrappers/GoogleAIWrapper":45,"../wrappers/OpenAIWrapper":50}],7:[function(require,module,exports){
 /*
 Apache License
 
@@ -932,6 +934,15 @@ class Chatbot {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
 
+        // Check if this is GPT-5
+        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
+        
+        if (isGPT5) {
+            // GPT-5 doesn't support streaming in the same way
+            // For now, throw an error or handle as non-streaming
+            throw new Error("GPT-5 streaming is not yet supported. Please use the chat() method instead.");
+        }
+
         const streamParser = new GPTStreamParser();
 
         const stream = await this.openaiWrapper.generateChatText(params);
@@ -955,17 +966,42 @@ class Chatbot {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
 
-        const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
-        return results.choices.map((choice) => {
-            if (choice.finish_reason === 'function_call' && choice.message.function_call) {
-                return {
-                    content: choice.message.content,
-                    function_call: choice.message.function_call
-                };
-            } else {
-                return choice.message.content;
+        // Check if this is GPT-5
+        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
+        
+        if (isGPT5) {
+            // GPT-5 uses different endpoint and response format
+            const results = await this.openaiWrapper.generateGPT5Response(params);
+            // GPT-5 response format: { output: [ {type: 'reasoning'}, {type: 'message', content: [...]} ] }
+            if (results.output && Array.isArray(results.output)) {
+                // Extract text from the message content
+                const messageObjects = results.output.filter(item => item.type === 'message');
+                const responses = messageObjects.map(msg => {
+                    if (msg.content && Array.isArray(msg.content)) {
+                        return msg.content.map(c => c.text || c).join('');
+                    }
+                    return msg.content || '';
+                });
+                return responses.length > 0 ? responses : [''];
+            } else if (results.choices && results.choices.length > 0) {
+                // Fallback to choices format if available
+                return results.choices.map(choice => choice.output || choice.text || choice.message?.content);
             }
-        });
+            return [''];
+        } else {
+            // Standard chat completion for GPT-4 and others
+            const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
+            return results.choices.map((choice) => {
+                if (choice.finish_reason === 'function_call' && choice.message.function_call) {
+                    return {
+                        content: choice.message.content,
+                        function_call: choice.message.function_call
+                    };
+                } else {
+                    return choice.message.content;
+                }
+            });
+        }
     }
 
     async _chatReplicateLLama(modelInput, debugMode) {
@@ -1178,7 +1214,7 @@ module.exports = {
     Chatbot,
     SupportedChatModels,
 };
-},{"../model/input/ChatModelInput":13,"../utils/StreamParser":38,"../utils/SystemHelper":39,"../wrappers/AWSEndpointWrapper":40,"../wrappers/AnthropicWrapper":41,"../wrappers/CohereAIWrapper":42,"../wrappers/GeminiAIWrapper":43,"../wrappers/IntellicloudWrapper":46,"../wrappers/MistralAIWrapper":47,"../wrappers/NvidiaWrapper":48,"../wrappers/OpenAIWrapper":49,"../wrappers/ReplicateWrapper":50,"../wrappers/VLLMWrapper":52}],8:[function(require,module,exports){
+},{"../model/input/ChatModelInput":13,"../utils/StreamParser":39,"../utils/SystemHelper":40,"../wrappers/AWSEndpointWrapper":41,"../wrappers/AnthropicWrapper":42,"../wrappers/CohereAIWrapper":43,"../wrappers/GeminiAIWrapper":44,"../wrappers/IntellicloudWrapper":47,"../wrappers/MistralAIWrapper":48,"../wrappers/NvidiaWrapper":49,"../wrappers/OpenAIWrapper":50,"../wrappers/ReplicateWrapper":51,"../wrappers/VLLMWrapper":53}],8:[function(require,module,exports){
 (function (Buffer){(function (){
 // Gen.js
 const { RemoteLanguageModel } = require("../controller/RemoteLanguageModel");
@@ -1408,7 +1444,7 @@ class Gen {
 module.exports = { Gen };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/ImageModelInput":17,"../model/input/LanguageModelInput":18,"../model/input/Text2SpeechInput":19,"../utils/FileHelper":32,"../utils/Prompt":36,"../utils/SystemHelper":39,"buffer":22,"path":26}],9:[function(require,module,exports){
+},{"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/ImageModelInput":17,"../model/input/LanguageModelInput":18,"../model/input/Text2SpeechInput":19,"../utils/FileHelper":32,"../utils/Prompt":37,"../utils/SystemHelper":40,"buffer":22,"path":26}],9:[function(require,module,exports){
 /*
 Apache License
 
@@ -1490,7 +1526,7 @@ class SemanticSearch {
 
 module.exports = { SemanticSearch };
 
-},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":14,"../utils/MatchHelpers":34}],10:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":14,"../utils/MatchHelpers":35}],10:[function(require,module,exports){
 const { SemanticSearch } = require('./SemanticSearch'); // assuming path
 
 class SemanticSearchPaging extends SemanticSearch {
@@ -1585,7 +1621,7 @@ class TextAnalyzer {
 }
 
 module.exports = { TextAnalyzer };
-},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":18,"../utils/SystemHelper":39}],12:[function(require,module,exports){
+},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":18,"../utils/SystemHelper":40}],12:[function(require,module,exports){
 // controllers
 const {
   RemoteLanguageModel,
@@ -1663,6 +1699,7 @@ const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
 const { GPTStreamParser, CohereStreamParser, VLLMStreamParser} = require('./utils/StreamParser');
 const ChatContext = require('./utils/ChatContext');
+const MCPClient = require('./utils/MCPClient');
 
 module.exports = {
   RemoteLanguageModel,
@@ -1721,10 +1758,11 @@ module.exports = {
   NvidiaWrapper,
   VLLMWrapper,
   VLLMInput,
-  VLLMStreamParser
+  VLLMStreamParser,
+  MCPClient
 };
 
-},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":28,"./utils/ChatContext":29,"./utils/ConnHelper":30,"./utils/LLMEvaluation":33,"./utils/MatchHelpers":34,"./utils/Prompt":36,"./utils/ProxyHelper":37,"./utils/StreamParser":38,"./utils/SystemHelper":39,"./wrappers/AWSEndpointWrapper":40,"./wrappers/AnthropicWrapper":41,"./wrappers/CohereAIWrapper":42,"./wrappers/GeminiAIWrapper":43,"./wrappers/GoogleAIWrapper":44,"./wrappers/HuggingWrapper":45,"./wrappers/IntellicloudWrapper":46,"./wrappers/MistralAIWrapper":47,"./wrappers/NvidiaWrapper":48,"./wrappers/OpenAIWrapper":49,"./wrappers/ReplicateWrapper":50,"./wrappers/StabilityAIWrapper":51,"./wrappers/VLLMWrapper":52}],13:[function(require,module,exports){
+},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":28,"./utils/ChatContext":29,"./utils/ConnHelper":30,"./utils/LLMEvaluation":33,"./utils/MCPClient":34,"./utils/MatchHelpers":35,"./utils/Prompt":37,"./utils/ProxyHelper":38,"./utils/StreamParser":39,"./utils/SystemHelper":40,"./wrappers/AWSEndpointWrapper":41,"./wrappers/AnthropicWrapper":42,"./wrappers/CohereAIWrapper":43,"./wrappers/GeminiAIWrapper":44,"./wrappers/GoogleAIWrapper":45,"./wrappers/HuggingWrapper":46,"./wrappers/IntellicloudWrapper":47,"./wrappers/MistralAIWrapper":48,"./wrappers/NvidiaWrapper":49,"./wrappers/OpenAIWrapper":50,"./wrappers/ReplicateWrapper":51,"./wrappers/StabilityAIWrapper":52,"./wrappers/VLLMWrapper":53}],13:[function(require,module,exports){
 /*
 Apache License
 
@@ -1772,10 +1810,11 @@ class ChatGPTInput extends ChatModelInput {
         'The input type should be system to define the chatbot theme or instructions.'
       );
     }
-    this.model = options.model || 'gpt-4o';
+    this.model = options.model || 'gpt-5';
     this.temperature = options.temperature || 1;
     this.maxTokens = options.maxTokens || null;
     this.numberOfOutputs = 1;
+    this.effort = options.effort || 'low'; // GPT-5 reasoning effort: minimal, low, medium, high
   }
 
   addMessage(message) {
@@ -1831,15 +1870,34 @@ class ChatGPTInput extends ChatModelInput {
       }
     });
 
-    const params = {
-      model: this.model,
-      messages: messages,
-      ...(this.temperature && { temperature: this.temperature }),
-      ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
-      ...(this.maxTokens && { max_tokens: this.maxTokens }),
-    };
-
-    return params;
+    // Check if this is GPT-5
+    const isGPT5 = this.model && this.model.toLowerCase().includes('gpt-5');
+    
+    if (isGPT5) {
+      // GPT-5 uses different format: input instead of messages
+      // Combine messages into a single input string
+      const input = messages
+        .map(msg => `${msg.role}: ${msg.content}`)
+        .join('\n');
+      
+      const params = {
+        model: this.model,
+        input: input,
+        reasoning: { effort: this.effort },
+        ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
+      };
+      return params;
+    } else {
+      // Standard chat completion format for GPT-4 and others
+      const params = {
+        model: this.model,
+        messages: messages,
+        ...(this.temperature && { temperature: this.temperature }),
+        ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
+        ...(this.maxTokens && { max_tokens: this.maxTokens }),
+      };
+      return params;
+    }
   }
 }
 
@@ -6578,7 +6636,151 @@ class LLMEvaluation extends ModelEvaluation {
 module.exports = {
   LLMEvaluation
 };
-},{"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/EmbedInput":14,"../model/input/LanguageModelInput":18,"../utils/MatchHelpers":34,"./ModelEvaluation":35}],34:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/EmbedInput":14,"../model/input/LanguageModelInput":18,"../utils/MatchHelpers":35,"./ModelEvaluation":36}],34:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const fetch = require('cross-fetch');
+const connHelper = require('./ConnHelper');
+
+/**
+ * MCPClient - Simple Model Context Protocol client for connecting to MCP servers
+ * Supports HTTP/SSE transport for tool execution and data retrieval
+ * 
+ * Usage:
+ * const mcpClient = new MCPClient('http://localhost:3000');
+ * const tools = await mcpClient.getTools();
+ * const result = await mcpClient.callTool('tool_name', { param: 'value' });
+ */
+class MCPClient {
+  constructor(serverUrl) {
+    this.serverUrl = serverUrl.replace(/\/$/, ''); // remove trailing slash
+    this.requestId = 0;
+    this.tools = [];
+  }
+
+  /**
+   * Initialize connection to MCP server and fetch available tools
+   */
+  async initialize() {
+    try {
+      this.tools = await this.getTools();
+      return this.tools;
+    } catch (error) {
+      throw new Error(`Failed to initialize MCP client: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all available tools from MCP server
+   */
+  async getTools() {
+    try {
+      const response = await fetch(`${this.serverUrl}/mcp/tools`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.tools || [];
+    } catch (error) {
+      throw new Error(`Failed to fetch tools from MCP server: ${error.message}`);
+    }
+  }
+
+  /**
+   * Call a specific tool on the MCP server
+   * @param {string} toolName - Name of the tool to call
+   * @param {object} input - Input parameters for the tool
+   * @returns {Promise<object>} Tool execution result
+   */
+  async callTool(toolName, input = {}) {
+    try {
+      const tool = this.tools.find(t => t.name === toolName);
+      if (!tool) {
+        throw new Error(`Tool '${toolName}' not found on MCP server`);
+      }
+
+      const payload = {
+        jsonrpc: '2.0',
+        id: ++this.requestId,
+        method: 'tools/call',
+        params: {
+          name: toolName,
+          arguments: input
+        }
+      };
+
+      const response = await fetch(`${this.serverUrl}/mcp/call`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(`Tool execution error: ${data.error.message}`);
+      }
+
+      return data.result || data;
+    } catch (error) {
+      throw new Error(`Failed to call tool '${toolName}': ${error.message}`);
+    }
+  }
+
+  /**
+   * Get tool by name with full details
+   */
+  getTool(toolName) {
+    return this.tools.find(t => t.name === toolName) || null;
+  }
+
+  /**
+   * Get all tool names
+   */
+  getToolNames() {
+    return this.tools.map(t => t.name);
+  }
+
+  /**
+   * Check if a tool exists
+   */
+  hasTool(toolName) {
+    return this.tools.some(t => t.name === toolName);
+  }
+
+  /**
+   * List tools with descriptions
+   */
+  listTools() {
+    return this.tools.map(tool => ({
+      name: tool.name,
+      description: tool.description || 'No description available',
+      inputSchema: tool.inputSchema || {}
+    }));
+  }
+}
+
+module.exports = MCPClient;
+
+},{"./ConnHelper":30,"cross-fetch":23}],35:[function(require,module,exports){
 /*
 Apache License
 
@@ -6624,7 +6826,7 @@ class MatchHelpers {
 }
 
 module.exports = MatchHelpers;
-},{}],35:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 class ModelEvaluation {
 
   constructor() {}
@@ -6633,7 +6835,7 @@ class ModelEvaluation {
 module.exports = {
   ModelEvaluation
 };
-},{}],36:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 const FileHelper = require('./FileHelper')
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
@@ -6690,7 +6892,7 @@ class Prompt {
 }
 
 module.exports = Prompt;
-},{"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../utils/SystemHelper":39,"./FileHelper":32}],37:[function(require,module,exports){
+},{"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../utils/SystemHelper":40,"./FileHelper":32}],38:[function(require,module,exports){
 const config = require('../config.json');
 
 
@@ -6729,6 +6931,16 @@ class ProxyHelper {
         .replace('{api-version}', ProxyHelper.API_VERSION);
     } else {
       return this._openaiChatGPT;
+    }
+  }
+
+  getOpenaiResponses(model = '') {
+    if (this._openai_type == 'azure') {
+      return this._openaiResponses
+        .replace('{deployment-id}', model)
+        .replace('{api-version}', ProxyHelper.API_VERSION);
+    } else {
+      return this._openaiResponses;
     }
   }
 
@@ -6821,6 +7033,8 @@ class ProxyHelper {
       proxySettings.completions || config.url.openai.completions;
     this._openaiChatGPT =
       proxySettings.chatgpt || config.url.openai.chatgpt;
+    this._openaiResponses =
+      proxySettings.responses || config.url.openai.responses;
     this._openaiImage =
       proxySettings.imagegenerate || config.url.openai.imagegenerate;
     this._openaiEmbed =
@@ -6854,6 +7068,7 @@ class ProxyHelper {
     );
     this._openaiCompletion = config.url.azure_openai.completions;
     this._openaiChatGPT = config.url.azure_openai.chatgpt;
+    this._openaiResponses = config.url.azure_openai.responses;
     this._openaiImage = config.url.azure_openai.imagegenerate;
     this._openaiEmbed = config.url.azure_openai.embeddings;
     this._openaiAudioTranscriptions = config.url.azure_openai.audiotranscriptions;
@@ -6868,6 +7083,7 @@ class ProxyHelper {
     this._openaiURL = config.url.openai.base;
     this._openaiCompletion = config.url.openai.completions;
     this._openaiChatGPT = config.url.openai.chatgpt;
+    this._openaiResponses = config.url.openai.responses;
     this._openaiImage = config.url.openai.imagegenerate;
     this._openaiEmbed = config.url.openai.embeddings;
     this._openaiOrg = config.url.openai.organization;
@@ -6884,7 +7100,7 @@ ProxyHelper.API_VERSION = '2023-12-01-preview'
 
 module.exports = ProxyHelper;
 
-},{"../config.json":1}],38:[function(require,module,exports){
+},{"../config.json":1}],39:[function(require,module,exports){
 /*
 Apache License
 
@@ -7022,7 +7238,7 @@ module.exports = {
     CohereStreamParser,
     VLLMStreamParser
 };
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 (function (__dirname){(function (){
 const FileHelper = require('./FileHelper')
 const path = require("path");
@@ -7081,7 +7297,7 @@ class SystemHelper {
 
 module.exports = SystemHelper;
 }).call(this)}).call(this,"/utils")
-},{"./FileHelper":32,"path":26}],40:[function(require,module,exports){
+},{"./FileHelper":32,"path":26}],41:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 
 class AWSEndpointWrapper {
@@ -7114,7 +7330,7 @@ class AWSEndpointWrapper {
 
 module.exports = AWSEndpointWrapper;
 
-},{"../utils/FetchClient":31}],41:[function(require,module,exports){
+},{"../utils/FetchClient":31}],42:[function(require,module,exports){
 /*
 Apache License
 
@@ -7157,7 +7373,7 @@ class AnthropicWrapper {
 
 module.exports = AnthropicWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],42:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],43:[function(require,module,exports){
 /*
 Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
@@ -7214,7 +7430,7 @@ class CohereAIWrapper {
 module.exports = CohereAIWrapper;
 
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],43:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],44:[function(require,module,exports){
 const config = require('../config.json');
 const { readFileSync } = require('fs');
 const connHelper = require('../utils/ConnHelper');
@@ -7290,7 +7506,7 @@ class GeminiAIWrapper {
 
 module.exports = GeminiAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"fs":21}],44:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"fs":21}],45:[function(require,module,exports){
 /*
 Apache License
 */
@@ -7355,7 +7571,7 @@ class GoogleAIWrapper {
 
 module.exports = GoogleAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],45:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],46:[function(require,module,exports){
 (function (Buffer){(function (){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
@@ -7408,7 +7624,7 @@ class HuggingWrapper {
 module.exports = HuggingWrapper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"buffer":22}],46:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"buffer":22}],47:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const FormData = require('form-data');
@@ -7458,7 +7674,7 @@ class IntellicloudWrapper {
 
 module.exports = IntellicloudWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24}],47:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24}],48:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -7500,7 +7716,7 @@ class MistralAIWrapper {
 
 module.exports = MistralAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],48:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],49:[function(require,module,exports){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
@@ -7581,7 +7797,7 @@ class NvidiaWrapper {
 
 module.exports = NvidiaWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],49:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],50:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const ProxyHelper = require('../utils/ProxyHelper');
@@ -7746,11 +7962,21 @@ class OpenAIWrapper {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
+
+  async generateGPT5Response(params) {
+    const endpoint = this.proxyHelper.getOpenaiResponses(params.model);
+    
+    try {
+      return await this.client.post(endpoint, params);
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
 }
 
 module.exports = OpenAIWrapper;
 
-},{"../utils/ConnHelper":30,"../utils/FetchClient":31,"../utils/ProxyHelper":37}],50:[function(require,module,exports){
+},{"../utils/ConnHelper":30,"../utils/FetchClient":31,"../utils/ProxyHelper":38}],51:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -7793,7 +8019,7 @@ class ReplicateWrapper {
 
 module.exports = ReplicateWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],51:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],52:[function(require,module,exports){
 // wrappers/StabilityAIWrapper.js
 
 const FormData = require('form-data');
@@ -8217,7 +8443,7 @@ class StabilityAIWrapper {
 }
 
 module.exports = StabilityAIWrapper;
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24,"fs":21}],52:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24,"fs":21}],53:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 const connHelper = require('../utils/ConnHelper');
 
