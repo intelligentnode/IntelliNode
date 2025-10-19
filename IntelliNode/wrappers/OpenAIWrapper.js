@@ -162,6 +162,16 @@ class OpenAIWrapper {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
+
+  async generateGPT5Response(params) {
+    const endpoint = this.proxyHelper.getOpenaiResponses(params.model);
+    
+    try {
+      return await this.client.post(endpoint, params);
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
 }
 
 module.exports = OpenAIWrapper;

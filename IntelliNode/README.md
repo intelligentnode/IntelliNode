@@ -18,6 +18,7 @@
 Integrate your data with the latest language models and deep learning frameworks using intellinode **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
+- Add support for OpenAI GPT-5 with reasoning effort control. 🧠
 - Add support for self-hosted vLLM models.
 - Generate frontend version from intellinode.
 - Integrated Nvidia-hosted models (DeepSeek and Llama3 🦙).
@@ -39,13 +40,34 @@ Chat with your docs via Intellinode one key at [app.intellinode.ai](https://app.
 ```js
 const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
-2. call:
+2. call with GPT-5 (default):
 ```js
-// set chatGPT system mode and the user message.
+// GPT-5 is now the default model with medium reasoning effort
 const input = new ChatGPTInput('You are a helpful assistant.');
 input.addUserMessage('What is the distance between the Earth and the Moon?');
 
-// get chatGPT responses.
+// get GPT-5 responses.
+const bot = new Chatbot(openaiKey);
+const responses = await bot.chat(input);
+```
+3. control GPT-5 reasoning effort:
+```js
+// customize reasoning effort: minimal, low, medium, high
+const input = new ChatGPTInput('You are a helpful assistant.', { 
+  model: 'gpt-5',
+  effort: 'high'
+});
+input.addUserMessage('Explain quantum computing');
+
+const bot = new Chatbot(openaiKey);
+const responses = await bot.chat(input);
+```
+4. use GPT-4 for backward compatibility:
+```js
+// explicitly use GPT-4
+const input = new ChatGPTInput('You are a helpful assistant.', { model: 'gpt-4o' });
+input.addUserMessage('What is the distance between the Earth and the Moon?');
+
 const bot = new Chatbot(openaiKey);
 const responses = await bot.chat(input);
 ```
