@@ -16,10 +16,13 @@ Unified prompt, evaluation, and production integration to any large model
     <img src="https://img.shields.io/npm/v/intellinode?style=flat-square" />
 </a>
 
+<a href="https://www.jsdelivr.com/package/npm/intellinode" alt="licenses tag">
+    <img src="https://data.jsdelivr.com/v1/package/npm/intellinode/badge" />
+</a>
+
 <a href="https://opensource.org/licenses/Apache-2.0" alt="licenses tag">
     <img src="https://img.shields.io/github/license/intelligentnode/IntelliNode?style=flat-square" />
 </a>
-
 
 <a href="https://discord.gg/VYgCh2p3Ww" alt="Join our Discord community">
     <img src="https://img.shields.io/badge/Discord-join%20us-5865F2?style=flat-square&logo=discord&logoColor=white" />
