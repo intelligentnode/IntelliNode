@@ -62,15 +62,6 @@ input.addUserMessage('Explain quantum computing');
 const bot = new Chatbot(openaiKey);
 const responses = await bot.chat(input);
 ```
-4. use GPT-4 for backward compatibility:
-```js
-// explicitly use GPT-4
-const input = new ChatGPTInput('You are a helpful assistant.', { model: 'gpt-4o' });
-input.addUserMessage('What is the distance between the Earth and the Moon?');
-
-const bot = new Chatbot(openaiKey);
-const responses = await bot.chat(input);
-```
 
 ### Google Gemini Chatbot
 IntelliNode enable effortless swapping between AI models.
@@ -196,6 +187,30 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 ### Custom proxy
 Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js).
 
+### Model Context Protocol (MCP)
+Connect to external tools and data sources via MCP servers (good to have, not core):
+```js
+const { MCPClient } = require('intellinode');
+
+// Initialize MCP client pointing to your MCP server
+const mcpClient = new MCPClient('http://localhost:3000');
+
+// Fetch available tools from MCP server
+const tools = await mcpClient.initialize();
+console.log('Available tools:', mcpClient.getToolNames());
+
+// Call a tool
+const result = await mcpClient.callTool('get_weather', { 
+  location: 'New York',
+  units: 'celsius' 
+});
+
+// Use tools with your chatbot prompts
+const toolsList = mcpClient.listTools();
+console.log('Tools:', toolsList);
+```
+
+Supported MCP servers include: Filesystem, GitHub, Slack, Google Drive, and more. See [MCP Documentation](https://modelcontextprotocol.io) for available servers.
 
 # :closed_book: Documentation
 - [IntelliNode Docs](https://doc.intellinode.ai/docs/npm): Detailed documentation about IntelliNode.

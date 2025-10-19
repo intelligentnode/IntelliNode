@@ -75,6 +75,7 @@ const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
 const { GPTStreamParser, CohereStreamParser, VLLMStreamParser} = require('./utils/StreamParser');
 const ChatContext = require('./utils/ChatContext');
+const MCPClient = require('./utils/MCPClient');
 
 module.exports = {
   RemoteLanguageModel,
@@ -133,5 +134,6 @@ module.exports = {
   NvidiaWrapper,
   VLLMWrapper,
   VLLMInput,
-  VLLMStreamParser
+  VLLMStreamParser,
+  MCPClient
 };
