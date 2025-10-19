@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IntelliNode HTML Generator</title>
+  <style>
+    /* ---------- Reset & Base Styles ---------- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f6f8fa;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    /* ---------- Header ---------- */
+    header {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      padding: 2rem;
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    /* ---------- Main Container ---------- */
+    .main-container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    /* ---------- Two Column Layout ---------- */
+    .content-wrapper {
+      display: flex;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .config-panel, .preview-panel {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 2rem;
+    }
+
+    .config-panel {
+      flex: 0 0 500px;
+    }
+
+    .preview-panel {
+      flex: 1;
+      min-height: 600px;
+    }
+
+    @media (max-width: 1024px) {
+      .content-wrapper {
+        flex-direction: column;
+      }
+      .config-panel {
+        flex: 1;
+      }
+    }
+
+    /* ---------- Form Styles ---------- */
+    .field {
+      margin-bottom: 1.5rem;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #444;
+    }
+
+    .field input[type="text"],
+    .field input[type="password"],
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 2px solid #e1e4e8;
+      border-radius: 6px;
+      transition: border-color 0.3s ease;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    .field small {
+      display: block;
+      margin-top: 0.25rem;
+      color: #666;
+      font-size: 0.875rem;
+    }
+
+    /* ---------- Provider Toggle ---------- */
+    .provider-toggle {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .provider-btn {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 2px solid #e1e4e8;
+      background: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 600;
+    }
+
+    .provider-btn.active {
+      background: #667eea;
+      color: #fff;
+      border-color: #667eea;
+    }
+
+    .provider-btn:hover:not(.active) {
+      border-color: #667eea;
+      background: #f6f8fa;
+    }
+
+    /* ---------- Example Templates ---------- */
+    .template-examples {
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .template-btn {
+      padding: 0.5rem 1rem;
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .template-btn:hover {
+      background: #e1e4e8;
+      border-color: #667eea;
+    }
+
+    /* ---------- Action Buttons ---------- */
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #5a67d8;
+    }
+
+    .btn-secondary {
+      background: #48bb78;
+      color: #fff;
+    }
+
+    .btn-secondary:hover {
+      background: #38a169;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ---------- Preview Section ---------- */
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e1e4e8;
+    }
+
+    .preview-header h3 {
+      color: #444;
+    }
+
+    .preview-controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .preview-controls button {
+      padding: 0.5rem 1rem;
+      background: #fff;
+      border: 1px solid #e1e4e8;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .preview-controls button:hover {
+      background: #f6f8fa;
+      border-color: #667eea;
+    }
+
+    /* ---------- iFrame Preview ---------- */
+    #previewFrame {
+      width: 100%;
+      height: 600px;
+      border: 2px solid #e1e4e8;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    /* ---------- Status Messages ---------- */
+    .status-message {
+      padding: 1rem;
+      border-radius: 6px;
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    .status-loading {
+      background: #e6f7ff;
+      color: #1890ff;
+      border: 1px solid #91d5ff;
+    }
+
+    .status-success {
+      background: #f0f9ff;
+      color: #52c41a;
+      border: 1px solid #b7eb8f;
+    }
+
+    .status-error {
+      background: #fff2f0;
+      color: #ff4d4f;
+      border: 1px solid #ffccc7;
+    }
+
+    /* ---------- Loading Spinner ---------- */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0,0,0,.1);
+      border-radius: 50%;
+      border-top-color: #667eea;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ---------- Footer ---------- */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+      font-size: 0.875rem;
+    }
+
+    footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>IntelliNode HTML Generator</h1>
+    <p>Generate complete HTML pages using AI - Powered by GPT-5 and Cohere</p>
+  </header>
+
+  <div class="main-container">
+    <div class="content-wrapper">
+      <!-- Configuration Panel -->
+      <div class="config-panel">
+        <h2>Configuration</h2>
+        
+        <!-- Provider Selection -->
+        <div class="provider-toggle">
+          <button class="provider-btn active" onclick="selectProvider('openai')">OpenAI GPT-5</button>
+          <button class="provider-btn" onclick="selectProvider('cohere')">Cohere Command-A</button>
+        </div>
+
+        <!-- API Key Input -->
+        <div class="field">
+          <label for="apiKey">API Key</label>
+          <input type="password" id="apiKey" placeholder="Enter your API key..." />
+          <small id="apiKeyHint">Enter your OpenAI API key for GPT-5</small>
+        </div>
+
+        <!-- Prompt Input -->
+        <div class="field">
+          <label for="userPrompt">Describe Your Website</label>
+          <textarea id="userPrompt" placeholder="E.g., Create a modern landing page for a fitness app with hero section, features, pricing cards, and contact form..."></textarea>
+          <small>Be specific about the layout, features, and styling you want</small>
+        </div>
+
+        <!-- Example Templates -->
+        <div class="field">
+          <label>Quick Templates</label>
+          <div class="template-examples">
+            <button class="template-btn" onclick="setTemplate('landing')">Landing Page</button>
+            <button class="template-btn" onclick="setTemplate('portfolio')">Portfolio</button>
+            <button class="template-btn" onclick="setTemplate('dashboard')">Dashboard</button>
+            <button class="template-btn" onclick="setTemplate('blog')">Blog Layout</button>
+            <button class="template-btn" onclick="setTemplate('ecommerce')">E-commerce</button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button class="btn btn-primary" onclick="generateHTML()" id="generateBtn">
+            Generate HTML
+          </button>
+          <button class="btn btn-secondary" onclick="downloadHTML()" id="downloadBtn" disabled>
+            Download HTML
+          </button>
+        </div>
+
+        <!-- Status Message -->
+        <div id="statusMessage"></div>
+      </div>
+
+      <!-- Preview Panel -->
+      <div class="preview-panel">
+        <div class="preview-header">
+          <h3>Live Preview</h3>
+          <div class="preview-controls">
+            <button onclick="refreshPreview()">Refresh</button>
+            <button onclick="toggleFullscreen()">Fullscreen</button>
+          </div>
+        </div>
+        <iframe id="previewFrame" title="HTML Preview"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Powered by <a href="https://www.npmjs.com/package/intellinode" target="_blank">IntelliNode</a> - Multi-agent AI Integration Library</p>
+  </footer>
+
+  <!-- IntelliNode Library -->
+  <script src="https://cdn.jsdelivr.net/npm/intellinode@latest/front/intellinode.min.js"></script>
+
+  <script>
+    // Global variables
+    let currentProvider = 'openai';
+    let generatedHTML = '';
+
+    // Template examples
+    const templates = {
+      landing: "Create a modern landing page for a SaaS product with a hero section featuring a gradient background, product screenshot, call-to-action buttons, features section with icons, pricing cards with comparison table, testimonials carousel, and a footer with newsletter signup",
+      portfolio: "Design a creative portfolio website for a designer with a minimalist navigation, animated hero section with typing effect, grid gallery of projects with hover effects, about section with skills progress bars, contact form with validation, and smooth scrolling between sections",
+      dashboard: "Build an analytics dashboard with sidebar navigation, top header with user profile, main content area with charts (bar chart, line graph, pie chart), data cards with statistics, recent activity table, and responsive design for mobile devices",
+      blog: "Create a blog layout with a sticky header, featured post carousel, blog post grid with thumbnails and excerpts, sidebar with categories and recent posts, comment section, and pagination controls",
+      ecommerce: "Design an e-commerce product page with image gallery, product details, size/color selectors, add to cart button with quantity selector, customer reviews section, related products carousel, and responsive layout"
+    };
+
+    // Provider configuration
+    const providerConfig = {
+      openai: {
+        model: 'gpt-5',
+        hint: 'Enter your OpenAI API key for GPT-5',
+        systemPrompt: 'You are an expert web developer. Generate complete HTML pages with embedded CSS and JavaScript.\n\n' +
+          'CRITICAL: Return ONLY valid JSON. No explanations, no questions, no markdown.\n\n' +
+          'OUTPUT FORMAT:\n' +
+          '{"html": "complete HTML code here", "description": "brief description", "error": ""}\n\n' +
+          'REQUIREMENTS:\n' +
+          '- Modern responsive design with CSS Grid/Flexbox\n' +
+          '- All CSS in <style> tags, all JS in <script> tags\n' +
+          '- Semantic HTML5, mobile-friendly\n' +
+          '- Return ONLY the JSON object\n' +
+          '- If error, put message in "error" field and empty "html"'
+      },
+      cohere: {
+        model: 'command-a-03-2025',
+        hint: 'Enter your Cohere API key for Command-A',
+        systemPrompt: 'You are an expert web developer. Generate complete HTML pages with embedded CSS and JavaScript.\n\n' +
+          'CRITICAL: Return ONLY valid JSON. No explanations, no questions, no markdown.\n\n' +
+          'OUTPUT FORMAT:\n' +
+          '{"html": "complete HTML code here", "description": "brief description", "error": ""}\n\n' +
+          'REQUIREMENTS:\n' +
+          '- Modern responsive design with CSS Grid/Flexbox\n' +
+          '- All CSS in <style> tags, all JS in <script> tags\n' +
+          '- Semantic HTML5, mobile-friendly\n' +
+          '- Return ONLY the JSON object\n' +
+          '- If error, put message in "error" field and empty "html"'
+      }
+    };
+
+    // Select provider
+    function selectProvider(provider) {
+      currentProvider = provider;
+      document.querySelectorAll('.provider-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      // Update API key hint
+      document.getElementById('apiKeyHint').textContent = providerConfig[provider].hint;
+    }
+
+    // Set template
+    function setTemplate(templateName) {
+      document.getElementById('userPrompt').value = templates[templateName];
+    }
+
+    // Show status message
+    function showStatus(message, type = 'loading') {
+      const statusDiv = document.getElementById('statusMessage');
+      statusDiv.className = `status-message status-${type}`;
+      
+      if (type === 'loading') {
+        statusDiv.innerHTML = `<span class="spinner"></span>${message}`;
+      } else {
+        statusDiv.innerHTML = message;
+      }
+      
+      // Clear after timeout, but keep errors visible longer
+      if (type === 'success') {
+        setTimeout(() => {
+          statusDiv.innerHTML = '';
+          statusDiv.className = '';
+        }, 5000);
+      } else if (type === 'error') {
+        // Keep error messages visible for 10 seconds
+        setTimeout(() => {
+          statusDiv.innerHTML = '';
+          statusDiv.className = '';
+        }, 10000);
+      }
+    }
+
+    // Generate HTML
+    async function generateHTML() {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const userPrompt = document.getElementById('userPrompt').value.trim();
+      
+      if (!apiKey) {
+        alert('Please enter your API key');
+        return;
+      }
+      
+      if (!userPrompt) {
+        alert('Please describe the website you want to generate');
+        return;
+      }
+
+      // Disable buttons
+      document.getElementById('generateBtn').disabled = true;
+      document.getElementById('downloadBtn').disabled = true;
+      
+      // Clear preview
+      document.getElementById('previewFrame').srcdoc = '';
+      
+      showStatus('Generating HTML page...', 'loading');
+
+      try {
+        const config = providerConfig[currentProvider];
+        let response;
+
+        if (currentProvider === 'openai') {
+          const { Chatbot, ChatGPTInput } = IntelliNode;
+          const chatbot = new Chatbot(apiKey, "openai");
+          const input = new ChatGPTInput(config.systemPrompt, {
+            model: config.model,
+            temperature: 0.3,
+            maxTokens: 8000
+          });
+          input.addUserMessage(userPrompt);
+          
+          const responses = await chatbot.chat(input);
+          response = responses[0];
+        } else if (currentProvider === 'cohere') {
+          const { Chatbot, CohereInput } = IntelliNode;
+          const chatbot = new Chatbot(apiKey, "cohere");
+          const input = new CohereInput(config.systemPrompt, {
+            model: config.model,
+            temperature: 0.3,
+            maxTokens: 8000
+          });
+          input.addUserMessage(userPrompt);
+          
+          const responses = await chatbot.chat(input);
+          response = responses[0];
+        }
+
+        // Parse the response
+        let parsedResponse;
+        try {
+          // Clean the response - remove any markdown or code blocks
+          let cleanedResponse = response.trim();
+          
+          // Remove markdown code blocks
+          cleanedResponse = cleanedResponse.replace(/```json\s*/gi, '');
+          cleanedResponse = cleanedResponse.replace(/```\s*/gi, '');
+          
+          // Try to extract JSON if there's extra text
+          const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            cleanedResponse = jsonMatch[0];
+          }
+          
+          // Parse the JSON
+          parsedResponse = JSON.parse(cleanedResponse);
+          
+          console.log('Parsed response:', parsedResponse);
+        } catch (parseError) {
+          console.error('Parse error:', parseError);
+          console.log('Raw response:', response);
+          console.log('Response length:', response.length);
+          
+          // Show more detailed error
+          showStatus(`Failed to parse AI response. The AI returned invalid JSON format. Please try again.`, 'error');
+          throw new Error('Failed to parse AI response. The response was not valid JSON.');
+        }
+
+        // Check if there's an error in the response
+        if (parsedResponse.error && parsedResponse.error.trim() !== '') {
+          showStatus(`AI Error: ${parsedResponse.error}`, 'error');
+          return;
+        }
+
+        // Check if HTML exists
+        if (!parsedResponse.html || parsedResponse.html.trim() === '') {
+          showStatus('No HTML content in response. Please try again with a different prompt.', 'error');
+          return;
+        }
+
+        generatedHTML = parsedResponse.html;
+        
+        // Display in iframe
+        const iframe = document.getElementById('previewFrame');
+        iframe.srcdoc = generatedHTML;
+        
+        // Enable download button
+        document.getElementById('downloadBtn').disabled = false;
+        
+        // Show success message with description
+        const successMsg = parsedResponse.description 
+          ? `Success! ${parsedResponse.description}` 
+          : 'HTML generated successfully!';
+        showStatus(successMsg, 'success');
+      } catch (error) {
+        console.error('Generation error:', error);
+        
+        // Extract meaningful error message
+        let errorMessage = error.message || 'Unknown error occurred';
+        
+        // Check for common API errors
+        if (errorMessage.includes('401')) {
+          errorMessage = 'Invalid API Key - Please check your API key and try again';
+        } else if (errorMessage.includes('403')) {
+          errorMessage = 'Access Forbidden - Your API key may not have access to this model';
+        } else if (errorMessage.includes('429')) {
+          errorMessage = 'Rate Limit Exceeded - Please wait a moment and try again';
+        } else if (errorMessage.includes('500')) {
+          errorMessage = 'Server Error - The AI service is experiencing issues, please try again later';
+        } else if (errorMessage.includes('invalid api token')) {
+          errorMessage = 'Invalid API Key - Please verify your API key is correct';
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          errorMessage = 'Network Error - Please check your internet connection';
+        }
+        
+        showStatus(`Error: ${errorMessage}`, 'error');
+      } finally {
+        document.getElementById('generateBtn').disabled = false;
+      }
+    }
+
+    // Download HTML
+    function downloadHTML() {
+      if (!generatedHTML) {
+        alert('No HTML to download. Please generate HTML first.');
+        return;
+      }
+
+      const blob = new Blob([generatedHTML], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `generated-page-${Date.now()}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showStatus('HTML file downloaded!', 'success');
+    }
+
+    // Refresh preview
+    function refreshPreview() {
+      if (generatedHTML) {
+        document.getElementById('previewFrame').srcdoc = generatedHTML;
+      }
+    }
+
+    // Toggle fullscreen
+    function toggleFullscreen() {
+      const iframe = document.getElementById('previewFrame');
+      if (!document.fullscreenElement) {
+        iframe.requestFullscreen().catch(err => {
+          console.error('Error attempting to enable fullscreen:', err);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      // Set default provider
+      selectProvider('openai');
+    });
+  </script>
+</body>
+</html>
