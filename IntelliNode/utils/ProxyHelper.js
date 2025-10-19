@@ -39,6 +39,16 @@ class ProxyHelper {
     }
   }
 
+  getOpenaiResponses(model = '') {
+    if (this._openai_type == 'azure') {
+      return this._openaiResponses
+        .replace('{deployment-id}', model)
+        .replace('{api-version}', ProxyHelper.API_VERSION);
+    } else {
+      return this._openaiResponses;
+    }
+  }
+
   getOpenaiImage() {
     if (this._openai_type == 'azure') {
       return this._openaiImage.replace(
@@ -128,6 +138,8 @@ class ProxyHelper {
       proxySettings.completions || config.url.openai.completions;
     this._openaiChatGPT =
       proxySettings.chatgpt || config.url.openai.chatgpt;
+    this._openaiResponses =
+      proxySettings.responses || config.url.openai.responses;
     this._openaiImage =
       proxySettings.imagegenerate || config.url.openai.imagegenerate;
     this._openaiEmbed =
@@ -161,6 +173,7 @@ class ProxyHelper {
     );
     this._openaiCompletion = config.url.azure_openai.completions;
     this._openaiChatGPT = config.url.azure_openai.chatgpt;
+    this._openaiResponses = config.url.azure_openai.responses;
     this._openaiImage = config.url.azure_openai.imagegenerate;
     this._openaiEmbed = config.url.azure_openai.embeddings;
     this._openaiAudioTranscriptions = config.url.azure_openai.audiotranscriptions;
@@ -175,6 +188,7 @@ class ProxyHelper {
     this._openaiURL = config.url.openai.base;
     this._openaiCompletion = config.url.openai.completions;
     this._openaiChatGPT = config.url.openai.chatgpt;
+    this._openaiResponses = config.url.openai.responses;
     this._openaiImage = config.url.openai.imagegenerate;
     this._openaiEmbed = config.url.openai.embeddings;
     this._openaiOrg = config.url.openai.organization;

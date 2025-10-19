@@ -45,10 +45,11 @@ class ChatGPTInput extends ChatModelInput {
         'The input type should be system to define the chatbot theme or instructions.'
       );
     }
-    this.model = options.model || 'gpt-4o';
+    this.model = options.model || 'gpt-5';
     this.temperature = options.temperature || 1;
     this.maxTokens = options.maxTokens || null;
     this.numberOfOutputs = 1;
+    this.effort = options.effort || 'low'; // GPT-5 reasoning effort: minimal, low, medium, high
   }
 
   addMessage(message) {
@@ -104,15 +105,34 @@ class ChatGPTInput extends ChatModelInput {
       }
     });
 
-    const params = {
-      model: this.model,
-      messages: messages,
-      ...(this.temperature && { temperature: this.temperature }),
-      ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
-      ...(this.maxTokens && { max_tokens: this.maxTokens }),
-    };
-
-    return params;
+    // Check if this is GPT-5
+    const isGPT5 = this.model && this.model.toLowerCase().includes('gpt-5');
+    
+    if (isGPT5) {
+      // GPT-5 uses different format: input instead of messages
+      // Combine messages into a single input string
+      const input = messages
+        .map(msg => `${msg.role}: ${msg.content}`)
+        .join('\n');
+      
+      const params = {
+        model: this.model,
+        input: input,
+        reasoning: { effort: this.effort },
+        ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
+      };
+      return params;
+    } else {
+      // Standard chat completion format for GPT-4 and others
+      const params = {
+        model: this.model,
+        messages: messages,
+        ...(this.temperature && { temperature: this.temperature }),
+        ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
+        ...(this.maxTokens && { max_tokens: this.maxTokens }),
+      };
+      return params;
+    }
   }
 }
 

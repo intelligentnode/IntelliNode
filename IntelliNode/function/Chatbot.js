@@ -315,6 +315,15 @@ class Chatbot {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
 
+        // Check if this is GPT-5
+        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
+        
+        if (isGPT5) {
+            // GPT-5 doesn't support streaming in the same way
+            // For now, throw an error or handle as non-streaming
+            throw new Error("GPT-5 streaming is not yet supported. Please use the chat() method instead.");
+        }
+
         const streamParser = new GPTStreamParser();
 
         const stream = await this.openaiWrapper.generateChatText(params);
@@ -338,17 +347,42 @@ class Chatbot {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
 
-        const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
-        return results.choices.map((choice) => {
-            if (choice.finish_reason === 'function_call' && choice.message.function_call) {
-                return {
-                    content: choice.message.content,
-                    function_call: choice.message.function_call
-                };
-            } else {
-                return choice.message.content;
+        // Check if this is GPT-5
+        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
+        
+        if (isGPT5) {
+            // GPT-5 uses different endpoint and response format
+            const results = await this.openaiWrapper.generateGPT5Response(params);
+            // GPT-5 response format: { output: [ {type: 'reasoning'}, {type: 'message', content: [...]} ] }
+            if (results.output && Array.isArray(results.output)) {
+                // Extract text from the message content
+                const messageObjects = results.output.filter(item => item.type === 'message');
+                const responses = messageObjects.map(msg => {
+                    if (msg.content && Array.isArray(msg.content)) {
+                        return msg.content.map(c => c.text || c).join('');
+                    }
+                    return msg.content || '';
+                });
+                return responses.length > 0 ? responses : [''];
+            } else if (results.choices && results.choices.length > 0) {
+                // Fallback to choices format if available
+                return results.choices.map(choice => choice.output || choice.text || choice.message?.content);
             }
-        });
+            return [''];
+        } else {
+            // Standard chat completion for GPT-4 and others
+            const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
+            return results.choices.map((choice) => {
+                if (choice.finish_reason === 'function_call' && choice.message.function_call) {
+                    return {
+                        content: choice.message.content,
+                        function_call: choice.message.function_call
+                    };
+                } else {
+                    return choice.message.content;
+                }
+            });
+        }
     }
 
     async _chatReplicateLLama(modelInput, debugMode) {

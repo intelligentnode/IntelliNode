@@ -46,7 +46,7 @@ async function testOpenaiChatGPTCase2() {
   try {
     console.log('\nchat test case 2: \n')
     const mode = "You are a helpful assistant.";
-    const input = new ChatGPTInput(mode);
+    const input = new ChatGPTInput(mode, { model: 'gpt-4o' });
     input.addMessage(new ChatGPTMessage("Who won the world series in 2020?", "user"));
     input.addMessage(new ChatGPTMessage("The Los Angeles Dodgers won the World Series in 2020.", "assistant"));
     input.addMessage(new ChatGPTMessage("Where was it played?", "user"));
@@ -66,7 +66,7 @@ async function testOpenaiChatGPTCase3() {
   try {
     console.log('\nchat test case 1: \n')
     const mode = "You are a helpful astronomy assistant.";
-    const input = new ChatGPTInput(mode, { attachReference: true });
+    const input = new ChatGPTInput(mode, { model: 'gpt-4o', attachReference: true });
     input.addUserMessage("Tell me about the Mars the Red Planet? summarize the context");
 
     const responses = await bot.chat(input);
@@ -126,7 +126,7 @@ async function testReplicateLLamaCase2() {
 async function testStreamOpenaiChatGPTCase1() {
   console.log('\nchat stream test case 1: \n')
   const mode = "You are a helpful assistant.";
-  const input = new ChatGPTInput(mode);
+  const input = new ChatGPTInput(mode, { model: 'gpt-4o' });
   input.addUserMessage("Tell me about the Mars the Red Planet? summarize the context");
 
   let fullText = '';

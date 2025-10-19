@@ -18,6 +18,7 @@
 Integrate your data with the latest language models and deep learning frameworks using intellinode **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
+- Add support for OpenAI GPT-5 with reasoning effort control. 🧠
 - Add support for self-hosted vLLM models.
 - Generate frontend version from intellinode.
 - Integrated Nvidia-hosted models (DeepSeek and Llama3 🦙).
@@ -39,13 +40,25 @@ Chat with your docs via Intellinode one key at [app.intellinode.ai](https://app.
 ```js
 const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
-2. call:
+2. call with GPT-5 (default):
 ```js
-// set chatGPT system mode and the user message.
+// GPT-5 is now the default model with medium reasoning effort
 const input = new ChatGPTInput('You are a helpful assistant.');
 input.addUserMessage('What is the distance between the Earth and the Moon?');
 
-// get chatGPT responses.
+// get GPT-5 responses.
+const bot = new Chatbot(openaiKey);
+const responses = await bot.chat(input);
+```
+3. control GPT-5 reasoning effort:
+```js
+// customize reasoning effort: minimal, low, medium, high
+const input = new ChatGPTInput('You are a helpful assistant.', { 
+  model: 'gpt-5',
+  effort: 'high'
+});
+input.addUserMessage('Explain quantum computing');
+
 const bot = new Chatbot(openaiKey);
 const responses = await bot.chat(input);
 ```
@@ -174,6 +187,30 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 ### Custom proxy
 Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js).
 
+### Model Context Protocol (MCP)
+Connect to external tools and data sources via MCP servers (good to have, not core):
+```js
+const { MCPClient } = require('intellinode');
+
+// Initialize MCP client pointing to your MCP server
+const mcpClient = new MCPClient('http://localhost:3000');
+
+// Fetch available tools from MCP server
+const tools = await mcpClient.initialize();
+console.log('Available tools:', mcpClient.getToolNames());
+
+// Call a tool
+const result = await mcpClient.callTool('get_weather', { 
+  location: 'New York',
+  units: 'celsius' 
+});
+
+// Use tools with your chatbot prompts
+const toolsList = mcpClient.listTools();
+console.log('Tools:', toolsList);
+```
+
+Supported MCP servers include: Filesystem, GitHub, Slack, Google Drive, and more. See [MCP Documentation](https://modelcontextprotocol.io) for available servers.
 
 # :closed_book: Documentation
 - [IntelliNode Docs](https://doc.intellinode.ai/docs/npm): Detailed documentation about IntelliNode.
