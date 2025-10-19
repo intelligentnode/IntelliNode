@@ -63,7 +63,7 @@ import:
 ```js
 const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
-call:
+call GPT-5 (default):
 ```js
 // set chatGPT system mode and the user message.
 const input = new ChatGPTInput('You are a helpful assistant.');
