@@ -4,6 +4,13 @@ IntelliNode provides a frontend version that runs directly in your browser.
 
 <img src="screenshot.png" alt="IntelliNode Frontend" width="600">
 
+## Demos
+
+This folder contains two interactive examples:
+
+1. **Chat Playground** (`index.html`) - Multi-provider chat interface supporting OpenAI, Cohere, Mistral with model selection and real-time responses.
+
+2. **Stability Control Studio** (`style_studio.html`) - Image transformation tool with three control methods (Style, Sketch, Structure) and AI-powered prompt enhancement.
 
 ## Running Locally
 
