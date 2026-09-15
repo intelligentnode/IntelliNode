@@ -7,68 +7,106 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 */
 
 /**
- * Remove reasoning that some models (e.g. DeepSeek) put before the answer: complete <think>...</think>
- * blocks, and everything up to a leftover closing tag when the chat template opened the block itself.
+ * Remove inline reasoning that some models (DeepSeek on NVIDIA, vLLM) put before the answer.
+ * Only a leading <think>...</think> block, or a closing tag when the chat template opened the block itself,
+ * is removed; tags mentioned later in the answer are kept. A reasoning block that never closes (the output
+ * budget ran out while thinking) leaves no answer, so an empty string is returned.
+ * Use it only for providers that return reasoning inline.
  */
 function stripThinking(text) {
-  let cleaned = String(text || '').replace(/<think>[\s\S]*?<\/think>/g, '');
-  const orphanClose = cleaned.lastIndexOf('</think>');
-  if (orphanClose !== -1) {
-    cleaned = cleaned.slice(orphanClose + '</think>'.length);
+  const trimmed = String(text || '').trim();
+  if (trimmed.startsWith('<think>')) {
+    const close = trimmed.indexOf('</think>');
+    return close === -1 ? '' : trimmed.slice(close + '</think>'.length).trim();
   }
-  return cleaned.trim();
+  const close = trimmed.indexOf('</think>');
+  if (close !== -1 && !trimmed.slice(0, close).includes('<think>')) {
+    return trimmed.slice(close + '</think>'.length).trim();
+  }
+  return trimmed;
 }
 
-const FENCE_LINE = /^\s*```\s*([\w+#.-]*)/;
+// A fence line: at most three spaces of indentation, three or more backticks or tildes, then an optional info string.
+function parseFence(line) {
+  const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  if (!match) return null;
+  const info = match[2].trim();
+  if (match[1][0] === '`' && info.includes('`')) return null;
+  return {
+    char: match[1][0],
+    length: match[1].length,
+    info,
+    lang: (info.split(/\s+/)[0] || '').toLowerCase(),
+  };
+}
 
-/**
- * All markdown code blocks in the text as [{ lang, code }], parsed line by line.
- * A language-tagged fence inside a block opens a new block (closing fences never carry a language),
- * which handles answers wrapped in an outer ```markdown fence. A block left open at the end of the
- * text (truncated output) is kept only when no closed block exists.
- */
-function extractBlocks(text) {
-  const cleaned = stripThinking(text);
+function closesFence(fence, opener) {
+  return Boolean(fence) && !fence.info && fence.char === opener.char && fence.length >= opener.length;
+}
+
+// Split text into fenced blocks. A fence with an info string never closes a block, and a closing fence
+// must use the same character and at least as many of them as the opening fence (CommonMark rules).
+function scanBlocks(text) {
   const blocks = [];
   let current = null;
-
-  for (const line of cleaned.split('\n')) {
-    const fence = FENCE_LINE.exec(line);
-    if (!fence) {
-      if (current) current.lines.push(line);
+  for (const line of String(text || '').replace(/\r\n/g, '\n').split('\n')) {
+    const fence = parseFence(line);
+    if (!current) {
+      if (fence) current = { opener: fence, lines: [], closed: false };
       continue;
     }
-    const lang = fence[1].toLowerCase();
-    if (!current) {
-      current = { lang, lines: [], closed: false };
-    } else if (lang) {
-      blocks.push(current);
-      current = { lang, lines: [], closed: false };
-    } else {
+    if (closesFence(fence, current.opener)) {
       current.closed = true;
       blocks.push(current);
       current = null;
+    } else {
+      current.lines.push(line);
     }
   }
   if (current) blocks.push(current);
+  return blocks.map((block) => ({
+    lang: block.opener.lang,
+    code: block.lines.join('\n').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, ''),
+    closed: block.closed,
+  }));
+}
 
-  const finished = blocks
-    .map((block) => ({ lang: block.lang, code: block.lines.join('\n').replace(/\s+$/, ''), closed: block.closed }))
-    .filter((block) => block.code.trim());
-  const hasClosed = finished.some((block) => block.closed);
-  return finished
-    .filter((block) => block.closed || !hasClosed)
-    .map((block) => ({ lang: block.lang, code: block.code }));
+// A block whose content starts with another fence is a wrapper (e.g. ```markdown around ```javascript): use the inner blocks.
+function expandWrappers(blocks) {
+  const result = [];
+  for (const block of blocks) {
+    const firstLine = block.code.split('\n').find((line) => line.trim());
+    if (firstLine && parseFence(firstLine)) {
+      const inner = scanBlocks(block.code).map((innerBlock) => ({ ...innerBlock, closed: innerBlock.closed || block.closed }));
+      result.push(...expandWrappers(inner));
+    } else {
+      result.push(block);
+    }
+  }
+  return result;
 }
 
 /**
- * Return the code from the markdown block tagged `language`, otherwise the longest block
- * (models sometimes emit a short block, e.g. a usage example, next to the real one).
+ * All markdown code blocks in the text as [{ lang, code }].
+ * A block cut off at the end of the text (truncated output) is kept when no block was closed, or when it is
+ * language-tagged and longer than every closed block (the main code after a short setup snippet).
+ */
+function extractBlocks(text) {
+  const blocks = expandWrappers(scanBlocks(text)).filter((block) => block.code.trim());
+  const closed = blocks.filter((block) => block.closed);
+  const longestClosed = closed.reduce((max, block) => Math.max(max, block.code.length), 0);
+  return blocks
+    .filter((block) => block.closed || closed.length === 0 || (block.lang && block.code.length > longestClosed))
+    .map(({ lang, code }) => ({ lang, code }));
+}
+
+/**
+ * Return the code from the block tagged `language`, otherwise the longest block
+ * (models sometimes add a short block, e.g. a usage example, next to the real one).
  * Text without fences is returned trimmed.
  */
 function extractCode(text, language = null) {
-  const cleaned = stripThinking(text);
-  const blocks = extractBlocks(cleaned);
+  const blocks = extractBlocks(text);
   if (language) {
     const wanted = blocks.find((block) => block.lang === String(language).toLowerCase());
     if (wanted) return wanted.code;
@@ -76,38 +114,58 @@ function extractCode(text, language = null) {
   if (blocks.length > 0) {
     return blocks.reduce((best, block) => (block.code.length > best.code.length ? block : best)).code;
   }
-  return cleaned.replace(/^```[^\n]*\n?/, '').replace(/\n?```\s*$/, '').trim();
+  return String(text || '').trim();
 }
 
-// Remove an outer fence wrapper while keeping any code blocks nested inside it.
-function unwrapFence(text) {
-  const opener = /^\s*```[^\n]*\n?/.exec(text);
-  if (!opener) return text.trim();
-  let body = text.slice(opener[0].length);
-  const fences = body.match(/^\s*```/gm) || [];
-  if (fences.length % 2 === 1) {
-    // an odd number of remaining fences means the last one closes the wrapper
-    body = body.slice(0, body.lastIndexOf('```'));
+const WRAPPER_LANGS = new Set(['', 'markdown', 'md', 'mdx']);
+
+function isShortRemark(lines) {
+  const remarks = lines.filter((line) => line.trim());
+  return remarks.length === 0 || (remarks.length === 1 && remarks[0].length <= 200 && !/^\s*#/.test(remarks[0]));
+}
+
+// The inner fences of a real wrapper pair up: every opening fence has its closing fence.
+function hasBalancedFences(lines) {
+  let open = null;
+  for (const line of lines) {
+    const fence = parseFence(line);
+    if (!fence) continue;
+    if (!open) open = fence;
+    else if (closesFence(fence, open)) open = null;
   }
-  return body.trim();
+  return open === null;
 }
 
-/** Markdown answers are sometimes wrapped in a ```markdown fence (even with code blocks inside); unwrap it. */
+/**
+ * Markdown answers are sometimes wrapped in a ```markdown (or ````markdown) fence, even with code blocks inside;
+ * unwrap it. The wrapper may only follow a short lead-in ("Here is the README:"), must close on the last fence
+ * line with at most one short sign-off after it, and must contain balanced inner fences. Anything else, such as
+ * a ```markdown example inside an explanation, is returned unchanged.
+ */
 function extractMarkdown(text) {
-  const cleaned = stripThinking(text);
-  const wrapper = /(^|\n)\s*```(?:markdown|md)\b[^\n]*\n/i.exec(cleaned);
-  if (wrapper) {
-    // only a short lead-in ("Here is the README:") may precede a wrapper; a later ```md block is an example inside the document
-    const leadIn = cleaned.slice(0, wrapper.index);
-    if (leadIn.split('\n').filter((line) => line.trim()).length <= 1 && !/^\s*#/m.test(leadIn)) {
-      return unwrapFence(cleaned.slice(wrapper.index));
+  const cleaned = String(text || '').trim();
+  const lines = cleaned.split('\n');
+  const openIndex = lines.findIndex((line) => parseFence(line));
+  if (openIndex === -1) return cleaned;
+  const opener = parseFence(lines[openIndex]);
+  if (!WRAPPER_LANGS.has(opener.lang) || !isShortRemark(lines.slice(0, openIndex))) return cleaned;
+
+  let closeIndex = -1;
+  for (let i = lines.length - 1; i > openIndex; i--) {
+    if (closesFence(parseFence(lines[i]), opener)) {
+      closeIndex = i;
+      break;
     }
   }
-  // a document that merely starts with a code block is not a wrapper, so require a closing fence at the very end
-  return cleaned.startsWith('```') && /\n\s*```\s*$/.test(cleaned) ? unwrapFence(cleaned) : cleaned;
+  if (closeIndex === -1) {
+    // an unterminated ```markdown wrapper at the start is a truncated document
+    const truncated = openIndex === 0 && opener.lang && hasBalancedFences(lines.slice(1));
+    return truncated ? lines.slice(1).join('\n').trim() : cleaned;
+  }
+  const body = lines.slice(openIndex + 1, closeIndex);
+  if (!isShortRemark(lines.slice(closeIndex + 1)) || !hasBalancedFences(body)) return cleaned;
+  return body.join('\n').trim();
 }
-
-const JSON_ESCAPES = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
 
 function dropTrailingComma(out) {
   let i = out.length - 1;
@@ -116,20 +174,25 @@ function dropTrailingComma(out) {
 }
 
 /**
- * Fix the JSON mistakes models make most: raw newlines/tabs inside strings, lone backslashes that are not
- * JSON escapes (\d in a regex pattern) and trailing commas. Only structure outside strings is touched.
+ * Fix the JSON mistakes models make most: raw newlines/tabs inside strings, trailing commas, and single
+ * backslashes from regexes or file paths (\d, \b, \u without four hex digits), which are kept as literal
+ * backslashes. Structure outside strings is only touched to drop trailing commas.
  */
 function repairJson(text) {
   let out = '';
   let inString = false;
-  let escaped = false;
-  for (const ch of text) {
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
     if (inString) {
-      if (escaped) {
-        escaped = false;
-        out += JSON_ESCAPES.has(ch) ? `\\${ch}` : `\\\\${ch}`;
-      } else if (ch === '\\') {
-        escaped = true;
+      if (ch === '\\') {
+        const next = text[i + 1];
+        if (next === undefined) {
+          out += '\\\\';
+          continue;
+        }
+        const unicode = next === 'u' && /^[0-9a-fA-F]{4}$/.test(text.slice(i + 2, i + 6));
+        out += '"\\/nrt'.includes(next) || unicode ? ch + next : `\\\\${next}`;
+        i++;
       } else if (ch === '"') {
         inString = false;
         out += ch;
@@ -151,28 +214,36 @@ function repairJson(text) {
     }
     out += ch;
   }
-  if (escaped) out += '\\\\';
   return out;
 }
 
-function tryParse(candidate) {
+function matchesKind(value, kind) {
+  if (kind === 'array') return Array.isArray(value);
+  if (kind === 'object') return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return true;
+}
+
+function tryParse(candidate, kind) {
   for (const attempt of [candidate, repairJson(candidate)]) {
     try {
-      return { value: JSON.parse(attempt) };
+      const value = JSON.parse(attempt);
+      return matchesKind(value, kind) ? { value } : null;
     } catch (error) {
-      // try the next attempt
+      // try the repaired text next
     }
   }
   return null;
 }
 
-// Find the first balanced JSON object or array (respecting strings and escapes) that parses.
-// A candidate that does not parse is skipped as a whole, so nested objects are never returned in its place.
-function findBalancedJson(text) {
+// Find the first balanced JSON object or array (respecting strings and escapes) that parses and has the wanted kind.
+// A balanced candidate that is rejected is skipped as a whole, so a nested value is never returned in its place;
+// an opening bracket that never closes (stray prose) is skipped by itself.
+function findBalancedJson(text, kind) {
   let start = 0;
   while (start < text.length) {
     const open = text[start];
-    if (open !== '{' && open !== '[') {
+    const wanted = (open === '{' && kind !== 'array') || (open === '[' && kind !== 'object');
+    if (!wanted) {
       start++;
       continue;
     }
@@ -199,34 +270,77 @@ function findBalancedJson(text) {
         }
       }
     }
-    if (end === -1) return undefined;
-    const parsed = tryParse(text.slice(start, end + 1));
+    if (end === -1) {
+      start++;
+      continue;
+    }
+    const parsed = tryParse(text.slice(start, end + 1), kind);
     if (parsed) return parsed.value;
     start = end + 1;
   }
   return undefined;
 }
 
-/** Parse JSON from model output that may include prose, markdown fences, thinking blocks or small syntax slips. */
-function parseJson(text) {
-  const cleaned = stripThinking(text);
-  for (const candidate of [cleaned, extractCode(cleaned, 'json')]) {
-    const parsed = tryParse(candidate);
+/**
+ * Parse JSON from model output that may include prose, markdown fences or small syntax slips.
+ * @param {string} text - the model output.
+ * @param {string|null} kind - 'object' or 'array' to only accept that kind of value.
+ */
+function parseJson(text, kind = null) {
+  const cleaned = String(text || '').trim();
+  const jsonBlocks = extractBlocks(cleaned).filter((block) => block.lang === 'json').map((block) => block.code);
+  for (const candidate of [cleaned, ...jsonBlocks, extractCode(cleaned)]) {
+    const parsed = tryParse(candidate, kind);
     if (parsed) return parsed.value;
   }
-  const found = findBalancedJson(cleaned);
+  const found = findBalancedJson(cleaned, kind);
   if (found !== undefined) return found;
-  throw new Error(`The model response is not valid JSON: ${cleaned.slice(0, 200)}`);
+  const expected = kind ? `a JSON ${kind}` : 'valid JSON';
+  throw new Error(`The model response is not ${expected}: ${cleaned.slice(0, 200)}`);
 }
 
-/** Return the first <svg>...</svg> element from model output. */
-function extractSvg(text) {
-  const cleaned = extractCode(text);
-  const match = /<svg[\s\S]*?<\/svg>/i.exec(cleaned);
-  if (!match) {
-    throw new Error(`The model response does not contain an <svg> element: ${cleaned.slice(0, 200)}`);
+// Every <svg>...</svg> element in the source, as { openTag, svg }.
+function svgElements(source) {
+  const elements = [];
+  const lower = source.toLowerCase();
+  const opener = /<svg\b[^>]*>/gi;
+  let match;
+  while ((match = opener.exec(source)) !== null) {
+    const end = lower.indexOf('</svg>', opener.lastIndex);
+    if (end === -1) break;
+    elements.push({ openTag: match[0], svg: source.slice(match.index, end + '</svg>'.length) });
   }
-  return match[0];
+  return elements;
+}
+
+/**
+ * Return an SVG element from model output. Blocks tagged svg, xml or html (or untagged) are searched first,
+ * then the other blocks and the raw text. A real SVG (viewBox or xmlns, no JSX expressions) is preferred.
+ */
+function extractSvg(text) {
+  const source = String(text || '');
+  const blocks = extractBlocks(source);
+  const markupLangs = ['svg', 'xml', 'html', ''];
+  const candidates = [
+    ...blocks.filter((block) => markupLangs.includes(block.lang)).map((block) => block.code),
+    ...blocks.filter((block) => !markupLangs.includes(block.lang)).map((block) => block.code),
+    source,
+  ];
+  let plain = null;
+  let jsx = null;
+  for (const candidate of candidates) {
+    for (const element of svgElements(candidate)) {
+      if (element.openTag.includes('{')) {
+        jsx = jsx || element.svg;
+      } else if (/\b(viewBox|xmlns)\s*=/i.test(element.openTag)) {
+        return element.svg;
+      } else {
+        plain = plain || element.svg;
+      }
+    }
+  }
+  if (plain || jsx) return plain || jsx;
+  throw new Error(`The model response does not contain an <svg> element: ${source.trim().slice(0, 200)}`);
 }
 
 module.exports = { stripThinking, extractBlocks, extractCode, extractMarkdown, repairJson, parseJson, extractSvg };

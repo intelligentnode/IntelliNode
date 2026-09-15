@@ -139,7 +139,8 @@ async function testLegacyFunctionsKeepTheirContracts() {
     const claude = await Gen.generate_html_page('a page', 'key', undefined, 'anthropic');
     assert.strictEqual(claude.message, 'ready');
     assert.strictEqual(calls[2].body.model, config.url.anthropic.models.chat);
-    assert.strictEqual(calls[2].body.max_tokens, 8000);
+    // anthropic budgets are raised to its floor so adaptive thinking cannot truncate the page
+    assert.strictEqual(calls[2].body.max_tokens, 16000);
   });
 
   await withMockedProviders(`[${page}]`, async () => {
@@ -223,6 +224,16 @@ async function testStructuredGenerators() {
     assert.strictEqual(calls[0].body.max_tokens, 16000, 'anthropic output floor');
     await Gen.generate_text('hi', 'key', 'anthropic', { maxTokens: 500 });
     assert.strictEqual(calls[1].body.max_tokens, 500, 'an explicit maxTokens wins');
+  });
+
+  // built-in budgets are raised to the anthropic floor; a caller's maxTokens and other providers are untouched
+  await withMockedProviders('[{"question": "q", "answer": "a"}]', async (calls) => {
+    await Gen.generate_faq('coffee', 'key', 'anthropic');
+    assert.strictEqual(calls[0].body.max_tokens, 16000, 'built-in budget raised to the anthropic floor');
+    await Gen.generate_faq('coffee', 'key', 'anthropic', { maxTokens: 3000 });
+    assert.strictEqual(calls[1].body.max_tokens, 3000, 'a caller maxTokens is used as given');
+    await Gen.generate_faq('coffee', 'key', 'cohere');
+    assert.strictEqual(calls[2].body.max_tokens, 4000, 'other providers keep the built-in budget');
   });
 
   // new functions report an empty answer; legacy functions keep returning the text as before

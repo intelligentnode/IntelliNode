@@ -1395,6 +1395,11 @@ const MAX_TOKEN_FLOORS = {
   [SupportedChatModels.ANTHROPIC]: 16000,
 };
 
+// Gen's own token budgets never undercut a provider floor; a caller's options.maxTokens is used as given.
+function budgetFor(provider, tokens) {
+  return Math.max(tokens, MAX_TOKEN_FLOORS[provider] || 0);
+}
+
 function buildChatInput(provider, system, options) {
   const InputClass = CHAT_INPUTS[provider];
   if (!InputClass) {
@@ -1810,8 +1815,11 @@ class Gen {
   static async _generate(templateName, variables, apiKey, provider, options = {}, settings = {}) {
     const template = new SystemHelper().loadPrompt(templateName);
     const prompt = new Prompt(template).format(variables);
+    const defaults = settings.defaults && settings.defaults.maxTokens
+      ? { ...settings.defaults, maxTokens: budgetFor(provider, settings.defaults.maxTokens) }
+      : settings.defaults;
     const text = await Gen.generate_text(prompt, apiKey, provider, {
-      ...settings.defaults,
+      ...defaults,
       ...options,
       system: options.system || settings.system || DEFAULT_SYSTEM,
     });
@@ -1840,13 +1848,13 @@ class Gen {
   // Marketing description generation
   static async get_marketing_desc(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     return Gen.generate_text(`Create a marketing description for the following: ${promptString}`, apiKey, provider,
-      { system: 'generate marketing description', maxTokens: 800, customProxyHelper });
+      { system: 'generate marketing description', maxTokens: budgetFor(provider, 800), customProxyHelper });
   }
 
   // Blog post generation
   static async get_blog_post(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     return Gen.generate_text(`Write a blog post with section titles about ${promptString}`, apiKey, provider,
-      { system: 'generate blog post', maxTokens: 1200, customProxyHelper });
+      { system: 'generate blog post', maxTokens: budgetFor(provider, 1200), customProxyHelper });
   }
 
   // Image description
@@ -1945,7 +1953,7 @@ class Gen {
   static async generate_html_page(text, apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     return Gen._generate('html_page', { text }, apiKey, provider, {
       model: resolveLegacyModel(provider, model_name),
-      maxTokens: legacyTokenSize(model_name, 4000),
+      maxTokens: budgetFor(provider, legacyTokenSize(model_name, 4000)),
       temperature: 0.8,
       customProxyHelper,
     }, {
@@ -1969,7 +1977,7 @@ class Gen {
     }
     const result = await Gen._generate('graph_dashboard', { count: num_graphs, topic, text: csvStrData }, apiKey, provider, {
       model: resolveLegacyModel(provider, model_name),
-      maxTokens: legacyTokenSize(model_name, 3900),
+      maxTokens: budgetFor(provider, legacyTokenSize(model_name, 3900)),
       temperature: 0.3,
       customProxyHelper,
     }, {
@@ -2210,7 +2218,7 @@ class Gen {
   static async instructUpdate(modelOutput, userInstruction, type = '', apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     return Gen._generate('instruct_update', { model_output: modelOutput, user_instruction: userInstruction, type }, apiKey, provider, {
       model: resolveLegacyModel(provider, model_name),
-      maxTokens: (model_name || '').includes('gpt-4') ? 3900 : 2000,
+      maxTokens: budgetFor(provider, (model_name || '').includes('gpt-4') ? 3900 : 2000),
       temperature: 0.2,
       customProxyHelper,
     }, {
