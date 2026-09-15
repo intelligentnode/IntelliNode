@@ -355,6 +355,145 @@ async function testGenWithCompatibleAndJson() {
   await assert.rejects(Gen.generate_text('x', 'k', 'openai_compatible'), /baseUrl/);
 }
 
+// Regression tests for the 3.0 review findings.
+async function testReviewFixes() {
+  const { toAnthropicTools } = require('../../utils/ModelHelper');
+  // input shapes that worked before 3.0 keep working
+  const blocks = [{ type: 'text', text: 'Be terse.', cache_control: { type: 'ephemeral' } }];
+  assert.deepStrictEqual(new AnthropicInput(blocks).getChatInput().system, blocks);
+  assert.strictEqual(new AnthropicInput(blocks, { responseFormat: 'json' }).getChatInput().system.length, 2);
+  const native = { name: 'get_weather', description: 'w', input_schema: { type: 'object' }, strict: true, cache_control: { type: 'ephemeral' } };
+  assert.deepStrictEqual(toAnthropicTools([native]), [native]);
+  assert.deepStrictEqual(new GeminiInput(null, { tools: [{ googleSearch: {} }] }).getChatInput().tools, [{ googleSearch: {} }]);
+  const titled = { type: 'object', properties: { title: { type: 'string' }, body: { type: 'string' } }, required: ['title', 'body'], additionalProperties: false };
+  assert.deepStrictEqual(new GeminiInput(null, { responseSchema: titled }).getChatInput().generationConfig.responseSchema.properties, titled.properties);
+  // OpenAI strict mode: optional properties become required and nullable
+  const strict = new ChatGPTInput('s', { model: 'gpt-4.1', strictSchema: true, responseSchema: { type: 'object', properties: { city: { type: 'string' }, note: { type: 'string' } }, required: ['city'] } })
+    .getChatInput().response_format.json_schema.schema;
+  assert.deepStrictEqual(strict.required, ['city', 'note']);
+  assert.deepStrictEqual(strict.properties.note.type, ['string', 'null']);
+
+  const bot = new Chatbot('key', SupportedChatModels.OPENAI);
+  const question = () => {
+    const input = new ChatGPTInput('sys', { model: 'gpt-4.1' });
+    input.addUserMessage('Weather in Paris?');
+    return input;
+  };
+  let runs = 0;
+  const counted = { ...weatherTool, handler: async (args) => { runs += 1; return weatherTool.handler(args); } };
+
+  // maxSteps tool rounds are followed by one call for the answer
+  await withMockedProviders([chatToolCall, chatText('22C')], async () => {
+    const out = await bot.runTools(question(), [counted], { maxSteps: 1 });
+    assert.strictEqual(out.text, '22C');
+    assert.strictEqual(runs, 1);
+  });
+  // tools requested after the limit are not executed
+  runs = 0;
+  await withMockedProviders([chatToolCall, chatToolCall, chatToolCall], async () => {
+    await assert.rejects(bot.runTools(question(), [counted], { maxSteps: 2 }), /stopped after 2 tool rounds/);
+    assert.strictEqual(runs, 2);
+  });
+
+  // invalid JSON arguments are reported to the model instead of running the tool; thrown strings keep their text
+  runs = 0;
+  const badCall = { choices: [{ message: { role: 'assistant', content: null, tool_calls: [
+    { id: 'c1', type: 'function', function: { name: 'get_weather', arguments: '{"city": "Par' } },
+    { id: 'c2', type: 'function', function: { name: 'flaky', arguments: '{}' } },
+  ] } }] };
+  await withMockedProviders([badCall, chatText('retrying')], async () => {
+    const flaky = { name: 'flaky', description: 'fails', parameters: { type: 'object' }, handler: async () => { throw 'service down'; } };
+    const out = await bot.runTools(question(), [counted, flaky]);
+    assert.strictEqual(runs, 0);
+    assert.strictEqual(out.steps[0].isError, true);
+    assert.match(out.steps[0].result, /not valid JSON/);
+    assert.strictEqual(out.steps[1].result, 'Error: service down');
+  });
+
+  // an MCP client with no cached tools is listed first; content without text is described, not dumped
+  const mcp = {
+    tools: [],
+    fetched: 0,
+    async fetchTools() { this.fetched += 1; this.tools = [{ name: 'screenshot' }]; return this.tools; },
+    toChatTools() { return this.tools.map((tool) => ({ type: 'function', function: { name: tool.name, parameters: { type: 'object' } } })); },
+    async callTool() { return { content: [{ type: 'image', data: 'AAAA', mimeType: 'image/png' }], isError: false, text: '' }; },
+  };
+  const shotCall = { choices: [{ message: { role: 'assistant', content: null, tool_calls: [{ id: 's1', type: 'function', function: { name: 'screenshot', arguments: '{}' } }] } }] };
+  await withMockedProviders([shotCall, chatText('I see it')], async (calls) => {
+    const out = await bot.runTools(question(), mcp);
+    assert.strictEqual(out.text, 'I see it');
+    assert.strictEqual(mcp.fetched, 1);
+    assert.strictEqual(calls[1].body.messages[3].content, '[image image/png]');
+  });
+
+  // a ChatGPTInput sent to an OpenAI-compatible service is a chat-completions body
+  await withMockedProviders([chatText('hi')], async (calls) => {
+    const router = new Chatbot('k', SupportedChatModels.OPENROUTER);
+    const input = new ChatGPTInput('sys', { model: 'openai/gpt-5.5' });
+    input.addUserMessage('hi');
+    assert.deepStrictEqual(await router.chat(input), ['hi']);
+    assert.ok(Array.isArray(calls[0].body.messages));
+    assert.strictEqual(calls[0].body.input, undefined);
+    assert.strictEqual(calls[0].body.reasoning, undefined);
+  });
+
+  // Gemini 3 thought signatures survive the round trip
+  const signedCall = { candidates: [{ content: { parts: [{ functionCall: { name: 'get_weather', args: { city: 'Paris' } }, thoughtSignature: 'sig-1' }] } }] };
+  const geminiText = { candidates: [{ content: { parts: [{ text: 'Paris is at 22C.' }] } }] };
+  await withMockedProviders([signedCall, geminiText], async (calls) => {
+    const gemini = new Chatbot('key', SupportedChatModels.GEMINI);
+    const input = new GeminiInput(null);
+    input.addUserMessage('Weather in Paris?');
+    await gemini.runTools(input, [weatherTool]);
+    assert.strictEqual(calls[1].body.contents[1].parts[0].thoughtSignature, 'sig-1');
+  });
+
+  // semantic search is not run on tool result turns
+  const originalPost = FetchClient.prototype.post;
+  const searches = [];
+  const bodies = [];
+  const anthropicReplies = [
+    { content: [{ type: 'tool_use', id: 'toolu_1', name: 'get_weather', input: { city: 'Paris' } }], stop_reason: 'tool_use' },
+    { content: [{ type: 'text', text: 'Paris: 22C.' }], stop_reason: 'end_turn' },
+  ];
+  FetchClient.prototype.post = async function (endpoint, data) {
+    if (String(endpoint).includes('semantic')) {
+      searches.push(endpoint);
+      return { data: [] };
+    }
+    bodies.push(data);
+    return anthropicReplies[bodies.length - 1];
+  };
+  try {
+    const withSearch = new Chatbot('key', SupportedChatModels.ANTHROPIC, null, { oneKey: 'in-test' });
+    const input = new AnthropicInput('sys');
+    input.addUserMessage('Weather in Paris?');
+    const out = await withSearch.runTools(input, [weatherTool]);
+    assert.strictEqual(out.text, 'Paris: 22C.');
+    assert.strictEqual(searches.length, 1);
+    assert.strictEqual(bodies.length, 2);
+  } finally {
+    FetchClient.prototype.post = originalPost;
+  }
+
+  // legacy Gen functions reach compatible services through their customProxyHelper argument
+  await withMockedProviders([chatText('A pen.')], async (calls) => {
+    const text = await Gen.get_marketing_desc('a pen', 'k', 'openai_compatible', { baseUrl: 'http://local.test/v1', model: 'm1' });
+    assert.strictEqual(text, 'A pen.');
+    assert.strictEqual(calls[0].url, 'http://local.test/v1/chat/completions');
+    assert.strictEqual(calls[0].body.model, 'm1');
+  });
+
+  // DeepSeek has no json_schema response format: json_object plus the schema in the system message
+  await withMockedProviders([chatText('{"city":"Rome","country":"Italy"}')], async (calls) => {
+    const data = await Gen.generate_json('Where is the Colosseum?', citySchema, 'k', 'deepseek');
+    assert.deepStrictEqual(data, { city: 'Rome', country: 'Italy' });
+    assert.deepStrictEqual(calls[0].body.response_format, { type: 'json_object' });
+    assert.match(calls[0].body.messages[0].content, /JSON Schema/);
+    assert.strictEqual(calls[0].body.model, 'deepseek-chat');
+  });
+}
+
 module.exports = async function testToolLoop() {
   testToolMessagesPerProvider();
   testStructuredOutputPerProvider();
@@ -366,6 +505,7 @@ module.exports = async function testToolLoop() {
   await testChatJson();
   await testCompatibleProviders();
   await testGenWithCompatibleAndJson();
+  await testReviewFixes();
   console.log('Tool loop, structured output and OpenAI-compatible tests passed.');
 };
 

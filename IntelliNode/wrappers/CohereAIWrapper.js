@@ -26,7 +26,7 @@ class CohereAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -37,7 +37,7 @@ class CohereAIWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -46,7 +46,7 @@ class CohereAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

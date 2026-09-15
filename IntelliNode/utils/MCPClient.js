@@ -19,6 +19,17 @@ const DEFAULT_PROBE_TIMEOUT = 5000;
 const SHUTDOWN_GRACE = 2000;
 const MAX_LIST_PAGES = 1000;
 
+// Stop reading a response body and close its connection. node-fetch v2 keeps the socket open until the request is
+// aborted and reports that abort as an 'error' event on the body, so the body gets a no-op error listener first.
+// In the browser the body is a ReadableStream whose reader was already cancelled; the abort closes the request.
+function releaseBody(body, controller) {
+  if (body && typeof body.on === 'function') {
+    body.on('error', () => {});
+    if (typeof body.destroy === 'function' && !body.destroyed) body.destroy();
+  }
+  controller.abort();
+}
+
 class MCPTimeoutError extends Error {
   constructor(method, timeout) {
     super(`MCP request '${method}' timed out after ${timeout}ms`);
@@ -36,8 +47,8 @@ class MCPTimeoutError extends Error {
  *   const client = new MCPClient('https://host/mcp');                              // Streamable HTTP
  *   const client = new MCPClient({ url, headers: { Authorization: 'Bearer ..' } }); // with auth headers
  *   const client = new MCPClient({ command: 'npx', args: ['-y', 'pkg'] });         // stdio subprocess
- *   await client.connect();
- *   const tools = await client.listTools();
+ *   await client.connect();                         // handshake, then the tool list is fetched into client.tools
+ *   const tools = client.listTools();                // cached tools (sync); await client.fetchTools() refreshes them
  *   const { text } = await client.callTool('tool_name', { param: 'value' });
  *   await client.close();
  */
@@ -67,7 +78,9 @@ class MCPClient {
     this.instructions = null;
     this.sessionId = null; // legacy HTTP only
     this.tools = [];
+    this.toolsFetched = false;
     this.requestId = 0;
+    this.connecting = null; // the in-flight connect() promise, shared by concurrent first requests
 
     this.process = null;
     this.pending = new Map();
@@ -89,9 +102,20 @@ class MCPClient {
   // Lifecycle
   // ---------------------------------------------------------------------
 
-  /** Detect the server era and return { protocolVersion, serverInfo, capabilities, instructions }. */
+  /**
+   * Detect the server era, run the handshake and fetch the tool list into client.tools.
+   * Resolves with { protocolVersion, serverInfo, capabilities, instructions }; concurrent calls share one handshake.
+   */
   async connect() {
+    if (this.connecting) return this.connecting;
     if (this.era) return this._info();
+    this.connecting = this._connect().finally(() => {
+      this.connecting = null;
+    });
+    return this.connecting;
+  }
+
+  async _connect() {
     try {
       if (this.transport === 'stdio') await this._spawn();
       const probe = await this._probe(MODERN_VERSIONS[0]);
@@ -101,20 +125,23 @@ class MCPClient {
       } else {
         this._applyDiscover(probe.result, probe.version);
       }
+      await this._loadTools();
     } catch (error) {
+      // a failed handshake must not leave a server process (and the parent event loop) or a legacy session behind
+      await this._release();
       this.era = null;
       this.protocolVersion = null;
       this.sessionId = null;
+      this.toolsFetched = false;
       throw error;
     }
     return this._info();
   }
 
-  /** Backward-compatible alias: connect, fetch every tool and return the tool list. */
+  /** Connect when needed, fetch every tool and return the list (the intellinode 2.x entry point). */
   async initialize() {
     try {
-      await this.connect();
-      return await this.listTools();
+      return await this.fetchTools();
     } catch (error) {
       throw new Error(`Failed to initialize MCP client: ${error.message}`);
     }
@@ -122,6 +149,16 @@ class MCPClient {
 
   /** End the stdio process or the legacy HTTP session; the client can connect() again afterwards. */
   async close() {
+    await this._release();
+    this.era = null;
+    this.protocolVersion = null;
+    this.sessionId = null;
+    this.exitError = null;
+    this.toolsFetched = false; // the cached tools stay readable; a new connect() refreshes them
+  }
+
+  // Stop the stdio process, or DELETE the legacy HTTP session.
+  async _release() {
     if (this.transport === 'stdio') {
       await this._stopProcess();
     } else if (this.era === 'legacy' && this.sessionId) {
@@ -131,10 +168,6 @@ class MCPClient {
         this._log(`session DELETE ignored: ${error.message}`);
       }
     }
-    this.era = null;
-    this.protocolVersion = null;
-    this.sessionId = null;
-    this.exitError = null;
   }
 
   _info() {
@@ -150,9 +183,40 @@ class MCPClient {
   // Tools
   // ---------------------------------------------------------------------
 
-  /** Fetch every page of tools/list, cache them in client.tools and return them. */
-  async listTools() {
-    if (!this.era) await this.connect();
+  /** The cached tool list (sync, as in intellinode 2.x): connect() fills it, fetchTools() refreshes it. */
+  listTools() {
+    return this.tools;
+  }
+
+  /** Fetch every page of tools/list (connecting first when needed), cache the tools in client.tools and return them. */
+  async fetchTools() {
+    if (this.connecting || !this.era) {
+      await this.connect();
+      // the handshake fetched the list, so one connect() plus fetchTools() is still a single tools/list
+      if (this.toolsFetched) return this.tools;
+    }
+    return this._fetchToolPages();
+  }
+
+  /** Same as fetchTools(); the intellinode 2.x name. */
+  async getTools() {
+    return this.fetchTools();
+  }
+
+  // Part of connect(): a server without tools (method not found, or tools not advertised) leaves the cache empty.
+  async _loadTools() {
+    try {
+      await this._fetchToolPages();
+    } catch (error) {
+      const advertised = !this.capabilities || this.capabilities.tools !== undefined;
+      if (!(error instanceof JsonRpcError) || (error.code !== ERROR_CODES.METHOD_NOT_FOUND && advertised)) throw error;
+      this._log(`tools/list unavailable (${error.message}); the tool cache stays empty`);
+      this.tools = [];
+      this.toolsFetched = true;
+    }
+  }
+
+  async _fetchToolPages() {
     const tools = [];
     const seen = new Set();
     let cursor;
@@ -164,6 +228,7 @@ class MCPClient {
       seen.add(cursor);
     }
     this.tools = tools;
+    this.toolsFetched = true;
     return tools;
   }
 
@@ -172,7 +237,7 @@ class MCPClient {
    * a protocol error (unknown tool, invalid params) rejects with a JsonRpcError.
    */
   async callTool(name, args = {}, { timeout } = {}) {
-    if (!this.era) await this.connect();
+    if (this.connecting || !this.era) await this.connect();
     const result = await this._request('tools/call', { name, arguments: args || {} }, { timeout });
     const content = Array.isArray(result.content) ? result.content : [];
     return {
@@ -196,10 +261,6 @@ class MCPClient {
         parameters: tool.inputSchema || { type: 'object', properties: {} },
       },
     }));
-  }
-
-  getTools() {
-    return this.tools;
   }
 
   getTool(toolName) {
@@ -415,7 +476,11 @@ class MCPClient {
   // POST one message; { status, headers, message (the matching JSON-RPC response or null), text }.
   async _postHttp(message, headers, timeout) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeout);
     try {
       const response = await fetch(this.url, {
         method: 'POST',
@@ -428,12 +493,17 @@ class MCPClient {
       if (response.status === 202 || response.status === 204) return reply;
 
       if (contentType.includes('text/event-stream')) {
-        for await (const item of rpc.readSSEMessages(response.body, (data) => this._log(`ignored SSE data: ${data}`))) {
-          if (rpc.isResponse(item) && rpc.isRequest(message) && String(item.id) === String(message.id)) {
-            reply.message = item;
-            break;
+        try {
+          for await (const item of rpc.readSSEMessages(response.body, (data) => this._log(`ignored SSE data: ${data}`))) {
+            if (rpc.isResponse(item) && rpc.isRequest(message) && String(item.id) === String(message.id)) {
+              reply.message = item;
+              break;
+            }
+            if (rpc.isNotification(item)) this._emitNotification(item);
           }
-          if (rpc.isNotification(item)) this._emitNotification(item);
+        } finally {
+          // the stream may stay open after the reply (keep-alives, later events): release the connection
+          releaseBody(response.body, controller);
         }
         return reply;
       }
@@ -451,7 +521,8 @@ class MCPClient {
       }
       return reply;
     } catch (error) {
-      if (controller.signal.aborted) throw new MCPTimeoutError(message.method, timeout);
+      // only the timer counts as a timeout; releaseBody() also aborts, after the reply has been read
+      if (timedOut) throw new MCPTimeoutError(message.method, timeout);
       throw error;
     } finally {
       clearTimeout(timer);
@@ -467,6 +538,9 @@ class MCPClient {
     // required lazily: the browser bundle maps child_process and readline to empty modules
     const { spawn } = require('child_process');
     const readline = require('readline');
+    if (typeof spawn !== 'function' || typeof readline.createInterface !== 'function') {
+      throw new Error('The MCP stdio transport ({ command }) needs Node.js; in the browser use { url } (Streamable HTTP)');
+    }
 
     this.exitError = null;
     const child = spawn(this.command, this.args, {

@@ -39,14 +39,19 @@ const secured = new MCPClient({ url: 'https://host/mcp', headers: { Authorizatio
 const files = new MCPClient({ command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '/tmp'], env: {}, cwd: process.cwd() });
 
 const info = await files.connect();     // { protocolVersion, serverInfo, capabilities, instructions }
-const tools = await files.listTools();  // every page, cached in files.tools
+                                        // the handshake also fetches every tools/list page into files.tools
+const tools = files.listTools();        // the cached list (synchronous)
+const fresh = await files.fetchTools(); // fetch every page again and refresh the cache
 const result = await files.callTool('list_directory', { path: '/tmp' }, { timeout: 20000 });
 // result = { content, structuredContent, isError, text }  (text joins the text blocks)
 await files.close();                    // closes stdin, waits, then SIGTERM / SIGKILL; DELETEs a legacy HTTP session
 ```
 
-Sync helpers on the cached list: `getTools()`, `getToolNames()`, `getTool(name)`, `hasTool(name)`,
-`toChatTools()`. `initialize()` is kept as an alias for `connect()` + `listTools()`.
+Tool methods (unchanged since intellinode 2.x): `listTools()` is synchronous and returns the cached list,
+`getTools()` and `fetchTools()` are async and fetch it, `initialize()` connects when needed and returns the
+tools. Sync helpers on the cache: `getToolNames()`, `getTool(name)`, `hasTool(name)`, `toChatTools()`.
+`callTool()` and `fetchTools()` connect on their own, and concurrent first calls share one handshake.
+The stdio transport (`{ command }`) needs Node.js; in the browser bundle use `{ url }` (Streamable HTTP).
 
 Several servers from a Claude Desktop / Cursor style config:
 
@@ -69,7 +74,7 @@ await clients.files.connect();
 const { Chatbot, ChatGPTInput, MCPClient } = require('intellinode');
 
 const mcp = new MCPClient({ command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '/tmp'] });
-await mcp.listTools();
+await mcp.connect(); // fills mcp.tools, so `await bot.runTools(input, mcp)` works right away
 
 const input = new ChatGPTInput('You can use tools to answer.', { tools: mcp.toChatTools() });
 input.addUserMessage('What files are in /tmp?');
@@ -88,7 +93,8 @@ const [reply] = await bot.chat(input);
   recognised modern error (`-32020`, `-32021`, `-32022`, or `-32601` with a JSON-RPC body) means modern;
   anything else means legacy: `initialize`, echo `Mcp-Session-Id`, send `MCP-Protocol-Version`, re-initialize
   on `404`, `DELETE` on close. SSE (`text/event-stream`) responses are handled in both eras.
-- The era is cached per client instance.
+- The era is cached per client instance; after the handshake `connect()` fetches `tools/list` (a server that
+  answers `-32601` leaves the cache empty).
 
 Errors: a JSON-RPC error rejects with a `JsonRpcError` (`code`, `data`); a request that exceeds its timeout
 rejects with `MCPTimeoutError` (and sends `notifications/cancelled` on stdio); a stdio server that dies rejects
@@ -187,7 +193,7 @@ For the HTTP transport start `npx -y intellinode mcp --http` and register `{ "ty
 | `generate_unit_tests` | `code`, `framework?`, `modulePath?`, `provider?` | test file |
 | `fix_code` | `code`, `problem?`, `language?`, `provider?` | `{ code, explanation, changes }` |
 | `generate_image` | `prompt`, `provider?` (`openai`/`stability`), `size?` | `image` content block (PNG, base64) |
-| `list_providers` | – | configured providers, default and models |
+| `list_providers` | – | configured providers, default, models and the still unset variables per provider |
 
 A missing key returns `isError: true` with the variable to set, so the assistant can tell the user what to configure.
 
@@ -225,13 +231,19 @@ Protocol behaviour of the server:
   `resultType: "complete"`; `server/discover`, `tools/list` (cursor pagination), `tools/call`, `ping`.
 - Over HTTP the mirrored headers are validated: `MCP-Protocol-Version` and `Mcp-Method` must match the body,
   `Mcp-Name` must match `params.name` for `tools/call` (Base64 sentinel decoded). Mismatch → `400` + `-32020`;
-  unsupported version → `400` + `-32022` with `supported`; unknown method → `404` + `-32601`; notifications →
-  `202`; `GET` → `405`; a foreign `Origin` → `403` (localhost origins and `allowedOrigins` are accepted);
-  binds `127.0.0.1` by default.
+  unsupported version → `400` + `-32022` with `supported`; unknown method → `404` + `-32601` for modern requests
+  and `200` + `-32601` for legacy ones (a legacy `404` means the session is gone); a request id of `null` →
+  `400` + `-32600`; notifications → `202`; `GET` → `405`; a body over `maxBodyBytes` → `413` with
+  `Connection: close`; a foreign `Origin` → `403` (localhost origins and `allowedOrigins` are accepted, and get
+  `Access-Control-Allow-Origin`, `Access-Control-Expose-Headers: Mcp-Session-Id` plus a `204` answer to the
+  `OPTIONS` preflight); binds `127.0.0.1` by default.
 - Legacy clients get the `initialize` handshake (their version when it is 2025-11-25, 2025-06-18 or 2025-03-26,
   otherwise 2025-11-25), a `Mcp-Session-Id` over HTTP (`404` once it is gone, `DELETE` ends it) and results
   without `resultType`.
-- Unknown tool → JSON-RPC `-32602`; handler failures and invalid arguments → `isError: true`.
+- Unknown tool → JSON-RPC `-32602`; handler failures and invalid arguments → `isError: true`; a result JSON
+  cannot represent (BigInt, circular structure) → `-32603` for that request, on both transports.
+- On stdio the server waits for its responses to reach the OS before it exits on stdin EOF, so a reply larger
+  than a pipe buffer (`tools/list` is ~17 KB) is never truncated.
 
 ## Publishing to the MCP Registry
 

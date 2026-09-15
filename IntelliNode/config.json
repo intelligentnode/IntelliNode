@@ -125,7 +125,8 @@
         "deepseek": {
           "base": "https://api.deepseek.com",
           "chat_model": "deepseek-chat",
-          "embed_model": null
+          "embed_model": null,
+          "structured_output": "json_object"
         },
         "xai": {
           "base": "https://api.x.ai/v1",

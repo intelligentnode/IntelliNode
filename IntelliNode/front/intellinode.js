@@ -126,7 +126,8 @@ module.exports={
         "deepseek": {
           "base": "https://api.deepseek.com",
           "chat_model": "deepseek-chat",
-          "embed_model": null
+          "embed_model": null,
+          "structured_output": "json_object"
         },
         "xai": {
           "base": "https://api.x.ai/v1",
@@ -766,6 +767,7 @@ const FetchClient = require('../utils/FetchClient');
 const { parseJson } = require('../utils/OutputParser');
 const {
     isReasoningModel,
+    stripRouteOverride,
     functionsToTools,
     functionCallToToolChoice,
     toResponsesTools,
@@ -869,14 +871,17 @@ class Chatbot {
             if (!baseUrl) throw new Error("VLLM requires 'baseUrl' in options.");
             this.vllmWrapper = new VLLMWrapper(baseUrl);
         } else if (COMPATIBLE_PROVIDERS.has(provider)) {
-            if (provider === SupportedChatModels.OPENAI_COMPATIBLE && !options.baseUrl) {
+            // the settings can also come in the third argument, as RemoteEmbedModel accepts them
+            const helper = customProxyHelper && typeof customProxyHelper === 'object' ? customProxyHelper : {};
+            const baseUrl = options.baseUrl || helper.baseUrl;
+            if (provider === SupportedChatModels.OPENAI_COMPATIBLE && !baseUrl) {
                 throw new Error("The openai_compatible provider requires 'baseUrl' in options.");
             }
             this.compatibleWrapper = new OpenAICompatibleWrapper(keyValue, {
                 preset: provider === SupportedChatModels.OPENAI_COMPATIBLE ? null : provider,
-                baseUrl: options.baseUrl,
-                headers: options.headers,
-                model: options.model,
+                baseUrl,
+                headers: options.headers || helper.headers,
+                model: options.model || helper.model,
             });
         } else {
             throw new Error("Invalid provider name");
@@ -982,6 +987,10 @@ class Chatbot {
             throw new Error('runTools needs a chat input instance (ChatGPTInput, AnthropicInput, GeminiInput, ...).');
         }
         const maxSteps = options.maxSteps || 5;
+        // an MCP client that has not listed its tools yet
+        if (tools && typeof tools.fetchTools === 'function' && (!Array.isArray(tools.tools) || tools.tools.length === 0)) {
+            await tools.fetchTools();
+        }
         const registry = Chatbot._toolRegistry(tools);
         if (!modelInput.tools && registry.definitions.length > 0) {
             modelInput.tools = registry.definitions;
@@ -991,7 +1000,8 @@ class Chatbot {
         }
 
         const steps = [];
-        for (let step = 0; step < maxSteps; step++) {
+        // maxSteps tool rounds, then one more model call for the answer
+        for (let step = 0; ; step++) {
             const response = await this.chat(modelInput);
             const replies = Array.isArray(response) ? response : response.result;
             const first = replies[0];
@@ -999,21 +1009,28 @@ class Chatbot {
                 const text = typeof first === 'string' ? first : (first && first.content) || '';
                 return { text, steps, toolCalls: steps.length };
             }
+            if (step >= maxSteps) break;
 
             const results = [];
             for (const call of first.tool_calls) {
                 const name = call.function ? call.function.name : call.name;
-                const args = Chatbot._parseArguments(call);
-                if (options.onToolCall) await options.onToolCall(name, args);
+                const { args, invalid } = Chatbot._readArguments(call);
                 let content;
                 let isError = false;
-                try {
-                    const handler = registry.handlers[name];
-                    if (!handler) throw new Error(`Unknown tool '${name}'.`);
-                    content = await handler(args, call);
-                } catch (error) {
-                    content = `Error: ${error.message}`;
+                if (invalid !== undefined) {
+                    // never run a tool with arguments the model did not actually send; let it retry
+                    content = `Error: the arguments are not valid JSON: ${invalid}`;
                     isError = true;
+                } else {
+                    if (options.onToolCall) await options.onToolCall(name, args);
+                    try {
+                        const handler = registry.handlers[name];
+                        if (!handler) throw new Error(`Unknown tool '${name}'.`);
+                        content = await handler(args, call);
+                    } catch (error) {
+                        content = `Error: ${error && error.message !== undefined ? error.message : String(error)}`;
+                        isError = true;
+                    }
                 }
                 if (options.onToolResult) await options.onToolResult(name, content, isError);
                 steps.push({ name, arguments: args, result: content, isError });
@@ -1026,13 +1043,29 @@ class Chatbot {
     }
 
     static _parseArguments(call) {
-        const args = call.function ? call.function.arguments : call.arguments;
-        if (args && typeof args === 'object') return args;
+        return Chatbot._readArguments(call).args;
+    }
+
+    // { args } for valid (or empty) arguments, { args: {}, invalid: raw } when the JSON cannot be parsed.
+    static _readArguments(call) {
+        const raw = call.function ? call.function.arguments : call.arguments;
+        if (raw && typeof raw === 'object') return { args: raw };
+        if (raw === undefined || raw === null || String(raw).trim() === '') return { args: {} };
         try {
-            return args ? JSON.parse(args) : {};
+            const args = JSON.parse(raw);
+            return args && typeof args === 'object' && !Array.isArray(args) ? { args } : { args: {}, invalid: String(raw) };
         } catch (error) {
-            return {};
+            return { args: {}, invalid: String(raw) };
         }
+    }
+
+    // A short text stand-in for MCP content without text (images, audio, resources), so no payload reaches the model.
+    static _describeContent(content) {
+        return content.map((block) => {
+            if (!block || typeof block !== 'object') return String(block);
+            const uri = (block.resource && block.resource.uri) || block.uri;
+            return `[${block.type || 'content'}${block.mimeType ? ` ${block.mimeType}` : ''}${uri ? ` ${uri}` : ''}]`;
+        }).join('\n');
     }
 
     // Normalise the accepted tool shapes into { definitions, handlers }.
@@ -1047,6 +1080,7 @@ class Chatbot {
                     if (result && result.isError) throw new Error(result.text || 'The tool reported an error.');
                     if (result && result.text) return result.text;
                     if (result && result.structuredContent !== undefined) return result.structuredContent;
+                    if (result && Array.isArray(result.content)) return Chatbot._describeContent(result.content);
                     return result;
                 };
             }
@@ -1095,7 +1129,11 @@ class Chatbot {
     }
 
     _getCompatibleParams(modelInput) {
-        if (modelInput instanceof ChatModelInput) {
+        if (modelInput instanceof ChatGPTInput && !(modelInput instanceof CohereInput)) {
+            // ChatGPTInput would build a Responses API body for gpt-5+ model names
+            const params = OpenAICompatibleInput.prototype.getChatInput.call(modelInput);
+            return params.model ? { ...params, model: stripRouteOverride(params.model) } : params;
+        } else if (modelInput instanceof ChatModelInput) {
             return modelInput.getChatInput();
         } else if (modelInput && typeof modelInput === "object") {
             return { ...modelInput };
@@ -1183,7 +1221,9 @@ class Chatbot {
         } else if (modelInput instanceof GeminiInput) {
             messages = modelInput.messages.map(message => {
                 const role = message.role;
-                const content = message.parts.map(part => part.text).join(" ");
+                const parts = message.parts || [];
+                // a function response turn is not a question
+                const content = parts.some(part => part.functionResponse) ? null : parts.map(part => part.text).join(" ");
                 return { role, content };
             });
         } else if (Array.isArray(modelInput.messages)) {
@@ -1195,7 +1235,8 @@ class Chatbot {
 
         lastMessage = messages[messages.length - 1];
 
-        if (lastMessage && lastMessage.role === "user") {
+        // tool results (Anthropic content blocks, Gemini function responses) and multimodal parts are not queries
+        if (lastMessage && lastMessage.role === "user" && typeof lastMessage.content === "string" && lastMessage.content.trim()) {
 
             const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
 
@@ -1552,7 +1593,9 @@ class Chatbot {
                 .map((part, callIndex) => ({
                     id: part.functionCall.id || `call_${index}_${callIndex}`,
                     type: 'function',
-                    function: { name: part.functionCall.name, arguments: JSON.stringify(part.functionCall.args || {}) }
+                    function: { name: part.functionCall.name, arguments: JSON.stringify(part.functionCall.args || {}) },
+                    // Gemini 3 needs the signature echoed back with the call
+                    ...(part.thoughtSignature && { thoughtSignature: part.thoughtSignature })
                 }));
             return toolCalls.length > 0 ? { content: text || null, tool_calls: toolCalls } : text;
         });
@@ -3115,8 +3158,9 @@ function isRequest(message) {
   return isMessage(message) && typeof message.method === 'string' && hasId(message);
 }
 
+// A notification has no id member: a method with id null is an invalid request (MCP forbids null request ids).
 function isNotification(message) {
-  return isMessage(message) && typeof message.method === 'string' && !hasId(message);
+  return isMessage(message) && typeof message.method === 'string' && message.id === undefined;
 }
 
 function isResponse(message) {
@@ -3434,14 +3478,55 @@ function schemaName(schema, fallback = 'response') {
   return String(raw).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64) || fallback;
 }
 
-// Strict structured output (OpenAI strict mode, Anthropic) requires additionalProperties: false on every object.
-function closedObjectSchema(schema) {
-  if (Array.isArray(schema)) return schema.map(closedObjectSchema);
+// JSON Schema keywords whose values are schemas, so a walk never mistakes a property name for a keyword.
+const SCHEMA_MAPS = new Set(['properties', 'patternProperties', '$defs', 'definitions']);
+const SCHEMA_LISTS = new Set(['anyOf', 'oneOf', 'allOf', 'prefixItems']);
+const SCHEMA_VALUES = new Set(['items', 'additionalItems', 'contains', 'not', 'if', 'then', 'else']);
+
+// Copy a schema, applying visit(node) to every schema node from the leaves up.
+function mapSchema(schema, visit) {
+  if (Array.isArray(schema)) return schema.map((item) => mapSchema(item, visit));
   if (!schema || typeof schema !== 'object') return schema;
   const copy = {};
-  for (const [key, value] of Object.entries(schema)) copy[key] = closedObjectSchema(value);
-  if (copy.type === 'object' && copy.additionalProperties === undefined) copy.additionalProperties = false;
-  return copy;
+  for (const [key, value] of Object.entries(schema)) {
+    if (SCHEMA_MAPS.has(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+      copy[key] = Object.fromEntries(Object.entries(value).map(([name, sub]) => [name, mapSchema(sub, visit)]));
+    } else if ((SCHEMA_LISTS.has(key) && Array.isArray(value)) || SCHEMA_VALUES.has(key)) {
+      copy[key] = mapSchema(value, visit);
+    } else {
+      copy[key] = value;
+    }
+  }
+  return visit(copy);
+}
+
+function isObjectSchema(node) {
+  return node.type === 'object' || (Array.isArray(node.type) && node.type.includes('object'));
+}
+
+function nullableSchema(schema) {
+  if (!schema || typeof schema !== 'object') return schema;
+  const withNull = Array.isArray(schema.enum) && !schema.enum.includes(null) ? { enum: [...schema.enum, null] } : {};
+  if (typeof schema.type === 'string') return schema.type === 'null' ? schema : { ...schema, ...withNull, type: [schema.type, 'null'] };
+  if (Array.isArray(schema.type)) return schema.type.includes('null') ? schema : { ...schema, ...withNull, type: [...schema.type, 'null'] };
+  return { anyOf: [schema, { type: 'null' }] };
+}
+
+// Structured output (Anthropic, OpenAI strict mode) needs additionalProperties: false on every object. OpenAI strict
+// mode also needs every property in required, so optional properties become required and nullable.
+function closedObjectSchema(schema, { requireAll = false } = {}) {
+  return mapSchema(schema, (node) => {
+    if (!isObjectSchema(node)) return node;
+    if (node.additionalProperties === undefined) node.additionalProperties = false;
+    if (requireAll && node.properties && typeof node.properties === 'object') {
+      const required = new Set(Array.isArray(node.required) ? node.required : []);
+      for (const name of Object.keys(node.properties)) {
+        if (!required.has(name)) node.properties[name] = nullableSchema(node.properties[name]);
+      }
+      node.required = Object.keys(node.properties);
+    }
+    return node;
+  });
 }
 
 // OpenAI-style structured output: json_schema when a schema is given, json_object otherwise.
@@ -3451,7 +3536,7 @@ function openAIResponseFormat(input, { nested = true } = {}) {
     const strict = Boolean(input.strictSchema);
     const definition = {
       name: schemaName(input.responseSchema),
-      schema: strict ? closedObjectSchema(input.responseSchema) : input.responseSchema,
+      schema: strict ? closedObjectSchema(input.responseSchema, { requireAll: true }) : input.responseSchema,
       ...((strict || !nested) && { strict }),
     };
     return nested ? { type: 'json_schema', json_schema: definition } : { type: 'json_schema', ...definition };
@@ -3780,29 +3865,36 @@ class MistralInput extends ChatGPTInput {
   }
 }
 
-// Gemini's schema dialect rejects a few JSON Schema keywords.
+// Gemini's schema dialect rejects $schema and additionalProperties; they are removed from schema nodes only,
+// so a property that happens to be called "title" or "additionalProperties" is kept.
 function toGeminiSchema(schema) {
-  if (Array.isArray(schema)) return schema.map(toGeminiSchema);
-  if (!schema || typeof schema !== 'object') return schema;
-  const copy = {};
-  for (const [key, value] of Object.entries(schema)) {
-    if (key === '$schema' || key === 'additionalProperties' || key === 'title') continue;
-    copy[key] = toGeminiSchema(value);
-  }
-  return copy;
+  return mapSchema(schema, (node) => {
+    delete node.$schema;
+    delete node.additionalProperties;
+    return node;
+  });
 }
 
+// Function tools in any supported format become one functionDeclarations entry; Gemini-native tools
+// (googleSearch, codeExecution, urlContext, functionDeclarations) pass through unchanged.
 function toGeminiTools(tools) {
   if (!Array.isArray(tools)) return tools;
-  if (tools.some((tool) => tool && tool.functionDeclarations)) return tools;
-  const declarations = toChatTools(tools)
-    .filter((tool) => tool && tool.type === 'function' && tool.function)
-    .map((tool) => ({
-      name: tool.function.name,
-      ...(tool.function.description && { description: tool.function.description }),
-      ...(tool.function.parameters && { parameters: toGeminiSchema(tool.function.parameters) }),
-    }));
-  return [{ functionDeclarations: declarations }];
+  const declarations = [];
+  const native = [];
+  for (const tool of tools) {
+    const fn = tool && typeof tool === 'object' && (tool.function || ((tool.type === 'function' || (!tool.type && tool.name)) ? tool : null));
+    if (!fn || !fn.name) {
+      native.push(tool);
+      continue;
+    }
+    const parameters = fn.parameters || fn.input_schema;
+    declarations.push({
+      name: fn.name,
+      ...(fn.description && { description: fn.description }),
+      ...(parameters && { parameters: toGeminiSchema(parameters) }),
+    });
+  }
+  return [...(declarations.length ? [{ functionDeclarations: declarations }] : []), ...native];
 }
 
 function toGeminiToolConfig(choice) {
@@ -3854,7 +3946,11 @@ class GeminiInput extends ChatModelInput {
   }
 
   addToolCalls(toolCalls, content = null) {
-    const parts = toolCalls.map((call) => ({ functionCall: { name: callName(call), args: parseArguments(call) } }));
+    // Gemini 3 rejects a function call turn whose thought signature was dropped
+    const parts = toolCalls.map((call) => ({
+      functionCall: { name: callName(call), args: parseArguments(call) },
+      ...(call.thoughtSignature && { thoughtSignature: call.thoughtSignature }),
+    }));
     if (content) parts.unshift({ text: content });
     this.messages.push({ role: 'model', parts });
   }
@@ -3965,7 +4061,13 @@ class AnthropicInput extends ChatModelInput {
   getChatInput() {
       // Claude has no free-form JSON mode, so plain JSON requests become a system instruction
       const jsonInstruction = jsonModeInstruction(this);
-      const system = [this.system, jsonInstruction].filter(Boolean).join('\n');
+      let system = this.system;
+      if (jsonInstruction) {
+          // a content-block system prompt (e.g. with cache_control) keeps its blocks
+          system = Array.isArray(this.system)
+              ? [...this.system, { type: 'text', text: jsonInstruction }]
+              : [this.system, jsonInstruction].filter(Boolean).join('\n');
+      }
       return {
           ...(system && { system }),
           model: this.model,
@@ -4208,6 +4310,11 @@ class NvidiaInput extends ChatModelInput {
     for (const result of results) {
       this.messages.push({ role: 'tool', tool_call_id: result.id, content: resultText(result) });
     }
+  }
+
+  cleanMessages() {
+    // keep the system message
+    this.messages = this.messages.filter((message, index) => index === 0 && message.role === 'system');
   }
 
   deleteLastMessage(message) {
@@ -8372,10 +8479,27 @@ class ConnHelper {
   }
 
   static getErrorMessage(error) {
+    if (!error || typeof error !== 'object') return String(error);
     if (error.response && error.response.data) {
       return `Unexpected HTTP response: ${error.response.status} Error details: ${JSON.stringify(error.response.data)}`;
     }
     return error.message;
+  }
+
+  /**
+   * The error a wrapper rethrows: same message as before, keeping name (AbortError), code (ETIMEDOUT),
+   * status and body from the HTTP layer, with the original error as cause.
+   */
+  static wrapError(error) {
+    const wrapped = new Error(ConnHelper.getErrorMessage(error));
+    if (error && typeof error === 'object') {
+      if (error.name && error.name !== 'Error') wrapped.name = error.name;
+      for (const key of ['code', 'status', 'body']) {
+        if (error[key] !== undefined) wrapped[key] = error[key];
+      }
+      wrapped.cause = error;
+    }
+    return wrapped;
   }
 
   static readStream(stream) {
@@ -8438,6 +8562,7 @@ module.exports = ConnHelper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
 },{"buffer":24}],35:[function(require,module,exports){
+(function (process,Buffer){(function (){
 const fetch = require('cross-fetch');
 const FormData = require('form-data');
 
@@ -8445,10 +8570,37 @@ const FormData = require('form-data');
 const RETRY_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 const MAX_BACKOFF_MS = 30000;
 const MAX_RETRY_AFTER_MS = 60000;
+// true in Node, false in the browser bundle (browserify's process shim has no versions.node)
+const IS_NODE = typeof process !== 'undefined' && Boolean(process.versions && process.versions.node);
+
+function isNativeFormData(data) {
+  return typeof globalThis.FormData !== 'undefined' && data instanceof globalThis.FormData;
+}
 
 function isFormData(data) {
-  return data instanceof FormData
-    || (typeof globalThis.FormData !== 'undefined' && data instanceof globalThis.FormData);
+  return data instanceof FormData || isNativeFormData(data);
+}
+
+// node-fetch does not understand Node's global FormData, so copy it into a form-data instance.
+async function toNodeForm(data) {
+  const form = new FormData();
+  for (const [key, value] of data.entries()) {
+    if (typeof value === 'string') {
+      form.append(key, value);
+    } else {
+      form.append(key, Buffer.from(await value.arrayBuffer()), {
+        filename: value.name || 'blob',
+        ...(value.type && { contentType: value.type }),
+      });
+    }
+  }
+  return form;
+}
+
+function deleteContentType(headers) {
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === 'content-type') delete headers[key];
+  }
 }
 
 // Retry-After can be seconds or an HTTP date.
@@ -8461,8 +8613,23 @@ function retryAfterMs(response) {
   return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// Resolves after ms, or rejects with an AbortError as soon as the caller's signal aborts.
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal && signal.aborted) {
+      reject(abortError());
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 // One AbortSignal that fires on the caller's signal or on the timeout.
@@ -8539,7 +8706,7 @@ class FetchClient {
    *
    * @param {string} endpoint - URL path or full URL if it starts with http.
    * @param {object|FormData} data - Data to send in the request body.
-   * @param {object} extraConfig - Optional { headers, responseType: 'arraybuffer' | 'stream', timeout, retries, retryDelay, signal }.
+   * @param {object} extraConfig - Optional { headers, responseType: 'arraybuffer' | 'stream' | 'text', timeout, retries, retryDelay, signal }.
    * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or the stream/arrayBuffer if specified.
    */
   async post(endpoint, data, extraConfig = {}) {
@@ -8550,7 +8717,7 @@ class FetchClient {
    * Send a GET request.
    *
    * @param {string} endpoint - URL path or full URL if it starts with http.
-   * @param {object} extraConfig - Optional { headers, responseType: 'arraybuffer' | 'stream', timeout, retries, retryDelay, signal }.
+   * @param {object} extraConfig - Optional { headers, responseType: 'arraybuffer' | 'stream' | 'text', timeout, retries, retryDelay, signal }.
    * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or the stream/arrayBuffer if specified.
    */
   async get(endpoint, extraConfig = {}) {
@@ -8561,19 +8728,24 @@ class FetchClient {
     const url = endpoint.startsWith('http') ? endpoint : this.baseURL + endpoint;
     const headers = { ...this.defaultHeaders, ...(extraConfig.headers || {}) };
 
+    if (IS_NODE && isNativeFormData(data) && !(data instanceof FormData)) {
+      data = await toNodeForm(data);
+    }
+
     let body;
-    if (isFormData(data)) {
+    const formBody = isFormData(data);
+    if (formBody) {
       body = data;
-      // In Node the form supplies its own multipart boundary header.
+      // the multipart boundary header comes from the form (Node) or from fetch itself (browser)
+      deleteContentType(headers);
       if (typeof data.getHeaders === 'function') Object.assign(headers, data.getHeaders());
-      else delete headers['Content-Type'];
     } else if (data !== undefined) {
       body = JSON.stringify(data);
     }
 
     const options = this.resolveOptions(extraConfig);
     // a multipart body with file streams cannot be sent twice
-    const retries = isFormData(data) ? 0 : options.retries;
+    const retries = formBody ? 0 : options.retries;
 
     for (let attempt = 0; ; attempt++) {
       if (options.signal && options.signal.aborted) throw abortError();
@@ -8584,22 +8756,21 @@ class FetchClient {
       } catch (error) {
         link.cleanup();
         if (options.signal && options.signal.aborted) throw abortError();
-        const failure = link.timedOut
-          ? Object.assign(new Error(`Request timed out after ${options.timeout}ms: ${url}`), { code: 'ETIMEDOUT' })
-          : error;
+        const failure = link.timedOut ? timeoutError(options.timeout, url) : error;
         if (attempt < retries) {
-          await sleep(backoff(attempt, options.retryDelay));
+          await sleep(backoff(attempt, options.retryDelay), options.signal);
           continue;
         }
         throw failure;
       }
 
       if (!response.ok) {
-        link.cleanup();
         const errorText = await response.text().catch(() => '');
+        link.cleanup();
+        if (options.signal && options.signal.aborted) throw abortError();
         if (attempt < retries && RETRY_STATUSES.has(response.status)) {
           const wait = retryAfterMs(response);
-          await sleep(wait !== null && wait <= MAX_RETRY_AFTER_MS ? wait : backoff(attempt, options.retryDelay));
+          await sleep(wait !== null && wait <= MAX_RETRY_AFTER_MS ? wait : backoff(attempt, options.retryDelay), options.signal);
           continue;
         }
         const error = new Error(`HTTP error ${response.status}: ${errorText}`);
@@ -8611,12 +8782,22 @@ class FetchClient {
       if (extraConfig.responseType === 'stream') {
         // the timeout covers the connection only; the caller's signal can still cancel the stream
         link.clearTimer();
-        return releaseOnEarlyClose(response.body, link.abort);
+        return releaseStream(response.body, link);
       }
       try {
         if (extraConfig.responseType === 'arraybuffer') return await response.arrayBuffer();
         if (extraConfig.responseType === 'text') return await response.text();
         return await response.json();
+      } catch (error) {
+        // the timeout also covers the body download; a parse error is not retried
+        if (options.signal && options.signal.aborted) throw abortError();
+        if (!link.timedOut) throw error;
+        if (attempt < retries) {
+          link.cleanup();
+          await sleep(backoff(attempt, options.retryDelay), options.signal);
+          continue;
+        }
+        throw timeoutError(options.timeout, url);
       } finally {
         link.cleanup();
       }
@@ -8630,18 +8811,31 @@ function backoff(attempt, retryDelay) {
   return Math.min(MAX_BACKOFF_MS, retryDelay * (2 ** attempt)) + Math.floor(Math.random() * 250);
 }
 
-// A Node body that the consumer destroys before the end (e.g. breaking out of a for-await loop) must also
-// abort the request, otherwise the paused socket stays open until the server has sent the whole response.
-function releaseOnEarlyClose(body, abort) {
+// Tie the request to the body: the listener on the caller's signal is removed when the body finishes, and a
+// Node body destroyed before its end (e.g. a for-await loop that breaks) also aborts the request, otherwise the
+// paused socket stays open until the server has sent the whole response.
+function releaseStream(body, link) {
   if (body && typeof body.once === 'function' && typeof body.on === 'function') {
     body.once('close', () => {
       if (!body.readableEnded) {
         body.on('error', () => {});
-        abort();
+        link.abort();
       }
+      link.cleanup();
     });
+    return body;
+  }
+  if (body && typeof body.pipeThrough === 'function' && typeof TransformStream !== 'undefined') {
+    return body.pipeThrough(new TransformStream({
+      flush() { link.cleanup(); },
+      cancel() { link.cleanup(); },
+    }));
   }
   return body;
+}
+
+function timeoutError(timeout, url) {
+  return Object.assign(new Error(`Request timed out after ${timeout}ms: ${url}`), { code: 'ETIMEDOUT' });
 }
 
 function abortError() {
@@ -8653,7 +8847,8 @@ function abortError() {
 
 module.exports = FetchClient;
 
-},{"cross-fetch":25,"form-data":26}],36:[function(require,module,exports){
+}).call(this)}).call(this,require('_process'),require("buffer").Buffer)
+},{"_process":29,"buffer":24,"cross-fetch":25,"form-data":26}],36:[function(require,module,exports){
 const fs = require('fs');
 
 
@@ -8860,6 +9055,17 @@ const DEFAULT_PROBE_TIMEOUT = 5000;
 const SHUTDOWN_GRACE = 2000;
 const MAX_LIST_PAGES = 1000;
 
+// Stop reading a response body and close its connection. node-fetch v2 keeps the socket open until the request is
+// aborted and reports that abort as an 'error' event on the body, so the body gets a no-op error listener first.
+// In the browser the body is a ReadableStream whose reader was already cancelled; the abort closes the request.
+function releaseBody(body, controller) {
+  if (body && typeof body.on === 'function') {
+    body.on('error', () => {});
+    if (typeof body.destroy === 'function' && !body.destroyed) body.destroy();
+  }
+  controller.abort();
+}
+
 class MCPTimeoutError extends Error {
   constructor(method, timeout) {
     super(`MCP request '${method}' timed out after ${timeout}ms`);
@@ -8877,8 +9083,8 @@ class MCPTimeoutError extends Error {
  *   const client = new MCPClient('https://host/mcp');                              // Streamable HTTP
  *   const client = new MCPClient({ url, headers: { Authorization: 'Bearer ..' } }); // with auth headers
  *   const client = new MCPClient({ command: 'npx', args: ['-y', 'pkg'] });         // stdio subprocess
- *   await client.connect();
- *   const tools = await client.listTools();
+ *   await client.connect();                         // handshake, then the tool list is fetched into client.tools
+ *   const tools = client.listTools();                // cached tools (sync); await client.fetchTools() refreshes them
  *   const { text } = await client.callTool('tool_name', { param: 'value' });
  *   await client.close();
  */
@@ -8908,7 +9114,9 @@ class MCPClient {
     this.instructions = null;
     this.sessionId = null; // legacy HTTP only
     this.tools = [];
+    this.toolsFetched = false;
     this.requestId = 0;
+    this.connecting = null; // the in-flight connect() promise, shared by concurrent first requests
 
     this.process = null;
     this.pending = new Map();
@@ -8930,9 +9138,20 @@ class MCPClient {
   // Lifecycle
   // ---------------------------------------------------------------------
 
-  /** Detect the server era and return { protocolVersion, serverInfo, capabilities, instructions }. */
+  /**
+   * Detect the server era, run the handshake and fetch the tool list into client.tools.
+   * Resolves with { protocolVersion, serverInfo, capabilities, instructions }; concurrent calls share one handshake.
+   */
   async connect() {
+    if (this.connecting) return this.connecting;
     if (this.era) return this._info();
+    this.connecting = this._connect().finally(() => {
+      this.connecting = null;
+    });
+    return this.connecting;
+  }
+
+  async _connect() {
     try {
       if (this.transport === 'stdio') await this._spawn();
       const probe = await this._probe(MODERN_VERSIONS[0]);
@@ -8942,20 +9161,23 @@ class MCPClient {
       } else {
         this._applyDiscover(probe.result, probe.version);
       }
+      await this._loadTools();
     } catch (error) {
+      // a failed handshake must not leave a server process (and the parent event loop) or a legacy session behind
+      await this._release();
       this.era = null;
       this.protocolVersion = null;
       this.sessionId = null;
+      this.toolsFetched = false;
       throw error;
     }
     return this._info();
   }
 
-  /** Backward-compatible alias: connect, fetch every tool and return the tool list. */
+  /** Connect when needed, fetch every tool and return the list (the intellinode 2.x entry point). */
   async initialize() {
     try {
-      await this.connect();
-      return await this.listTools();
+      return await this.fetchTools();
     } catch (error) {
       throw new Error(`Failed to initialize MCP client: ${error.message}`);
     }
@@ -8963,6 +9185,16 @@ class MCPClient {
 
   /** End the stdio process or the legacy HTTP session; the client can connect() again afterwards. */
   async close() {
+    await this._release();
+    this.era = null;
+    this.protocolVersion = null;
+    this.sessionId = null;
+    this.exitError = null;
+    this.toolsFetched = false; // the cached tools stay readable; a new connect() refreshes them
+  }
+
+  // Stop the stdio process, or DELETE the legacy HTTP session.
+  async _release() {
     if (this.transport === 'stdio') {
       await this._stopProcess();
     } else if (this.era === 'legacy' && this.sessionId) {
@@ -8972,10 +9204,6 @@ class MCPClient {
         this._log(`session DELETE ignored: ${error.message}`);
       }
     }
-    this.era = null;
-    this.protocolVersion = null;
-    this.sessionId = null;
-    this.exitError = null;
   }
 
   _info() {
@@ -8991,9 +9219,40 @@ class MCPClient {
   // Tools
   // ---------------------------------------------------------------------
 
-  /** Fetch every page of tools/list, cache them in client.tools and return them. */
-  async listTools() {
-    if (!this.era) await this.connect();
+  /** The cached tool list (sync, as in intellinode 2.x): connect() fills it, fetchTools() refreshes it. */
+  listTools() {
+    return this.tools;
+  }
+
+  /** Fetch every page of tools/list (connecting first when needed), cache the tools in client.tools and return them. */
+  async fetchTools() {
+    if (this.connecting || !this.era) {
+      await this.connect();
+      // the handshake fetched the list, so one connect() plus fetchTools() is still a single tools/list
+      if (this.toolsFetched) return this.tools;
+    }
+    return this._fetchToolPages();
+  }
+
+  /** Same as fetchTools(); the intellinode 2.x name. */
+  async getTools() {
+    return this.fetchTools();
+  }
+
+  // Part of connect(): a server without tools (method not found, or tools not advertised) leaves the cache empty.
+  async _loadTools() {
+    try {
+      await this._fetchToolPages();
+    } catch (error) {
+      const advertised = !this.capabilities || this.capabilities.tools !== undefined;
+      if (!(error instanceof JsonRpcError) || (error.code !== ERROR_CODES.METHOD_NOT_FOUND && advertised)) throw error;
+      this._log(`tools/list unavailable (${error.message}); the tool cache stays empty`);
+      this.tools = [];
+      this.toolsFetched = true;
+    }
+  }
+
+  async _fetchToolPages() {
     const tools = [];
     const seen = new Set();
     let cursor;
@@ -9005,6 +9264,7 @@ class MCPClient {
       seen.add(cursor);
     }
     this.tools = tools;
+    this.toolsFetched = true;
     return tools;
   }
 
@@ -9013,7 +9273,7 @@ class MCPClient {
    * a protocol error (unknown tool, invalid params) rejects with a JsonRpcError.
    */
   async callTool(name, args = {}, { timeout } = {}) {
-    if (!this.era) await this.connect();
+    if (this.connecting || !this.era) await this.connect();
     const result = await this._request('tools/call', { name, arguments: args || {} }, { timeout });
     const content = Array.isArray(result.content) ? result.content : [];
     return {
@@ -9037,10 +9297,6 @@ class MCPClient {
         parameters: tool.inputSchema || { type: 'object', properties: {} },
       },
     }));
-  }
-
-  getTools() {
-    return this.tools;
   }
 
   getTool(toolName) {
@@ -9256,7 +9512,11 @@ class MCPClient {
   // POST one message; { status, headers, message (the matching JSON-RPC response or null), text }.
   async _postHttp(message, headers, timeout) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeout);
     try {
       const response = await fetch(this.url, {
         method: 'POST',
@@ -9269,12 +9529,17 @@ class MCPClient {
       if (response.status === 202 || response.status === 204) return reply;
 
       if (contentType.includes('text/event-stream')) {
-        for await (const item of rpc.readSSEMessages(response.body, (data) => this._log(`ignored SSE data: ${data}`))) {
-          if (rpc.isResponse(item) && rpc.isRequest(message) && String(item.id) === String(message.id)) {
-            reply.message = item;
-            break;
+        try {
+          for await (const item of rpc.readSSEMessages(response.body, (data) => this._log(`ignored SSE data: ${data}`))) {
+            if (rpc.isResponse(item) && rpc.isRequest(message) && String(item.id) === String(message.id)) {
+              reply.message = item;
+              break;
+            }
+            if (rpc.isNotification(item)) this._emitNotification(item);
           }
-          if (rpc.isNotification(item)) this._emitNotification(item);
+        } finally {
+          // the stream may stay open after the reply (keep-alives, later events): release the connection
+          releaseBody(response.body, controller);
         }
         return reply;
       }
@@ -9292,7 +9557,8 @@ class MCPClient {
       }
       return reply;
     } catch (error) {
-      if (controller.signal.aborted) throw new MCPTimeoutError(message.method, timeout);
+      // only the timer counts as a timeout; releaseBody() also aborts, after the reply has been read
+      if (timedOut) throw new MCPTimeoutError(message.method, timeout);
       throw error;
     } finally {
       clearTimeout(timer);
@@ -9308,6 +9574,9 @@ class MCPClient {
     // required lazily: the browser bundle maps child_process and readline to empty modules
     const { spawn } = require('child_process');
     const readline = require('readline');
+    if (typeof spawn !== 'function' || typeof readline.createInterface !== 'function') {
+      throw new Error('The MCP stdio transport ({ command }) needs Node.js; in the browser use { url } (Streamable HTTP)');
+    }
 
     this.exitError = null;
     const child = spawn(this.command, this.args, {
@@ -9606,18 +9875,21 @@ function toResponsesTools(tools) {
   return toChatTools(tools).map((tool) => (tool && tool.type === 'function' && tool.function ? { type: 'function', ...tool.function } : tool));
 }
 
+// Function tools (chat-completions, Responses or plain { name, description, parameters }) become Anthropic tools,
+// keeping extra fields such as strict or cache_control; Anthropic-native tools pass through unchanged.
 function toAnthropicTools(tools) {
   if (!Array.isArray(tools)) return tools;
-  return toChatTools(tools).map((tool) => {
-    if (tool && tool.type === 'function') {
-      const fn = tool.function || tool;
-      return {
-        name: fn.name,
-        ...(fn.description !== undefined && { description: fn.description }),
-        input_schema: fn.parameters || { type: 'object', properties: {} },
-      };
-    }
-    return tool;
+  return tools.map((tool) => {
+    if (!tool || typeof tool !== 'object' || tool.input_schema || (tool.type && tool.type !== 'function')) return tool;
+    if (tool.type !== 'function' && !tool.function && tool.parameters === undefined) return tool;
+    const source = tool.function ? { ...tool.function } : { ...tool };
+    const { type, handler, name, description, parameters, ...extra } = source;
+    return {
+      name,
+      ...(description !== undefined && { description }),
+      input_schema: parameters || { type: 'object', properties: {} },
+      ...extra,
+    };
   });
 }
 
@@ -10679,7 +10951,7 @@ class AnthropicWrapper {
     try {
       return await this.client.post(endpoint, params, extraHeaders ? { headers: extraHeaders } : {});
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -10693,7 +10965,7 @@ class AnthropicWrapper {
         headers: { Accept: 'text/event-stream', ...(extraHeaders || {}) },
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -10729,7 +11001,7 @@ class CohereAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -10740,7 +11012,7 @@ class CohereAIWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -10749,7 +11021,7 @@ class CohereAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -10796,7 +11068,7 @@ class GeminiAIWrapper {
     try {
       return await this.client.post(endpoint, body);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -10827,7 +11099,7 @@ class GeminiAIWrapper {
       const response = await this.client.post(endpoint, { ...params, model: `models/${model}` });
       return response.embedding;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -10843,7 +11115,7 @@ class GeminiAIWrapper {
       });
       return response.embeddings;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -10885,7 +11157,7 @@ class GoogleAIWrapper {
     try {
       return await this.client.post(url, JSON.parse(json));
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -10940,7 +11212,7 @@ class HuggingWrapper {
     try {
       return await this.client.post(endpoint, data);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -10950,7 +11222,7 @@ class HuggingWrapper {
       // We need arraybuffer to get raw image data
       return await this.client.post(endpoint, data, { responseType: 'arraybuffer' });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -10960,7 +11232,7 @@ class HuggingWrapper {
       const arrayBuf = await this.client.post(endpoint, data, { responseType: 'arraybuffer' });
       return JSON.parse(Buffer.from(arrayBuf).toString());
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -11011,7 +11283,7 @@ class IntellicloudWrapper {
       const response = await this.client.post(endpoint, form);
       return response.data; // The API returns { data: ... }
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -11045,7 +11317,7 @@ class MistralAIWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11054,7 +11326,7 @@ class MistralAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -11101,7 +11373,7 @@ class NvidiaWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(this.ENDPOINT_CHAT, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11112,7 +11384,7 @@ class NvidiaWrapper {
         responseType: 'stream'
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11129,7 +11401,7 @@ class NvidiaWrapper {
     try {
       return await this.client.post(config.nvidia.embeddings, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11173,6 +11445,8 @@ class OpenAICompatibleWrapper {
     this.API_KEY = apiKey;
     this.defaultModel = options.model || (preset && preset.chat_model) || null;
     this.defaultEmbedModel = (preset && preset.embed_model) || null;
+    // 'json_object' for services that reject json_schema response formats
+    this.structuredOutput = options.structuredOutput || (preset && preset.structured_output) || 'json_schema';
 
     const headers = { 'Content-Type': 'application/json', Accept: 'application/json', ...(options.headers || {}) };
     // local runtimes ignore the key; a placeholder keeps proxies that require the header happy
@@ -11204,13 +11478,29 @@ class OpenAICompatibleWrapper {
     return { ...params, model: this.defaultModel };
   }
 
+  // Services without json_schema support get json_object, with the schema added to the system message.
+  adaptResponseFormat(params) {
+    const format = params.response_format;
+    if (!format || format.type !== 'json_schema' || this.structuredOutput !== 'json_object') return params;
+    const schema = format.json_schema ? format.json_schema.schema : format.schema;
+    const instruction = `Respond with JSON only, matching this JSON Schema: ${JSON.stringify(schema)}`;
+    const messages = Array.isArray(params.messages) ? params.messages.slice() : [];
+    const systemIndex = messages.findIndex((message) => message.role === 'system' && typeof message.content === 'string');
+    if (systemIndex >= 0) {
+      messages[systemIndex] = { ...messages[systemIndex], content: `${messages[systemIndex].content}\n${instruction}` };
+    } else {
+      messages.unshift({ role: 'system', content: instruction });
+    }
+    return { ...params, messages, response_format: { type: 'json_object' } };
+  }
+
   async generateChatText(params) {
     try {
-      const payload = this.withModel(params);
+      const payload = this.adaptResponseFormat(this.withModel(params));
       const extraConfig = payload.stream ? { responseType: 'stream' } : {};
       return await this.client.post(compatible.chat, payload, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11220,7 +11510,7 @@ class OpenAICompatibleWrapper {
       if (!payload.model) throw new Error('No embedding model set. Pass a model name in the request.');
       return await this.client.post(compatible.embeddings, payload);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11230,7 +11520,7 @@ class OpenAICompatibleWrapper {
       const response = await this.client.get(compatible.models);
       return (response.data || []).map((model) => model.id);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -11286,7 +11576,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11300,7 +11590,7 @@ class OpenAIWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, payload, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11309,7 +11599,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11321,7 +11611,7 @@ class OpenAIWrapper {
         headers: params.getHeaders ? params.getHeaders() : {}
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11330,7 +11620,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11347,7 +11637,7 @@ class OpenAIWrapper {
         }
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11356,7 +11646,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11365,7 +11655,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params, { headers });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11378,7 +11668,7 @@ class OpenAIWrapper {
       }
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11387,7 +11677,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params, { headers });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11399,7 +11689,7 @@ class OpenAIWrapper {
       // "params" should include { model, modalities, audio, messages, etc. }
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11410,7 +11700,7 @@ class OpenAIWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11448,7 +11738,7 @@ class ReplicateWrapper {
     try {
       return await this.client.post(endpoint, inputData);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11458,7 +11748,7 @@ class ReplicateWrapper {
       // GET request
       return await this.client.get(endpoint);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -11535,7 +11825,7 @@ class StabilityAIWrapper {
                 }
             });
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -11553,7 +11843,7 @@ class StabilityAIWrapper {
                 responseType: 'arraybuffer'
             });
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -11585,7 +11875,7 @@ class StabilityAIWrapper {
         try {
             return await this.client.post(endpoint, formData);
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -11623,7 +11913,7 @@ class StabilityAIWrapper {
             });
             return resp;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
     async inpaintImage({
@@ -11650,7 +11940,7 @@ class StabilityAIWrapper {
             });
             return response; // if accept=application/json => { image, seed, finish_reason }
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -11684,7 +11974,7 @@ class StabilityAIWrapper {
             });
             return response;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -11713,7 +12003,7 @@ class StabilityAIWrapper {
 
             return startResp;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -11733,7 +12023,7 @@ class StabilityAIWrapper {
             // If it's 202 => you need to re-check. 
             return response;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -11784,7 +12074,7 @@ class StabilityAIWrapper {
       });
       return response;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11833,7 +12123,7 @@ class StabilityAIWrapper {
       });
       return response;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11884,7 +12174,7 @@ class StabilityAIWrapper {
       });
       return response;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -11910,7 +12200,7 @@ class VLLMWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11920,7 +12210,7 @@ class VLLMWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -11929,7 +12219,7 @@ class VLLMWrapper {
     try {
       return await this.client.post(endpoint, { texts });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

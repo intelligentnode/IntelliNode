@@ -17,7 +17,7 @@ class VLLMWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -27,7 +27,7 @@ class VLLMWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -36,7 +36,7 @@ class VLLMWrapper {
     try {
       return await this.client.post(endpoint, { texts });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

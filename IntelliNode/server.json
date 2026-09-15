@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.intelligentnode/intellinode",
-  "description": "Cross-provider LLM tools for coding assistants: ask, consensus, code review, fixes, tests, components, SQL, OpenAPI, design tokens, regex, mock data, SEO meta and image generation on OpenAI, Anthropic, Gemini, Mistral, Cohere, NVIDIA, OpenRouter, DeepSeek, Groq, xAI, Together or a local Ollama model.",
+  "description": "Cross-provider LLM tools for coding assistants: ask, consensus, review, fix, codegen and images.",
   "repository": {
     "url": "https://github.com/intelligentnode/IntelliNode",
     "source": "github"
@@ -73,9 +73,21 @@
           "isRequired": false
         },
         {
+          "name": "OPENROUTER_MODEL",
+          "description": "Optional OpenRouter model name, overrides the IntelliNode default",
+          "isSecret": false,
+          "isRequired": false
+        },
+        {
           "name": "DEEPSEEK_API_KEY",
           "description": "DeepSeek API key",
           "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "DEEPSEEK_MODEL",
+          "description": "Optional DeepSeek model name, overrides the IntelliNode default",
+          "isSecret": false,
           "isRequired": false
         },
         {
@@ -85,15 +97,33 @@
           "isRequired": false
         },
         {
+          "name": "GROQ_MODEL",
+          "description": "Groq model name, needed together with GROQ_API_KEY",
+          "isSecret": false,
+          "isRequired": false
+        },
+        {
           "name": "XAI_API_KEY",
           "description": "xAI API key (set XAI_MODEL too)",
           "isSecret": true,
           "isRequired": false
         },
         {
+          "name": "XAI_MODEL",
+          "description": "xAI model name, needed together with XAI_API_KEY",
+          "isSecret": false,
+          "isRequired": false
+        },
+        {
           "name": "TOGETHER_API_KEY",
           "description": "Together AI API key (set TOGETHER_MODEL too)",
           "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "TOGETHER_MODEL",
+          "description": "Together AI model name, needed together with TOGETHER_API_KEY",
+          "isSecret": false,
           "isRequired": false
         },
         {

@@ -14,10 +14,27 @@ class ConnHelper {
   }
 
   static getErrorMessage(error) {
+    if (!error || typeof error !== 'object') return String(error);
     if (error.response && error.response.data) {
       return `Unexpected HTTP response: ${error.response.status} Error details: ${JSON.stringify(error.response.data)}`;
     }
     return error.message;
+  }
+
+  /**
+   * The error a wrapper rethrows: same message as before, keeping name (AbortError), code (ETIMEDOUT),
+   * status and body from the HTTP layer, with the original error as cause.
+   */
+  static wrapError(error) {
+    const wrapped = new Error(ConnHelper.getErrorMessage(error));
+    if (error && typeof error === 'object') {
+      if (error.name && error.name !== 'Error') wrapped.name = error.name;
+      for (const key of ['code', 'status', 'body']) {
+        if (error[key] !== undefined) wrapped[key] = error[key];
+      }
+      wrapped.cause = error;
+    }
+    return wrapped;
   }
 
   static readStream(stream) {

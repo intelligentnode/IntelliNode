@@ -28,6 +28,7 @@ const FetchClient = require('../utils/FetchClient');
 const { parseJson } = require('../utils/OutputParser');
 const {
     isReasoningModel,
+    stripRouteOverride,
     functionsToTools,
     functionCallToToolChoice,
     toResponsesTools,
@@ -131,14 +132,17 @@ class Chatbot {
             if (!baseUrl) throw new Error("VLLM requires 'baseUrl' in options.");
             this.vllmWrapper = new VLLMWrapper(baseUrl);
         } else if (COMPATIBLE_PROVIDERS.has(provider)) {
-            if (provider === SupportedChatModels.OPENAI_COMPATIBLE && !options.baseUrl) {
+            // the settings can also come in the third argument, as RemoteEmbedModel accepts them
+            const helper = customProxyHelper && typeof customProxyHelper === 'object' ? customProxyHelper : {};
+            const baseUrl = options.baseUrl || helper.baseUrl;
+            if (provider === SupportedChatModels.OPENAI_COMPATIBLE && !baseUrl) {
                 throw new Error("The openai_compatible provider requires 'baseUrl' in options.");
             }
             this.compatibleWrapper = new OpenAICompatibleWrapper(keyValue, {
                 preset: provider === SupportedChatModels.OPENAI_COMPATIBLE ? null : provider,
-                baseUrl: options.baseUrl,
-                headers: options.headers,
-                model: options.model,
+                baseUrl,
+                headers: options.headers || helper.headers,
+                model: options.model || helper.model,
             });
         } else {
             throw new Error("Invalid provider name");
@@ -244,6 +248,10 @@ class Chatbot {
             throw new Error('runTools needs a chat input instance (ChatGPTInput, AnthropicInput, GeminiInput, ...).');
         }
         const maxSteps = options.maxSteps || 5;
+        // an MCP client that has not listed its tools yet
+        if (tools && typeof tools.fetchTools === 'function' && (!Array.isArray(tools.tools) || tools.tools.length === 0)) {
+            await tools.fetchTools();
+        }
         const registry = Chatbot._toolRegistry(tools);
         if (!modelInput.tools && registry.definitions.length > 0) {
             modelInput.tools = registry.definitions;
@@ -253,7 +261,8 @@ class Chatbot {
         }
 
         const steps = [];
-        for (let step = 0; step < maxSteps; step++) {
+        // maxSteps tool rounds, then one more model call for the answer
+        for (let step = 0; ; step++) {
             const response = await this.chat(modelInput);
             const replies = Array.isArray(response) ? response : response.result;
             const first = replies[0];
@@ -261,21 +270,28 @@ class Chatbot {
                 const text = typeof first === 'string' ? first : (first && first.content) || '';
                 return { text, steps, toolCalls: steps.length };
             }
+            if (step >= maxSteps) break;
 
             const results = [];
             for (const call of first.tool_calls) {
                 const name = call.function ? call.function.name : call.name;
-                const args = Chatbot._parseArguments(call);
-                if (options.onToolCall) await options.onToolCall(name, args);
+                const { args, invalid } = Chatbot._readArguments(call);
                 let content;
                 let isError = false;
-                try {
-                    const handler = registry.handlers[name];
-                    if (!handler) throw new Error(`Unknown tool '${name}'.`);
-                    content = await handler(args, call);
-                } catch (error) {
-                    content = `Error: ${error.message}`;
+                if (invalid !== undefined) {
+                    // never run a tool with arguments the model did not actually send; let it retry
+                    content = `Error: the arguments are not valid JSON: ${invalid}`;
                     isError = true;
+                } else {
+                    if (options.onToolCall) await options.onToolCall(name, args);
+                    try {
+                        const handler = registry.handlers[name];
+                        if (!handler) throw new Error(`Unknown tool '${name}'.`);
+                        content = await handler(args, call);
+                    } catch (error) {
+                        content = `Error: ${error && error.message !== undefined ? error.message : String(error)}`;
+                        isError = true;
+                    }
                 }
                 if (options.onToolResult) await options.onToolResult(name, content, isError);
                 steps.push({ name, arguments: args, result: content, isError });
@@ -288,13 +304,29 @@ class Chatbot {
     }
 
     static _parseArguments(call) {
-        const args = call.function ? call.function.arguments : call.arguments;
-        if (args && typeof args === 'object') return args;
+        return Chatbot._readArguments(call).args;
+    }
+
+    // { args } for valid (or empty) arguments, { args: {}, invalid: raw } when the JSON cannot be parsed.
+    static _readArguments(call) {
+        const raw = call.function ? call.function.arguments : call.arguments;
+        if (raw && typeof raw === 'object') return { args: raw };
+        if (raw === undefined || raw === null || String(raw).trim() === '') return { args: {} };
         try {
-            return args ? JSON.parse(args) : {};
+            const args = JSON.parse(raw);
+            return args && typeof args === 'object' && !Array.isArray(args) ? { args } : { args: {}, invalid: String(raw) };
         } catch (error) {
-            return {};
+            return { args: {}, invalid: String(raw) };
         }
+    }
+
+    // A short text stand-in for MCP content without text (images, audio, resources), so no payload reaches the model.
+    static _describeContent(content) {
+        return content.map((block) => {
+            if (!block || typeof block !== 'object') return String(block);
+            const uri = (block.resource && block.resource.uri) || block.uri;
+            return `[${block.type || 'content'}${block.mimeType ? ` ${block.mimeType}` : ''}${uri ? ` ${uri}` : ''}]`;
+        }).join('\n');
     }
 
     // Normalise the accepted tool shapes into { definitions, handlers }.
@@ -309,6 +341,7 @@ class Chatbot {
                     if (result && result.isError) throw new Error(result.text || 'The tool reported an error.');
                     if (result && result.text) return result.text;
                     if (result && result.structuredContent !== undefined) return result.structuredContent;
+                    if (result && Array.isArray(result.content)) return Chatbot._describeContent(result.content);
                     return result;
                 };
             }
@@ -357,7 +390,11 @@ class Chatbot {
     }
 
     _getCompatibleParams(modelInput) {
-        if (modelInput instanceof ChatModelInput) {
+        if (modelInput instanceof ChatGPTInput && !(modelInput instanceof CohereInput)) {
+            // ChatGPTInput would build a Responses API body for gpt-5+ model names
+            const params = OpenAICompatibleInput.prototype.getChatInput.call(modelInput);
+            return params.model ? { ...params, model: stripRouteOverride(params.model) } : params;
+        } else if (modelInput instanceof ChatModelInput) {
             return modelInput.getChatInput();
         } else if (modelInput && typeof modelInput === "object") {
             return { ...modelInput };
@@ -445,7 +482,9 @@ class Chatbot {
         } else if (modelInput instanceof GeminiInput) {
             messages = modelInput.messages.map(message => {
                 const role = message.role;
-                const content = message.parts.map(part => part.text).join(" ");
+                const parts = message.parts || [];
+                // a function response turn is not a question
+                const content = parts.some(part => part.functionResponse) ? null : parts.map(part => part.text).join(" ");
                 return { role, content };
             });
         } else if (Array.isArray(modelInput.messages)) {
@@ -457,7 +496,8 @@ class Chatbot {
 
         lastMessage = messages[messages.length - 1];
 
-        if (lastMessage && lastMessage.role === "user") {
+        // tool results (Anthropic content blocks, Gemini function responses) and multimodal parts are not queries
+        if (lastMessage && lastMessage.role === "user" && typeof lastMessage.content === "string" && lastMessage.content.trim()) {
 
             const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
 
@@ -814,7 +854,9 @@ class Chatbot {
                 .map((part, callIndex) => ({
                     id: part.functionCall.id || `call_${index}_${callIndex}`,
                     type: 'function',
-                    function: { name: part.functionCall.name, arguments: JSON.stringify(part.functionCall.args || {}) }
+                    function: { name: part.functionCall.name, arguments: JSON.stringify(part.functionCall.args || {}) },
+                    // Gemini 3 needs the signature echoed back with the call
+                    ...(part.thoughtSignature && { thoughtSignature: part.thoughtSignature })
                 }));
             return toolCalls.length > 0 ? { content: text || null, tool_calls: toolCalls } : text;
         });

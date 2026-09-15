@@ -36,7 +36,7 @@ class GeminiAIWrapper {
     try {
       return await this.client.post(endpoint, body);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -67,7 +67,7 @@ class GeminiAIWrapper {
       const response = await this.client.post(endpoint, { ...params, model: `models/${model}` });
       return response.embedding;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -83,7 +83,7 @@ class GeminiAIWrapper {
       });
       return response.embeddings;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

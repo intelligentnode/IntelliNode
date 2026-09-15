@@ -37,7 +37,7 @@ class NvidiaWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(this.ENDPOINT_CHAT, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -48,7 +48,7 @@ class NvidiaWrapper {
         responseType: 'stream'
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -65,7 +65,7 @@ class NvidiaWrapper {
     try {
       return await this.client.post(config.nvidia.embeddings, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 

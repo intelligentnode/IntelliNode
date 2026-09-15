@@ -106,18 +106,21 @@ function toResponsesTools(tools) {
   return toChatTools(tools).map((tool) => (tool && tool.type === 'function' && tool.function ? { type: 'function', ...tool.function } : tool));
 }
 
+// Function tools (chat-completions, Responses or plain { name, description, parameters }) become Anthropic tools,
+// keeping extra fields such as strict or cache_control; Anthropic-native tools pass through unchanged.
 function toAnthropicTools(tools) {
   if (!Array.isArray(tools)) return tools;
-  return toChatTools(tools).map((tool) => {
-    if (tool && tool.type === 'function') {
-      const fn = tool.function || tool;
-      return {
-        name: fn.name,
-        ...(fn.description !== undefined && { description: fn.description }),
-        input_schema: fn.parameters || { type: 'object', properties: {} },
-      };
-    }
-    return tool;
+  return tools.map((tool) => {
+    if (!tool || typeof tool !== 'object' || tool.input_schema || (tool.type && tool.type !== 'function')) return tool;
+    if (tool.type !== 'function' && !tool.function && tool.parameters === undefined) return tool;
+    const source = tool.function ? { ...tool.function } : { ...tool };
+    const { type, handler, name, description, parameters, ...extra } = source;
+    return {
+      name,
+      ...(description !== undefined && { description }),
+      input_schema: parameters || { type: 'object', properties: {} },
+      ...extra,
+    };
   });
 }
 

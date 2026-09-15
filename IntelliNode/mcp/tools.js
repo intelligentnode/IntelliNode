@@ -46,11 +46,21 @@ function isConfigured(provider, env) {
   return Boolean((provider.local || env[provider.key]) && providerModel(provider, env));
 }
 
-// The variables that would configure a provider, for error messages.
-function requiredVariables(provider) {
-  const variables = provider.key ? [provider.key] : [];
-  if (provider.modelEnv && !provider.model) variables.push(provider.modelEnv);
+// The variables still unset for a provider that is not configured (a key that is already set is not repeated).
+function missingVariables(provider, env) {
+  const variables = [];
+  if (provider.key && !env[provider.key]) variables.push(provider.key);
+  if (provider.modelEnv && !provider.model && !env[provider.modelEnv]) variables.push(provider.modelEnv);
   return variables;
+}
+
+// Names every key variable plus OLLAMA_MODEL, then the keys that also need a model variable.
+function noProviderMessage() {
+  const keys = PROVIDERS.filter((provider) => provider.key).map((provider) => provider.key);
+  const needModel = PROVIDERS.filter((provider) => provider.key && provider.modelEnv && !provider.model)
+    .map((provider) => `${provider.key} also needs ${provider.modelEnv}`);
+  return `No LLM provider is configured. Set at least one of ${keys.join(', ')} (or OLLAMA_MODEL for a local Ollama model) ${KEY_HINT}.`
+    + (needModel.length ? ` ${needModel.join('; ')}.` : '');
 }
 
 const IMAGE_PROVIDERS = [
@@ -84,13 +94,13 @@ function resolveProvider(requested, env) {
       throw new Error(`Unknown provider '${requested}'. Use one of: ${PROVIDER_IDS.join(', ')}. ${describeConfigured(env)}`);
     }
     if (!isConfigured(provider, env)) {
-      throw new Error(`${provider.id} is not configured. Set ${requiredVariables(provider).join(' and ')} ${KEY_HINT}. ${describeConfigured(env)}`);
+      throw new Error(`${provider.id} is not configured. Set ${missingVariables(provider, env).join(' and ')} ${KEY_HINT}. ${describeConfigured(env)}`);
     }
     return { provider: provider.id, apiKey: provider.key ? env[provider.key] : null, model: providerModel(provider, env) };
   }
   const [first] = configuredProviders(env);
   if (!first) {
-    throw new Error(`No LLM provider is configured. Set at least one of ${PROVIDERS.filter((p) => p.key).map((p) => p.key).join(', ')} (or OLLAMA_MODEL for a local Ollama model) ${KEY_HINT}.`);
+    throw new Error(noProviderMessage());
   }
   return { provider: first.id, apiKey: first.key ? env[first.key] : null, model: providerModel(first, env) };
 }
@@ -459,18 +469,21 @@ function createTools(env = process.env) {
       inputSchema: schema({}),
       handler: async () => {
         const configured = configuredProviders(env).map((provider) => ({ provider: provider.id, model: providerModel(provider, env), keyVariable: provider.key }));
-        const missing = PROVIDERS.filter((provider) => !isConfigured(provider, env)).flatMap((provider) => requiredVariables(provider));
+        // per unconfigured provider, only the variables that are still unset
+        const unconfigured = PROVIDERS.filter((provider) => !isConfigured(provider, env))
+          .map((provider) => ({ provider: provider.id, missing: missingVariables(provider, env) }));
         const image = configuredImageProviders(env).map((provider) => provider.id);
         const summary = {
           default: configured.length ? configured[0].provider : null,
           configured,
           image: { default: image[0] || null, configured: image },
-          missing,
+          unconfigured,
         };
+        const notConfigured = unconfigured.map((entry) => `${entry.provider} (set ${entry.missing.join(' and ')})`).join(', ');
         const text = configured.length
           ? `Configured providers: ${configured.map((entry) => `${entry.provider} (${entry.model})`).join(', ')}. Default: ${summary.default}. `
-            + `Image providers: ${image.join(', ') || 'none'}.${missing.length ? ` Not configured: ${missing.join(', ')}.` : ''}`
-          : `No LLM provider is configured. Set one of ${missing.join(', ')} ${KEY_HINT}.`;
+            + `Image providers: ${image.join(', ') || 'none'}.${unconfigured.length ? ` Not configured: ${notConfigured}.` : ''}`
+          : noProviderMessage();
         return { content: [{ type: 'text', text }], structuredContent: summary };
       },
     },

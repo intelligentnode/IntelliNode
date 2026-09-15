@@ -23,7 +23,7 @@ class ReplicateWrapper {
     try {
       return await this.client.post(endpoint, inputData);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -33,7 +33,7 @@ class ReplicateWrapper {
       // GET request
       return await this.client.get(endpoint);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

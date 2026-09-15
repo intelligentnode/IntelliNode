@@ -61,14 +61,55 @@ function schemaName(schema, fallback = 'response') {
   return String(raw).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64) || fallback;
 }
 
-// Strict structured output (OpenAI strict mode, Anthropic) requires additionalProperties: false on every object.
-function closedObjectSchema(schema) {
-  if (Array.isArray(schema)) return schema.map(closedObjectSchema);
+// JSON Schema keywords whose values are schemas, so a walk never mistakes a property name for a keyword.
+const SCHEMA_MAPS = new Set(['properties', 'patternProperties', '$defs', 'definitions']);
+const SCHEMA_LISTS = new Set(['anyOf', 'oneOf', 'allOf', 'prefixItems']);
+const SCHEMA_VALUES = new Set(['items', 'additionalItems', 'contains', 'not', 'if', 'then', 'else']);
+
+// Copy a schema, applying visit(node) to every schema node from the leaves up.
+function mapSchema(schema, visit) {
+  if (Array.isArray(schema)) return schema.map((item) => mapSchema(item, visit));
   if (!schema || typeof schema !== 'object') return schema;
   const copy = {};
-  for (const [key, value] of Object.entries(schema)) copy[key] = closedObjectSchema(value);
-  if (copy.type === 'object' && copy.additionalProperties === undefined) copy.additionalProperties = false;
-  return copy;
+  for (const [key, value] of Object.entries(schema)) {
+    if (SCHEMA_MAPS.has(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+      copy[key] = Object.fromEntries(Object.entries(value).map(([name, sub]) => [name, mapSchema(sub, visit)]));
+    } else if ((SCHEMA_LISTS.has(key) && Array.isArray(value)) || SCHEMA_VALUES.has(key)) {
+      copy[key] = mapSchema(value, visit);
+    } else {
+      copy[key] = value;
+    }
+  }
+  return visit(copy);
+}
+
+function isObjectSchema(node) {
+  return node.type === 'object' || (Array.isArray(node.type) && node.type.includes('object'));
+}
+
+function nullableSchema(schema) {
+  if (!schema || typeof schema !== 'object') return schema;
+  const withNull = Array.isArray(schema.enum) && !schema.enum.includes(null) ? { enum: [...schema.enum, null] } : {};
+  if (typeof schema.type === 'string') return schema.type === 'null' ? schema : { ...schema, ...withNull, type: [schema.type, 'null'] };
+  if (Array.isArray(schema.type)) return schema.type.includes('null') ? schema : { ...schema, ...withNull, type: [...schema.type, 'null'] };
+  return { anyOf: [schema, { type: 'null' }] };
+}
+
+// Structured output (Anthropic, OpenAI strict mode) needs additionalProperties: false on every object. OpenAI strict
+// mode also needs every property in required, so optional properties become required and nullable.
+function closedObjectSchema(schema, { requireAll = false } = {}) {
+  return mapSchema(schema, (node) => {
+    if (!isObjectSchema(node)) return node;
+    if (node.additionalProperties === undefined) node.additionalProperties = false;
+    if (requireAll && node.properties && typeof node.properties === 'object') {
+      const required = new Set(Array.isArray(node.required) ? node.required : []);
+      for (const name of Object.keys(node.properties)) {
+        if (!required.has(name)) node.properties[name] = nullableSchema(node.properties[name]);
+      }
+      node.required = Object.keys(node.properties);
+    }
+    return node;
+  });
 }
 
 // OpenAI-style structured output: json_schema when a schema is given, json_object otherwise.
@@ -78,7 +119,7 @@ function openAIResponseFormat(input, { nested = true } = {}) {
     const strict = Boolean(input.strictSchema);
     const definition = {
       name: schemaName(input.responseSchema),
-      schema: strict ? closedObjectSchema(input.responseSchema) : input.responseSchema,
+      schema: strict ? closedObjectSchema(input.responseSchema, { requireAll: true }) : input.responseSchema,
       ...((strict || !nested) && { strict }),
     };
     return nested ? { type: 'json_schema', json_schema: definition } : { type: 'json_schema', ...definition };
@@ -407,29 +448,36 @@ class MistralInput extends ChatGPTInput {
   }
 }
 
-// Gemini's schema dialect rejects a few JSON Schema keywords.
+// Gemini's schema dialect rejects $schema and additionalProperties; they are removed from schema nodes only,
+// so a property that happens to be called "title" or "additionalProperties" is kept.
 function toGeminiSchema(schema) {
-  if (Array.isArray(schema)) return schema.map(toGeminiSchema);
-  if (!schema || typeof schema !== 'object') return schema;
-  const copy = {};
-  for (const [key, value] of Object.entries(schema)) {
-    if (key === '$schema' || key === 'additionalProperties' || key === 'title') continue;
-    copy[key] = toGeminiSchema(value);
-  }
-  return copy;
+  return mapSchema(schema, (node) => {
+    delete node.$schema;
+    delete node.additionalProperties;
+    return node;
+  });
 }
 
+// Function tools in any supported format become one functionDeclarations entry; Gemini-native tools
+// (googleSearch, codeExecution, urlContext, functionDeclarations) pass through unchanged.
 function toGeminiTools(tools) {
   if (!Array.isArray(tools)) return tools;
-  if (tools.some((tool) => tool && tool.functionDeclarations)) return tools;
-  const declarations = toChatTools(tools)
-    .filter((tool) => tool && tool.type === 'function' && tool.function)
-    .map((tool) => ({
-      name: tool.function.name,
-      ...(tool.function.description && { description: tool.function.description }),
-      ...(tool.function.parameters && { parameters: toGeminiSchema(tool.function.parameters) }),
-    }));
-  return [{ functionDeclarations: declarations }];
+  const declarations = [];
+  const native = [];
+  for (const tool of tools) {
+    const fn = tool && typeof tool === 'object' && (tool.function || ((tool.type === 'function' || (!tool.type && tool.name)) ? tool : null));
+    if (!fn || !fn.name) {
+      native.push(tool);
+      continue;
+    }
+    const parameters = fn.parameters || fn.input_schema;
+    declarations.push({
+      name: fn.name,
+      ...(fn.description && { description: fn.description }),
+      ...(parameters && { parameters: toGeminiSchema(parameters) }),
+    });
+  }
+  return [...(declarations.length ? [{ functionDeclarations: declarations }] : []), ...native];
 }
 
 function toGeminiToolConfig(choice) {
@@ -481,7 +529,11 @@ class GeminiInput extends ChatModelInput {
   }
 
   addToolCalls(toolCalls, content = null) {
-    const parts = toolCalls.map((call) => ({ functionCall: { name: callName(call), args: parseArguments(call) } }));
+    // Gemini 3 rejects a function call turn whose thought signature was dropped
+    const parts = toolCalls.map((call) => ({
+      functionCall: { name: callName(call), args: parseArguments(call) },
+      ...(call.thoughtSignature && { thoughtSignature: call.thoughtSignature }),
+    }));
     if (content) parts.unshift({ text: content });
     this.messages.push({ role: 'model', parts });
   }
@@ -592,7 +644,13 @@ class AnthropicInput extends ChatModelInput {
   getChatInput() {
       // Claude has no free-form JSON mode, so plain JSON requests become a system instruction
       const jsonInstruction = jsonModeInstruction(this);
-      const system = [this.system, jsonInstruction].filter(Boolean).join('\n');
+      let system = this.system;
+      if (jsonInstruction) {
+          // a content-block system prompt (e.g. with cache_control) keeps its blocks
+          system = Array.isArray(this.system)
+              ? [...this.system, { type: 'text', text: jsonInstruction }]
+              : [this.system, jsonInstruction].filter(Boolean).join('\n');
+      }
       return {
           ...(system && { system }),
           model: this.model,
@@ -835,6 +893,11 @@ class NvidiaInput extends ChatModelInput {
     for (const result of results) {
       this.messages.push({ role: 'tool', tool_call_id: result.id, content: resultText(result) });
     }
+  }
+
+  cleanMessages() {
+    // keep the system message
+    this.messages = this.messages.filter((message, index) => index === 0 && message.role === 'system');
   }
 
   deleteLastMessage(message) {

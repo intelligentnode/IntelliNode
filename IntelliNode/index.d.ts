@@ -40,6 +40,8 @@ export interface ToolCall {
   id: string;
   type: 'function';
   function: { name: string; arguments: string };
+  /** Gemini 3 thought signature, echoed back by addToolCalls */
+  thoughtSignature?: string;
 }
 /** A tool result to feed back with addToolResults. */
 export interface ToolResult {
@@ -218,6 +220,9 @@ export interface RunnableTool extends ChatToolFunction {
 export interface ToolProvider {
   toChatTools(): ChatTool[];
   callTool(name: string, args: any): Promise<any>;
+  /** called by runTools when the cached tools list is empty */
+  fetchTools?(): Promise<any>;
+  tools?: any[];
 }
 export type ToolSet = RunnableTool[] | Record<string, (args: any, call: ToolCall) => any> | ToolProvider;
 
@@ -307,7 +312,7 @@ export class Gen {
   static get_marketing_desc(promptString: string, apiKey: string, provider?: ChatProvider, customProxyHelper?: any): Promise<string>;
   static get_blog_post(promptString: string, apiKey: string, provider?: ChatProvider, customProxyHelper?: any): Promise<string>;
   static getImageDescription(promptString: string, apiKey: string, customProxyHelper?: any, provider?: ChatProvider): Promise<string>;
-  static generate_image_from_desc(promptString: string, openaiKey: string, imageApiKey: string, is_base64?: boolean, width?: number, height?: number, provider?: 'openai' | 'stability', customProxyHelper?: any): Promise<string[]>;
+  static generate_image_from_desc(promptString: string, openaiKey: string, imageApiKey: string, is_base64?: boolean, width?: number, height?: number, provider?: 'openai' | 'stability', customProxyHelper?: any): Promise<string | Uint8Array>;
   static generate_speech_synthesis(text: string, googleKey: string): Promise<any>;
   static generate_landing_copy(product: string, apiKey: string, provider?: ChatProvider, options?: GenOptions): Promise<Record<string, any>>;
   static generate_faq(topic: string, apiKey: string, provider?: ChatProvider, options?: GenOptions & { count?: number }): Promise<Array<{ question: string; answer: string }>>;
@@ -330,7 +335,7 @@ export class Gen {
   static improve_accessibility(html: string, apiKey: string, provider?: ChatProvider, options?: GenOptions): Promise<{ html: string; issues: Array<{ issue: string; fix: string; wcag?: string }> }>;
   static generate_email_template(description: string, apiKey: string, provider?: ChatProvider, options?: GenOptions): Promise<string>;
   static generate_svg_icon(description: string, apiKey: string, provider?: ChatProvider, options?: GenOptions & { size?: number }): Promise<string>;
-  static generate_color_palette(description: string, apiKey: string, provider?: ChatProvider, options?: GenOptions & { count?: number }): Promise<any[]>;
+  static generate_color_palette(description: string, apiKey: string, provider?: ChatProvider, options?: GenOptions & { count?: number }): Promise<{ name: string; colors: Array<{ name: string; hex: string; usage?: string }>; css: string; [key: string]: any }>;
   static generate_design_tokens(input: string, apiKey: string, provider?: ChatProvider, options?: GenOptions & { brandColor?: string; cssPrefix?: string }): Promise<DesignTokens>;
 
   // backend and developer workflow
@@ -416,10 +421,11 @@ export class EmbedInput {
 
 export interface Embedding { object?: string; index: number; embedding: number[] }
 
-export class RemoteEmbedModel {
-  constructor(keyValue: string | null | undefined, provider?: EmbedProvider, customProxyHelper?: any);
+/** Gemini returns its single embedding as { values }; every other provider returns Embedding[]. */
+export class RemoteEmbedModel<P extends EmbedProvider = 'openai'> {
+  constructor(keyValue: string | null | undefined, provider?: P, customProxyHelper?: any);
   getSupportedModels(): string[];
-  getEmbeddings(embedInput: EmbedInput | Record<string, any>): Promise<Embedding[]>;
+  getEmbeddings(embedInput: EmbedInput | Record<string, any>): Promise<P extends 'gemini' ? { values: number[] } : Embedding[]>;
 }
 
 export class FineTuneInput {
@@ -442,15 +448,16 @@ export class FunctionModelInput {
 // ---------------------------------------------------------------------
 
 export class SemanticSearch {
-  constructor(keyValue: string, provider?: EmbedProvider, customProxyHelper?: any);
-  getTopMatches(pivotItem: string, searchArray: string[], numberOfMatches: number, modelName?: string | null): Promise<Array<{ index: number; score: number }>>;
-  getTopVectorMatches(pivotEmbedding: number[], searchEmbeddings: number[][], numberOfMatches: number): Array<{ index: number; score: number }>;
+  constructor(keyValue: string, provider?: 'openai' | 'cohere', customProxyHelper?: any);
+  getTopMatches(pivotItem: string, searchArray: string[], numberOfMatches: number, modelName?: string | null): Promise<Array<{ index: number; similarity: number }>>;
+  getTopVectorMatches(pivotEmbedding: number[], searchEmbeddings: number[][], numberOfMatches: number): Array<{ index: number; similarity: number }>;
+  getTopMatchesFromEmbeddings(pivotEmbedding: number[], searchEmbeddings: number[][], numberOfMatches: number): Array<{ index: number; similarity: number }>;
   filterTopMatches<T>(searchResults: Array<{ index: number }>, originalArray: T[]): T[];
 }
 export class SemanticSearchPaging extends SemanticSearch {
-  constructor(keyValue: string, provider: EmbedProvider, pivotItem: string, numberOfMatches: number);
+  constructor(keyValue: string, provider: 'openai' | 'cohere', pivotItem: string, numberOfMatches: number);
   addNewData(newSearchItems: string[]): Promise<void>;
-  getCurrentTopMatches(): any[];
+  getCurrentTopMatches(): Array<{ text: string; score: number }>;
   clean(): void;
 }
 
@@ -462,8 +469,8 @@ export class TextAnalyzer {
 
 export class ChatContext {
   constructor(apiKey: string, provider?: EmbedProvider, customProxyHelper?: any);
-  getStringContext(userMessage: string, historyMessages: string[], n: number): Promise<string[]>;
-  getRoleContext(userMessage: string, historyMessages: Array<{ role: string; content: string }>, n: number): Promise<Array<{ role: string; content: string }>>;
+  getStringContext(userMessage: string, historyMessages: string[], n: number, modelName?: string | null): Promise<string[]>;
+  getRoleContext(userMessage: string, historyMessages: Array<{ role: string; content: string }>, n: number, modelName?: string | null): Promise<Array<{ role: string; content: string }>>;
 }
 
 export class LLMEvaluation {
@@ -478,7 +485,8 @@ export class Prompt {
   getInput(): string;
   format(data: Record<string, any>): string;
   static fromText(text: string): Prompt;
-  static fromChatGPT(promptTopic: string, apiKey: string, model?: string | null, customProxyHelper?: any): Promise<Prompt>;
+  static fromFile(filePath: string): Prompt;
+  static fromChatGPT(promptTopic: string, apiKey: string, customProxyHelper?: any, model?: string): Promise<Prompt>;
 }
 
 export class ProxyHelper {
@@ -492,6 +500,15 @@ export class ProxyHelper {
   getOpenaiChat(model?: string): string;
   getOpenaiResponses(model?: string): string;
   getOpenaiType(): string;
+  getOpenaiCompletion(model?: string): string;
+  getOpenaiImage(): string;
+  getOpenaiAudioTranscriptions(model?: string): string;
+  getOpenaiAudioSpeech(model?: string): string;
+  getOpenaiFiles(): string;
+  getOpenaiFineTuningJob(): string;
+  getOpenaiEmbed(model?: string): string;
+  getOpenaiResource(): string;
+  getOpenaiOrg(): string | null;
 }
 
 export const SystemHelper: any;
@@ -526,10 +543,10 @@ export const OutputParser: {
   extractSvg(text: string): string;
 };
 
-export class GPTStreamParser { feed(chunkText: string): Generator<string, void, unknown>; }
-export class CohereStreamParser { feed(chunkText: string): Generator<string, void, unknown>; }
-export class VLLMStreamParser { feed(chunkText: string): Generator<string, void, unknown>; }
-export class AnthropicStreamParser { feed(chunkText: string): Generator<string, void, unknown>; }
+export class GPTStreamParser { constructor(isLog?: boolean); feed(chunkText: string): AsyncGenerator<string, void, unknown>; }
+export class CohereStreamParser { constructor(isLog?: boolean); feed(chunkText: string): AsyncGenerator<string, void, unknown>; }
+export class VLLMStreamParser { constructor(isLog?: boolean); feed(chunkText: string): AsyncGenerator<string, void, unknown>; }
+export class AnthropicStreamParser { constructor(isLog?: boolean); feed(chunkText: string): AsyncGenerator<string, void, unknown>; }
 
 /** The fetch wrapper used by every provider wrapper. */
 export class FetchClient {
@@ -633,14 +650,19 @@ export class MCPClient implements ToolProvider {
   capabilities: Record<string, any> | null;
   instructions: string | null;
   tools: MCPTool[];
-  connect(): Promise<{ protocolVersion: string | null; serverInfo: any; capabilities: any; instructions: string | null; era: string | null }>;
+  /** Detect the protocol era, run the handshake and cache the tool list. */
+  connect(): Promise<{ protocolVersion: string | null; serverInfo: any; capabilities: any; instructions: string | null; [key: string]: any }>;
   /** Connect and return the tool list. */
   initialize(): Promise<MCPTool[]>;
   close(): Promise<void>;
-  listTools(): Promise<MCPTool[]>;
+  /** The cached tool list (synchronous, as in 2.x). */
+  listTools(): MCPTool[];
+  /** Fetch every page of tools/list and cache it. */
+  fetchTools(): Promise<MCPTool[]>;
   callTool(name: string, args?: Record<string, any>, options?: { timeout?: number }): Promise<MCPToolResult>;
   toChatTools(): ChatTool[];
-  getTools(): MCPTool[];
+  /** Fetch the tools from the server (as in 2.x). */
+  getTools(): Promise<MCPTool[]>;
   getTool(toolName: string): MCPTool | null;
   getToolNames(): string[];
   hasTool(toolName: string): boolean;
@@ -658,8 +680,9 @@ export class MCPServer {
   readonly serverInfo: { name: string; version: string };
   addTool(tool: MCPServerTool): this;
   handle(message: any, context?: { transport?: 'stdio' | 'http'; headers?: Record<string, string>; [key: string]: any }): Promise<any>;
-  startStdio(options?: { input?: NodeJS.ReadableStream; output?: NodeJS.WritableStream; exitOnClose?: boolean }): this;
+  /** input and output default to process.stdin / process.stdout. */
+  startStdio(options?: { input?: any; output?: any; exitOnClose?: boolean }): this;
   /** Resolves with the listening http.Server, extended with host, port, path and url. */
-  startHttp(options?: { host?: string; port?: number; path?: string; allowedOrigins?: string[]; maxBodyBytes?: number }): Promise<import('http').Server & { host: string; port: number; path: string; url: string }>;
+  startHttp(options?: { host?: string; port?: number; path?: string; allowedOrigins?: string[]; maxBodyBytes?: number }): Promise<{ host: string; port: number; path: string; url: string; address(): any; close(callback?: (error?: Error) => void): any; [key: string]: any }>;
   stop(): Promise<void>;
 }

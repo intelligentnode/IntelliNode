@@ -67,7 +67,7 @@ class StabilityAIWrapper {
                 }
             });
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -85,7 +85,7 @@ class StabilityAIWrapper {
                 responseType: 'arraybuffer'
             });
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -117,7 +117,7 @@ class StabilityAIWrapper {
         try {
             return await this.client.post(endpoint, formData);
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -155,7 +155,7 @@ class StabilityAIWrapper {
             });
             return resp;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
     async inpaintImage({
@@ -182,7 +182,7 @@ class StabilityAIWrapper {
             });
             return response; // if accept=application/json => { image, seed, finish_reason }
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -216,7 +216,7 @@ class StabilityAIWrapper {
             });
             return response;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -245,7 +245,7 @@ class StabilityAIWrapper {
 
             return startResp;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -265,7 +265,7 @@ class StabilityAIWrapper {
             // If it's 202 => you need to re-check. 
             return response;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -316,7 +316,7 @@ class StabilityAIWrapper {
       });
       return response;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -365,7 +365,7 @@ class StabilityAIWrapper {
       });
       return response;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -416,7 +416,7 @@ class StabilityAIWrapper {
       });
       return response;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

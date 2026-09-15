@@ -9,7 +9,7 @@ async function chatWithMcpTools() {
   const files = new MCPClient({ command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', __dirname] });
   const info = await files.connect();
   console.log('connected to', info.serverInfo, 'protocol', info.protocolVersion);
-  console.log('tools:', (await files.listTools()).map((tool) => tool.name).join(', '));
+  console.log('tools:', files.listTools().map((tool) => tool.name).join(', ')); // connect() filled the cache
 
   const bot = new Chatbot(process.env.OPENAI_API_KEY, 'openai');
   const input = new ChatGPTInput('You are a helpful assistant with file tools.');

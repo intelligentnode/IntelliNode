@@ -85,8 +85,9 @@ function isRequest(message) {
   return isMessage(message) && typeof message.method === 'string' && hasId(message);
 }
 
+// A notification has no id member: a method with id null is an invalid request (MCP forbids null request ids).
 function isNotification(message) {
-  return isMessage(message) && typeof message.method === 'string' && !hasId(message);
+  return isMessage(message) && typeof message.method === 'string' && message.id === undefined;
 }
 
 function isResponse(message) {

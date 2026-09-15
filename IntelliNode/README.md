@@ -15,22 +15,19 @@
 
 </p>
 
-Integrate your data with the latest language models and deep learning frameworks using intellinode **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
+Integrate your data with the latest language models and deep learning frameworks using intellinode **javascript**. The library provides intuitive functions for sending input to models like GPT-5.5, Claude, Gemini, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
-- Gen: 25+ new one-call functions for web developers (components, forms, API endpoints, SQL, mock data, regex, tests, code review, SEO meta, UI translation and more) that work the same with every provider. 🧰
+- Add streaming for Anthropic, GPT-5+, and Mistral, plus tool calling for OpenAI, Anthropic and Mistral.
+- Gen: 25+ new one-call functions for developers (components, forms, API endpoints, SQL, mock data, regex, tests, code review, SEO meta, UI translation and more) that work the same with every provider. 🧰
+- OpenAI-compatible services (OpenRouter, Groq, DeepSeek, xAI, Together, local Ollama, LM Studio) join OpenAI, Anthropic, Gemini, Mistral, Cohere and NVIDIA, with TypeScript types, timeouts, retries and cancellation. 🔌
+- IntelliNode MCP server: `npx intellinode mcp` gives Claude Code, Cursor and VS Code cross-provider tools. 🧩
 - Update the default models: GPT-5.5, Claude Sonnet 5, Gemini 3.6 Flash, Mistral Medium, Command A and gpt-image-2. 🚀
-- Add streaming for GPT-5+, Anthropic and Mistral, plus tool calling for OpenAI, Anthropic and Mistral.
 - Fix the frontend bundle: Anthropic browser access, streaming in browsers and Gen templates.
-- Add support for OpenAI GPT-5 with reasoning effort control. 🧠
 - Add support for self-hosted vLLM models.
-- Generate frontend version from intellinode.
 - Integrated Nvidia-hosted models (DeepSeek and Llama3 🦙).
-- Add Anthropic claude 3.7 chat.
+- Add Anthropic Claude Fable 5.1 chat.
 - Add Google Gemini chat and vision.
-- Update stable diffusion to use the XL model engine. 🎨
-- Add support for hugging face inference. 🤗
-- Support in-memory semantic search. 🔍
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
@@ -83,13 +80,29 @@ input.addUserMessage('What is the weather in Paris?');
 const [response] = await bot.chat(input);
 // response.tool_calls[0].function => { name: 'get_weather', arguments: '{"city":"Paris"}' }
 ```
+6. let IntelliNode run the tool loop: the model calls your handlers until it has the answer (same call with `AnthropicInput`, `GeminiInput`, `MistralInput` and `NvidiaInput`):
+```js
+const tools = [{ name: 'get_weather', description: 'Weather for a city', parameters: { type: 'object', properties: { city: { type: 'string' } } }, handler: async ({ city }) => ({ city, tempC: 22 }) }];
+const { text, steps } = await bot.runTools(input, tools, { maxSteps: 5 });
+```
+7. get JSON that matches a schema with `new ChatGPTInput('Answer as JSON.', { responseSchema })` and `await bot.chatJson(input)`.
+8. request options for every provider: `new Chatbot(key, 'openai', null, { timeout: 30000, retries: 2, signal: controller.signal })`.
+
+### OpenAI-compatible providers
+OpenRouter, Groq, DeepSeek, xAI, Together, a local Ollama / LM Studio or any endpoint (`openai_compatible` + `baseUrl`) use the same chatbot:
+```js
+const bot = new Chatbot(process.env.OPENROUTER_API_KEY, 'openrouter');      // or new Chatbot(null, 'ollama', null, { model: 'qwen3' })
+const input = new OpenAICompatibleInput('You are a helpful assistant.', { model: 'anthropic/claude-sonnet-5' });
+input.addUserMessage('Who painted the Mona Lisa?');
+const responses = await bot.chat(input);
+```
 
 ### Anthropic Claude Chatbot
 1. imports:
 ```js
 const { Chatbot, AnthropicInput, SupportedChatModels } = require('intellinode');
 ```
-2. call (Claude Sonnet 5 is default, use `claude-opus-5` for Opus):
+2. call (Claude Sonnet 5 is default; use `claude-fable-5-1` for Fable or `claude-opus-5` for Opus):
 ```js
 const input = new AnthropicInput('You are a helpful assistant.');
 input.addUserMessage('Who painted the Mona Lisa?');
@@ -131,7 +144,8 @@ const filteredArray = search.filterTopMatches(results, searchArray)
 ### Gen
 One-call functions for the tasks web developers hand to AI every day. Every function takes the same
 arguments `(input, apiKey, provider, options)` and works with `openai`, `anthropic`, `gemini`,
-`mistral`, `cohere` and `nvidia`: change the provider name and the key, keep the code.
+`mistral`, `cohere`, `nvidia` and the OpenAI-compatible providers (`openrouter`, `groq`, `deepseek`,
+`xai`, `together`, `ollama`, `lmstudio`): change the provider name and the key, keep the code.
 
 1. imports:
 ```js
@@ -190,9 +204,11 @@ const copy = await Gen.generate_landing_copy('an AI meeting assistant', openaiKe
 const blogPost = await Gen.get_blog_post(prompt, openaiKey);
 const description = await Gen.get_marketing_desc('an ergonomic gaming chair', openaiKey);
 const text = await Gen.generate_text('any prompt', anthropicKey, 'anthropic', { system: 'You are terse.' });
+const data = await Gen.generate_json('Where is the Eiffel Tower?', { type: 'object', properties: { city: { type: 'string' } } }, openaiKey);
 ```
 Code functions return the code as a string (no markdown fences); structured functions return parsed
-objects. Pass `options.model` to pick a model and `options.maxTokens` or `options.temperature` to tune it.
+objects. Pass `options.model` to pick a model, `options.maxTokens` or `options.temperature` to tune it, and
+`options.timeout`, `options.retries` or `options.signal` to control the request.
 
 ## Models Access
 ### Image models
@@ -266,29 +282,17 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js).
 
 ### Model Context Protocol (MCP)
-Connect to external tools and data sources via MCP servers (good to have, not core):
-```js
-const { MCPClient } = require('intellinode');
-
-// Initialize MCP client pointing to your MCP server
-const mcpClient = new MCPClient('http://localhost:3000');
-
-// Fetch available tools from MCP server
-const tools = await mcpClient.initialize();
-console.log('Available tools:', mcpClient.getToolNames());
-
-// Call a tool
-const result = await mcpClient.callTool('get_weather', { 
-  location: 'New York',
-  units: 'celsius' 
-});
-
-// Use tools with your chatbot prompts
-const toolsList = mcpClient.listTools();
-console.log('Tools:', toolsList);
+Use every provider from Claude Code, Cursor or VS Code: the `intellinode` command starts an MCP server with cross-provider tools (ask a model, consensus, code review, fixes, tests, components, SQL, OpenAPI, mock data, images):
+```bash
+claude mcp add intellinode -e OPENAI_API_KEY=sk-... -e ANTHROPIC_API_KEY=sk-ant-... -- npx -y intellinode mcp
 ```
-
-Supported MCP servers include: Filesystem, GitHub, Slack, Google Drive, and more. See [MCP Documentation](https://modelcontextprotocol.io) for available servers.
+Or give your chatbot the tools of any MCP server (stdio or HTTP):
+```js
+const files = new MCPClient({ command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', process.cwd()] });
+const { text } = await new Chatbot(openaiKey).runTools(input, files);   // MCP tools run through the tool loop
+```
+The setup for Cursor and VS Code, the tool list, the HTTP mode and building your own `MCPServer` are in [MCP_IMPLEMENTATION.md](MCP_IMPLEMENTATION.md).
+TypeScript users get full typings from the bundled `index.d.ts`.
 
 # :closed_book: Documentation
 - [IntelliNode Docs](https://doc.intellinode.ai/docs/npm): Detailed documentation about IntelliNode.

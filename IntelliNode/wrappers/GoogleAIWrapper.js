@@ -32,7 +32,7 @@ class GoogleAIWrapper {
     try {
       return await this.client.post(url, JSON.parse(json));
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 

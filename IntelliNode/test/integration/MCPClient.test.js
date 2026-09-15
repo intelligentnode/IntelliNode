@@ -41,8 +41,11 @@ async function testFilesystemServer() {
     assert.strictEqual(client.era, 'legacy', 'the filesystem server uses the initialize handshake');
     assert.ok(info.serverInfo && info.serverInfo.name, 'serverInfo comes from the initialize result');
 
-    const tools = await client.listTools();
+    // connect() already fetched the tools; listTools() is the cached list and fetchTools() refreshes it
+    const tools = client.listTools();
     console.log(`tools (${tools.length}): ${client.getToolNames().join(', ')}`);
+    assert.ok(tools.length > 0, 'connect() fetched the tool list');
+    assert.strictEqual((await client.fetchTools()).length, tools.length);
     assert.ok(client.hasTool('list_directory') && client.hasTool('list_allowed_directories'));
     assert.ok(client.toChatTools().every((tool) => tool.type === 'function' && tool.function.parameters));
 
@@ -73,9 +76,10 @@ async function testIntelliNodeHttpServer() {
     assert.strictEqual(client.era, 'modern');
     assert.strictEqual(info.protocolVersion, '2026-07-28');
 
-    const tools = await client.listTools();
+    const tools = client.listTools();
     console.log(`tools (${tools.length}): ${client.getToolNames().join(', ')}`);
     assert.ok(tools.length >= 15);
+    assert.strictEqual((await client.getTools()).length, tools.length, 'getTools() refetches the same list');
 
     const providers = await client.callTool('list_providers');
     console.log(`list_providers: ${providers.text}`);

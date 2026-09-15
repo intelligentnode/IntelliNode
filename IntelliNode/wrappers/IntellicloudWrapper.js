@@ -40,7 +40,7 @@ class IntellicloudWrapper {
       const response = await this.client.post(endpoint, form);
       return response.data; // The API returns { data: ... }
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

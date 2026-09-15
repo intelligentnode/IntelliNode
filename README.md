@@ -32,7 +32,9 @@ Unified prompt, evaluation, and production integration to any large model
 
 # Intelligent Node
 
-IntelliNode is a javascript module that integrates cutting-edge AI into your project. With its intuitive functions, you can easily feed data to models like **ChatGPT**, **LLaMA**, **WaveNet**, **Gemini** and **Stable diffusion** and receive generated text, speech, or images. It also offers high-level functions such as semantic search, multi-model evaluation, and chatbot capabilities.
+IntelliNode is a javascript module that integrates cutting-edge AI into your project. With its intuitive functions, you can easily feed data to models like **GPT-5.5**, **Claude**, **Gemini**, **LLaMA**, **WaveNet** and **Stable diffusion** and receive generated text, speech, or images. It also offers high-level functions such as semantic search, multi-model evaluation, and chatbot capabilities.
+
+New in 3.0: a tool-calling loop and schema-matched JSON on every provider, OpenAI-compatible services (OpenRouter, Groq, DeepSeek, Ollama), an MCP server for coding assistants (`npx intellinode mcp`) and TypeScript typings.
 
 # Access the module
 ## Install
@@ -92,18 +94,22 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 const chatbot = new Chatbot(OPENAI_API_KEY, 'openai');
 const responses = await chatbot.chat(input);
 ```
-stream the response (OpenAI, Anthropic, Mistral, Cohere, NVIDIA and vLLM):
+stream the response (OpenAI, Anthropic, Mistral, Cohere, NVIDIA, vLLM and the OpenAI-compatible providers):
 ```js
 for await (const chunk of chatbot.stream(input)) {
   process.stdout.write(chunk);
 }
+```
+run your tools until the model answers (any provider), or get schema-matched JSON with `chatbot.chatJson(input)`:
+```js
+const { text } = await chatbot.runTools(input, [{ name: 'get_weather', description: 'Weather for a city', parameters: { type: 'object', properties: { city: { type: 'string' } } }, handler: async ({ city }) => ({ city, tempC: 22 }) }]);
 ```
 ### Anthropic Claude Chatbot
 1. imports:
 ```js
 const { Chatbot, AnthropicInput, SupportedChatModels } = require('intellinode');
 ```
-2. call (Claude Sonnet 5 is default, use `claude-opus-5` for Opus):
+2. call (Claude Sonnet 5 is default; use `claude-fable-5-1` for Fable or `claude-opus-5` for Opus):
 ```js
 const input = new AnthropicInput('You are a helpful assistant.');
 input.addUserMessage('Who painted the Mona Lisa?');
@@ -124,6 +130,13 @@ input.addUserMessage('Who painted the Mona Lisa?');
 
 const geminiBot = new Chatbot(apiKey, SupportedChatModels.GEMINI);
 const responses = await geminiBot.chat(input);
+```
+
+### OpenAI-compatible providers
+OpenRouter, Groq, DeepSeek, xAI, Together and a local Ollama / LM Studio work with the same code:
+```js
+const bot = new Chatbot(OPENROUTER_API_KEY, 'openrouter');   // or new Chatbot(null, 'ollama', null, { model: 'qwen3' })
+const input = new OpenAICompatibleInput('You are a helpful assistant.', { model: 'anthropic/claude-sonnet-5' });
 ```
 
 ### Nvidia DeepSeek
@@ -230,6 +243,13 @@ ProxyHelper.getInstance().setOpenaiProxyValues(openaiProxyJson);
 
 For more details and in-depth code, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
 
+# MCP server for coding assistants
+Give Claude Code, Cursor or VS Code the tools of every provider (ask a model, consensus, code review, fixes, tests, components, SQL, OpenAPI, mock data, images):
+```
+claude mcp add intellinode -e OPENAI_API_KEY=sk-... -e ANTHROPIC_API_KEY=sk-ant-... -- npx -y intellinode mcp
+```
+The library also ships an MCP client: pass `new MCPClient({ command, args })` or `new MCPClient({ url })` to `chatbot.runTools`. Details in [MCP_IMPLEMENTATION.md](IntelliNode/MCP_IMPLEMENTATION.md).
+
 # Frontend
 Include the following CDN script in your HTML:
 ```
@@ -308,7 +328,9 @@ Call for contributors:
 - [x] Add support for Nvidia Nim for local and remote models
 - [x] Evaluate multiple models using a few lines.
 - [x] Add Gen function to do complex business cases with one command.
-- [ ] Audd auto agent capabilities.
+- [x] Add the tool-calling agent loop, structured output and OpenAI-compatible providers.
+- [x] Add the IntelliNode MCP server and a spec-current MCP client.
+- [ ] Add multi-agent flows.
 
 
 # License

@@ -44,7 +44,7 @@ class AnthropicWrapper {
     try {
       return await this.client.post(endpoint, params, extraHeaders ? { headers: extraHeaders } : {});
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -58,7 +58,7 @@ class AnthropicWrapper {
         headers: { Accept: 'text/event-stream', ...(extraHeaders || {}) },
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

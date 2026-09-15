@@ -17,6 +17,7 @@ const LEGACY_NEGOTIABLE = new Set(['2025-11-25', '2025-06-18', '2025-03-26']);
 const SESSION_IDLE_MS = 60 * 60 * 1000;
 const MAX_SESSIONS = 1000;
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
+const CORS_ALLOW_HEADERS = 'Content-Type, Accept, MCP-Protocol-Version, Mcp-Method, Mcp-Name, Mcp-Session-Id';
 
 // Random hex without require('crypto'), which would pull crypto-browserify into the browser bundle.
 function randomHex(bytes) {
@@ -109,11 +110,13 @@ function decodeCursor(cursor) {
   return offset;
 }
 
-// HTTP status for a JSON-RPC response, following the Streamable HTTP rules.
-function statusFor(response) {
+// HTTP status for a JSON-RPC response, following the Streamable HTTP rules of the request's era.
+function statusFor(response, modern) {
   if (!response || !response.error) return 200;
   switch (response.error.code) {
     case ERROR_CODES.METHOD_NOT_FOUND:
+      // a legacy client reads 404 as "session gone" and would re-initialize, so legacy errors stay on 200
+      return modern ? 404 : 200;
     case ERROR_CODES.SESSION_NOT_FOUND:
       return 404;
     case ERROR_CODES.PARSE_ERROR:
@@ -174,13 +177,17 @@ class MCPServer {
 
   /**
    * Handle one JSON-RPC message. context: { transport: 'stdio' | 'http', headers }. Resolves with the response
-   * object, or null for notifications. When a legacy HTTP initialize mints a session, context.sessionId is set.
+   * object, or null for notifications. When a legacy HTTP initialize mints a session, context.sessionId is set;
+   * context.era is set to 'modern' or 'legacy' for requests.
    */
   async handle(message, context = {}) {
     if (!rpc.isMessage(message)) {
       return rpc.errorResponse(null, ERROR_CODES.INVALID_REQUEST, 'Invalid Request: not a JSON-RPC 2.0 message');
     }
     if (rpc.isResponse(message)) return null;
+    if (!rpc.isRequest(message) && !rpc.isNotification(message)) {
+      return rpc.errorResponse(null, ERROR_CODES.INVALID_REQUEST, 'Invalid Request: the request id must be a string or an integer, not null');
+    }
 
     const transport = context.transport === 'http' ? 'http' : 'stdio';
     const headers = lowerCaseKeys(context.headers);
@@ -197,6 +204,7 @@ class MCPServer {
       const headerVersion = headers['mcp-protocol-version'];
       const modern = requestedVersion !== undefined
         || (transport === 'http' && headerVersion !== undefined && !LEGACY_VERSIONS.includes(headerVersion));
+      context.era = modern ? 'modern' : 'legacy';
       let result;
       if (modern) {
         if (transport === 'http') this._validateHeaders(message, params, headers, requestedVersion);
@@ -366,26 +374,45 @@ class MCPServer {
     this.stdioSession = null;
     let pending = 0;
     let closed = false;
+    // a line counts as pending until its response is handed to the OS, so exiting on stdin EOF never truncates it
     const finish = () => {
       if (closed && pending === 0 && exitOnClose) process.exit(0);
     };
-    const write = (response) => {
-      if (response) output.write(`${rpc.serialize(response)}\n`);
+    const write = (response) => new Promise((resolve) => {
+      if (!response) {
+        resolve();
+        return;
+      }
+      try {
+        output.write(`${this._encode(response)}\n`, () => resolve());
+      } catch (error) {
+        this._log(`stdout write failed: ${error.message}`);
+        resolve();
+      }
+    });
+    const serve = async (line) => {
+      let message;
+      try {
+        message = rpc.parseMessage(line);
+      } catch (error) {
+        await write(rpc.errorResponse(null, error.code, error.message));
+        return;
+      }
+      let response;
+      try {
+        response = await this.handle(message, { transport: 'stdio' });
+      } catch (error) {
+        response = rpc.isRequest(message) ? rpc.errorResponse(message.id, ERROR_CODES.INTERNAL_ERROR, error.message) : null;
+      }
+      await write(response);
     };
 
     this.stdioInterface = readline.createInterface({ input, crlfDelay: Infinity, terminal: false });
     this.stdioInterface.on('line', (line) => {
       if (!line.trim()) return;
-      let message;
-      try {
-        message = rpc.parseMessage(line);
-      } catch (error) {
-        write(rpc.errorResponse(null, error.code, error.message));
-        return;
-      }
       pending += 1;
-      this.handle(message, { transport: 'stdio' })
-        .then(write, (error) => write(rpc.errorResponse(message.id === undefined ? null : message.id, ERROR_CODES.INTERNAL_ERROR, error.message)))
+      serve(line)
+        .catch((error) => this._log(`stdio handler failed: ${error.stack || error.message}`))
         .then(() => {
           pending -= 1;
           finish();
@@ -447,10 +474,23 @@ class MCPServer {
     }
   }
 
+  // JSON text for an outgoing message; a result JSON cannot represent (BigInt, circular structure) becomes an
+  // internal error for that request instead of an exception inside the transport.
+  _encode(message) {
+    try {
+      return rpc.serialize(message);
+    } catch (error) {
+      this._log(`response is not serializable: ${error.message}`);
+      const id = message && (typeof message.id === 'string' || typeof message.id === 'number') ? message.id : null;
+      return rpc.serialize(rpc.errorResponse(id, ERROR_CODES.INTERNAL_ERROR, `Internal error: the result cannot be serialized as JSON (${error.message})`));
+    }
+  }
+
   async _handleHttp(req, res, { path, allowedOrigins, maxBodyBytes }) {
+    let cors = {};
     const send = (status, body, headers = {}) => {
-      res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
-      res.end(body === undefined ? undefined : rpc.serialize(body));
+      res.writeHead(status, { 'Content-Type': 'application/json', ...cors, ...headers });
+      res.end(body === undefined ? undefined : this._encode(body));
     };
     const pathname = new URL(req.url || '/', 'http://localhost').pathname;
     if (pathname !== path) {
@@ -458,14 +498,23 @@ class MCPServer {
       return;
     }
     const origin = req.headers.origin;
-    if (origin !== undefined && !this._originAllowed(String(origin), allowedOrigins)) {
-      send(403, { jsonrpc: '2.0', error: { code: ERROR_CODES.INVALID_REQUEST, message: `Origin not allowed: ${origin}` } });
-      return;
+    if (origin !== undefined) {
+      if (!this._originAllowed(String(origin), allowedOrigins)) {
+        send(403, { jsonrpc: '2.0', error: { code: ERROR_CODES.INVALID_REQUEST, message: `Origin not allowed: ${origin}` } });
+        return;
+      }
+      // an allowed browser origin needs CORS headers to call the endpoint and to read Mcp-Session-Id
+      cors = { 'Access-Control-Allow-Origin': String(origin), 'Access-Control-Expose-Headers': 'Mcp-Session-Id', Vary: 'Origin' };
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, { ...cors, 'Access-Control-Allow-Methods': 'POST, DELETE', 'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS });
+        res.end();
+        return;
+      }
     }
     if (req.method === 'DELETE') {
       const sessionId = req.headers['mcp-session-id'];
       if (sessionId && this.sessions.delete(String(sessionId))) {
-        res.writeHead(204);
+        res.writeHead(204, cors);
         res.end();
       } else {
         send(405, { jsonrpc: '2.0', error: { code: ERROR_CODES.INVALID_REQUEST, message: 'Method Not Allowed' } }, { Allow: 'POST' });
@@ -481,7 +530,8 @@ class MCPServer {
     try {
       body = await readBody(req, maxBodyBytes);
     } catch (error) {
-      send(error.status || 400, rpc.errorResponse(null, ERROR_CODES.INVALID_REQUEST, error.message));
+      // with Connection: close Node ends the socket only after the 413 is flushed, which also stops the upload
+      send(error.status || 400, rpc.errorResponse(null, ERROR_CODES.INVALID_REQUEST, error.message), error.status === 413 ? { Connection: 'close' } : {});
       return;
     }
     let message;
@@ -501,14 +551,15 @@ class MCPServer {
     }
 
     const context = { transport: 'http', headers: req.headers };
-    if (!rpc.isRequest(message)) {
+    if (rpc.isNotification(message)) {
       await this.handle(message, context);
-      res.writeHead(202);
+      res.writeHead(202, cors);
       res.end();
       return;
     }
+    // requests, and invalid ones such as a null id (400 + -32600)
     const response = await this.handle(message, context);
-    send(statusFor(response), response, context.sessionId ? { 'Mcp-Session-Id': context.sessionId } : {});
+    send(statusFor(response, context.era === 'modern'), response, context.sessionId ? { 'Mcp-Session-Id': context.sessionId } : {});
   }
 
   /** Close the HTTP listener and the stdio reader. */
@@ -531,21 +582,34 @@ class MCPServer {
   }
 }
 
+// Collect the body up to maxBytes. An oversized body rejects with status 413 and the rest is drained and discarded
+// rather than destroying the socket, which would reset the connection before the 413 response is written.
 function readBody(req, maxBytes) {
   return new Promise((resolve, reject) => {
+    const tooLarge = () => {
+      const error = new Error(`Request body exceeds ${maxBytes} bytes`);
+      error.status = 413;
+      req.resume();
+      reject(error);
+    };
+    const declared = Number(req.headers['content-length']);
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      tooLarge();
+      return;
+    }
     const chunks = [];
     let size = 0;
-    req.on('data', (chunk) => {
+    const onData = (chunk) => {
       size += chunk.length;
       if (size > maxBytes) {
-        const error = new Error(`Request body exceeds ${maxBytes} bytes`);
-        error.status = 413;
-        req.destroy();
-        reject(error);
+        req.off('data', onData);
+        chunks.length = 0;
+        tooLarge();
         return;
       }
       chunks.push(chunk);
-    });
+    };
+    req.on('data', onData);
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
   });
