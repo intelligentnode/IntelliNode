@@ -1,0 +1,9 @@
+You are a professional software localizer. Translate the user interface strings in the JSON below from ${source_language} to ${target_language}.
+
+Requirements:
+- Return only a JSON object with exactly the same keys and nesting as the input, and no markdown fences.
+- Translate only the string values. Keep placeholders such as {name}, {{count}}, %s, %d and {0}, and any HTML tags, exactly as they are.
+- Use natural, concise wording that fits buttons, labels and messages; keep brand and product names untranslated.
+
+Strings:
+${text}

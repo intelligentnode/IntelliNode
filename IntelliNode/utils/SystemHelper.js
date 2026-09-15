@@ -1,40 +1,38 @@
 const FileHelper = require('./FileHelper')
 const path = require("path");
 
+// Template files that do not follow the "<name>_prompt.in" naming.
+const TEMPLATE_FILES = {
+  instruct_update: "instruct_update.in",
+  prompt_example: "prompt_example.in",
+  augmented_chatbot: "augmented_chatbot.in",
+};
+
 class SystemHelper {
   constructor() {
     this.systemsPath = path.join(__dirname, "..", "resource", "templates");
   }
 
-  getPromptPath(fileType) {
-    let promptPath = '';
-    if (fileType === "sentiment") {
-      promptPath = path.join(this.systemsPath, "sentiment_prompt.in");
-    } else if (fileType === "summary") {
-      promptPath = path.join(this.systemsPath, "summary_prompt.in");
-    } else if (fileType === "html_page") {
-      promptPath = path.join(this.systemsPath, "html_page_prompt.in");
-    } else if (fileType === "graph_dashboard") {
-      promptPath = path.join(this.systemsPath, "graph_dashboard_prompt.in");
-    } else if (fileType === "instruct_update") {
-      promptPath = path.join(this.systemsPath, "instruct_update.in");
-    } else if (fileType === "prompt_example") {
-      promptPath = path.join(this.systemsPath, "prompt_example.in");
-    } else if (fileType === "augmented_chatbot") {
-      promptPath = path.join(this.systemsPath, "augmented_chatbot.in");
-    } else {
-      throw new Error(`File type '${file_type}' not supported`);
-    }
+  static getTemplateFileName(fileType) {
+    return TEMPLATE_FILES[fileType] || `${fileType}_prompt.in`;
+  }
 
-    return promptPath;
+  getPromptPath(fileType) {
+    return path.join(this.systemsPath, SystemHelper.getTemplateFileName(fileType));
   }
 
   loadPrompt(fileType) {
-    let promptPath = this.getPromptPath(fileType)
-    const promptTemplate = FileHelper.readData(promptPath, 'utf-8');
-
-    return promptTemplate;
-
+    const fileName = SystemHelper.getTemplateFileName(fileType);
+    // the browser bundle has no file system, so fall back to the templates embedded at build time
+    const embedded = require('../resource/templates/templates');
+    try {
+      return FileHelper.readData(this.getPromptPath(fileType), 'utf-8');
+    } catch (error) {
+      if (embedded[fileName] !== undefined) {
+        return embedded[fileName];
+      }
+      throw new Error(`File type '${fileType}' not supported`);
+    }
   }
 
   loadStaticPrompt(fileType) { 

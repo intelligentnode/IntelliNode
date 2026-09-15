@@ -1,0 +1,138 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.intelligentnode/intellinode",
+  "description": "Cross-provider LLM tools for coding assistants: ask, consensus, review, fix, codegen and images.",
+  "repository": {
+    "url": "https://github.com/intelligentnode/IntelliNode",
+    "source": "github"
+  },
+  "version": "3.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "intellinode",
+      "version": "3.0.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "OPENAI_API_KEY",
+          "description": "OpenAI API key (chat tools and image generation)",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "description": "Anthropic API key (Claude models)",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "GEMINI_API_KEY",
+          "description": "Google Gemini API key",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "MISTRAL_API_KEY",
+          "description": "Mistral AI API key",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "COHERE_API_KEY",
+          "description": "Cohere API key",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "NVIDIA_API_KEY",
+          "description": "NVIDIA NIM API key (DeepSeek, Llama and other hosted models)",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "STABILITY_API_KEY",
+          "description": "Stability AI API key (image generation)",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "OPENROUTER_API_KEY",
+          "description": "OpenRouter API key (hundreds of models through one key)",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "OPENROUTER_MODEL",
+          "description": "Optional OpenRouter model name, overrides the IntelliNode default",
+          "isSecret": false,
+          "isRequired": false
+        },
+        {
+          "name": "DEEPSEEK_API_KEY",
+          "description": "DeepSeek API key",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "DEEPSEEK_MODEL",
+          "description": "Optional DeepSeek model name, overrides the IntelliNode default",
+          "isSecret": false,
+          "isRequired": false
+        },
+        {
+          "name": "GROQ_API_KEY",
+          "description": "Groq API key (set GROQ_MODEL too)",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "GROQ_MODEL",
+          "description": "Groq model name, needed together with GROQ_API_KEY",
+          "isSecret": false,
+          "isRequired": false
+        },
+        {
+          "name": "XAI_API_KEY",
+          "description": "xAI API key (set XAI_MODEL too)",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "XAI_MODEL",
+          "description": "xAI model name, needed together with XAI_API_KEY",
+          "isSecret": false,
+          "isRequired": false
+        },
+        {
+          "name": "TOGETHER_API_KEY",
+          "description": "Together AI API key (set TOGETHER_MODEL too)",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "TOGETHER_MODEL",
+          "description": "Together AI model name, needed together with TOGETHER_API_KEY",
+          "isSecret": false,
+          "isRequired": false
+        },
+        {
+          "name": "OLLAMA_MODEL",
+          "description": "Model name served by a local Ollama instance, for example qwen3 (no key needed)",
+          "isSecret": false,
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+You are an expert in automated testing. Write ${framework} unit tests for the code below.
+
+Requirements:
+- Return only the complete test file inside a single markdown code block. No explanation.
+- Cover the normal behaviour, edge cases and error handling of every exported function or component.
+- Import the code under test from "${module_path}" and keep each test independent, readable and deterministic (mock network, time and randomness).
+
+Code:
+${text}

@@ -25,7 +25,7 @@ async function generateText(apiKey, provider, model, prompt, temperature) {
 
   // Generate text using Cohere
   const cohereKey = process.env.COHERE_API_KEY;
-  const cohereModel = 'command';
+  const cohereModel = 'command-a-03-2025';
 
   await generateText(cohereKey, SupportedLangModels.COHERE, cohereModel, prompt, temperature);
 })();

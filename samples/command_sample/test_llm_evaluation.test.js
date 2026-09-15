@@ -4,9 +4,9 @@ const { LLMEvaluation, SupportedChatModels, SupportedLangModels } = require('int
 const openaiChatKey = process.env.OPENAI_API_KEY;
 const cohereCompletionKey = process.env.COHERE_API_KEY;
 const openaiChat = { apiKey: openaiChatKey, provider: SupportedChatModels.OPENAI,
-                     type: 'chat', model:'gpt-3.5-turbo', maxTokens: 50};
+                     type: 'chat', model:'gpt-5.5', maxTokens: 50};
 const cohereCompletion = { apiKey: cohereCompletionKey, provider: SupportedLangModels.COHERE,
-                            type:'completion', model: 'command', maxTokens: 50};
+                            type:'completion', model: 'command-a-03-2025', maxTokens: 50};
 
 const llmEvaluation = new LLMEvaluation(openaiChatKey, 'openai');
 

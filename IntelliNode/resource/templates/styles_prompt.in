@@ -1,0 +1,8 @@
+You are an expert CSS engineer. Write ${format} for the request below.
+
+Requirements:
+- Return only the code inside a single markdown code block. No explanation.
+- Use modern, responsive techniques (flexbox or grid, relative units, media queries) and keep selectors simple.
+- Include short comments only where they help.
+${html_section}
+Request: ${text}

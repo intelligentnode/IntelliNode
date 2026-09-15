@@ -30,6 +30,10 @@ const {
 } = require('./function/SemanticSearchPaging');
 const { TextAnalyzer } = require('./function/TextAnalyzer');
 const { Gen } = require('./function/Gen');
+// Node only: the browser bundle maps these modules to empty objects (package.json "browser")
+const { CodingAgent } = require('./function/CodingAgent');
+const WorkspaceToolkitModule = require('./utils/WorkspaceToolkit');
+const WorkspaceToolkit = typeof WorkspaceToolkitModule === 'function' ? WorkspaceToolkitModule : undefined;
 
 // inputs
 const LanguageModelInput = require('./model/input/LanguageModelInput');
@@ -46,7 +50,8 @@ const {
   GeminiInput,
   AnthropicInput,
   NvidiaInput,
-  VLLMInput
+  VLLMInput,
+  OpenAICompatibleInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
@@ -65,6 +70,7 @@ const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('./wrappers/AnthropicWrapper');
 const NvidiaWrapper = require('./wrappers/NvidiaWrapper');
 const VLLMWrapper = require('./wrappers/VLLMWrapper');
+const OpenAICompatibleWrapper = require('./wrappers/OpenAICompatibleWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -73,9 +79,14 @@ const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
-const { GPTStreamParser, CohereStreamParser, VLLMStreamParser} = require('./utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser, VLLMStreamParser, AnthropicStreamParser } = require('./utils/StreamParser');
+const ModelHelper = require('./utils/ModelHelper');
 const ChatContext = require('./utils/ChatContext');
 const MCPClient = require('./utils/MCPClient');
+// Node only: the browser bundle maps this module to an empty object (package.json "browser")
+const { MCPServer } = require('./mcp/server');
+const FetchClient = require('./utils/FetchClient');
+const OutputParser = require('./utils/OutputParser');
 
 module.exports = {
   RemoteLanguageModel,
@@ -135,5 +146,14 @@ module.exports = {
   VLLMWrapper,
   VLLMInput,
   VLLMStreamParser,
-  MCPClient
+  AnthropicStreamParser,
+  ModelHelper,
+  MCPClient,
+  MCPServer,
+  CodingAgent,
+  WorkspaceToolkit,
+  OpenAICompatibleWrapper,
+  OpenAICompatibleInput,
+  FetchClient,
+  OutputParser
 };

@@ -8,7 +8,7 @@ const anthropic = new AnthropicWrapper(process.env.ANTHROPIC_API_KEY);
 async function testAnthropicGenerate() {
     try {
         const params = {
-            "model": "claude-3-sonnet-20240229",
+            "model": "claude-sonnet-5",
             "messages": [
                 {
                     "role": "user",
@@ -19,7 +19,10 @@ async function testAnthropicGenerate() {
         };
 
         const result = await anthropic.generateText(params);
-        console.log('Anthropic Language Model Result:', result.content[0].text);
+        // Claude 5 models can return a thinking block before the answer
+        const textBlock = result.content.find((block) => block.type === 'text');
+        console.log('Anthropic Language Model Result:', textBlock.text);
+        assert(textBlock.text.length > 0, 'testAnthropicGenerate response should contain text');
     } catch (error) {
         console.error('Anthropic Language Model Error:', error);
     }

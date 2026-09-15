@@ -5,8 +5,10 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+const config = require('../../config.json');
+
 class Text2SpeechInput {
-  constructor({ text, language = "en-gb", gender = "FEMALE", voice, model = 'tts-1', stream = true }) {
+  constructor({ text, language = "en-gb", gender = "FEMALE", voice, model = config.url.openai.models.speech, stream = true }) {
     this.text = text;
     this.language = language.toLowerCase();
     this.gender = gender;

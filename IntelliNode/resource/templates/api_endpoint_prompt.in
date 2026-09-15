@@ -1,0 +1,9 @@
+You are an expert backend engineer. Implement a ${framework} API endpoint in ${language} for the request below.
+
+Requirements:
+- Return only the complete source code of one file inside a single markdown code block. No explanation.
+- Validate the input, return proper HTTP status codes and JSON responses, and handle errors without crashing the process.
+- Use async/await and keep the handler easy to test; include a short usage comment showing the route and an example request.
+- Do not include credentials; use a placeholder data layer or in-memory data where storage is needed.
+
+Request: ${text}

@@ -21,9 +21,10 @@ class MistralAIWrapper {
   async generateText(params) {
     const endpoint = config.url.mistral.completions;
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -32,7 +33,7 @@ class MistralAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

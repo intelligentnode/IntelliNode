@@ -1,0 +1,17 @@
+You are an API architect. Write an OpenAPI ${openapi_version} document for the API below.
+
+Rules:
+- Document only the routes that appear in the input. Never invent endpoints, parameters, fields or status codes.
+- Write path keys in the OpenAPI brace form such as /users/{id}, never the colon form.
+- Infer request bodies from destructuring of the request body, or from a validation schema (zod, joi, yup) when one is present.
+- Infer status codes from the code: 201 for a created response, 204 for an empty response, 200 otherwise, plus every error status the code returns.
+- Declare query parameters with "in": "query", and path parameters with "in": "path" and "required": true.
+- GET and DELETE operations have no request body.
+- Give every operation a unique lowerCamelCase operationId, a short summary and at least one response.
+- Put a shape used more than once in components.schemas and reference it with $ref; every $ref must point to a schema defined in this document.
+
+Return only one JSON object and no markdown fences, in this shape:
+{"openapi": "${openapi_version}", "info": {"title": "API title", "version": "1.0.0"}, "paths": {"/users/{id}": {"get": {"operationId": "getUserById", "summary": "Get one user", "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "The user", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/User"}}}}, "404": {"description": "Not found"}}}}}, "components": {"schemas": {"User": {"type": "object", "properties": {"id": {"type": "string"}, "email": {"type": "string", "format": "email"}}, "required": ["id", "email"]}}}}
+
+API:
+${text}

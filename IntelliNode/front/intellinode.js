@@ -16,7 +16,14 @@ module.exports={
       "audiospeech": "/v1/audio/speech",
       "files": "/v1/files",
       "finetuning": "/v1/fine_tuning/jobs",
-      "organization": null
+      "organization": null,
+      "models": {
+        "chat": "gpt-5.5",
+        "completion": "gpt-3.5-turbo-instruct",
+        "image": "gpt-image-2",
+        "embed": "text-embedding-3-small",
+        "speech": "gpt-4o-mini-tts"
+      }
     },
     "azure_openai": {
       "base": "https://{resource-name}.openai.azure.com/openai",
@@ -33,8 +40,13 @@ module.exports={
     "cohere": {
       "base": "https://api.cohere.ai",
       "completions": "/generate",
+      "chat": "/chat",
       "embed": "/v1/embed",
-      "version": "2022-12-06"
+      "version": "2022-12-06",
+      "models": {
+        "chat": "command-a-03-2025",
+        "embed": "embed-v4.0"
+      }
     },
     "google": {
       "base": "https://{1}.googleapis.com/v1/",
@@ -68,26 +80,90 @@ module.exports={
     "mistral": {
       "base": "https://api.mistral.ai",
       "completions": "/v1/chat/completions",
-      "embed": "/v1/embeddings"
+      "embed": "/v1/embeddings",
+      "models": {
+        "chat": "mistral-medium-latest",
+        "embed": "mistral-embed"
+      }
     },
     "gemini": {
       "base": "https://generativelanguage.googleapis.com/v1beta/models/",
-      "contentEndpoint": "gemini-pro:generateContent",
-      "visionEndpoint": "gemini-pro-vision:generateContent",
-      "embeddingEndpoint": "embedding-001:embedContent",
-      "batchEmbeddingEndpoint": "embedding-001:batchEmbedContents"
+      "generateContent": ":generateContent",
+      "embedContent": ":embedContent",
+      "batchEmbedContents": ":batchEmbedContents",
+      "models": {
+        "chat": "gemini-3.6-flash",
+        "vision": "gemini-3.6-flash",
+        "embed": "gemini-embedding-001"
+      }
     },
     "anthropic": {
       "base": "https://api.anthropic.com",
       "messages": "/v1/messages",
-      "version": "2023-06-01"
+      "version": "2023-06-01",
+      "models": {
+        "chat": "claude-sonnet-5",
+        "sonnet": "claude-sonnet-5",
+        "opus": "claude-opus-5",
+        "haiku": "claude-haiku-4-5"
+      }
+    },
+    "openai_compatible": {
+      "chat": "/chat/completions",
+      "embeddings": "/embeddings",
+      "models": "/models",
+      "presets": {
+        "openrouter": {
+          "base": "https://openrouter.ai/api/v1",
+          "chat_model": "openai/gpt-5.5",
+          "embed_model": "openai/text-embedding-3-small"
+        },
+        "groq": {
+          "base": "https://api.groq.com/openai/v1",
+          "chat_model": null,
+          "embed_model": null
+        },
+        "deepseek": {
+          "base": "https://api.deepseek.com",
+          "chat_model": "deepseek-chat",
+          "embed_model": null,
+          "structured_output": "json_object"
+        },
+        "xai": {
+          "base": "https://api.x.ai/v1",
+          "chat_model": null,
+          "embed_model": null
+        },
+        "together": {
+          "base": "https://api.together.xyz/v1",
+          "chat_model": null,
+          "embed_model": null
+        },
+        "ollama": {
+          "base": "http://localhost:11434/v1",
+          "chat_model": null,
+          "embed_model": null,
+          "local": true
+        },
+        "lmstudio": {
+          "base": "http://localhost:1234/v1",
+          "chat_model": null,
+          "embed_model": null,
+          "local": true
+        }
+      }
     }
   },
   "nvidia": {
     "base": "https://integrate.api.nvidia.com",
     "chat": "/v1/chat/completions",
+    "embeddings": "/v1/embeddings",
     "retrieval": "/v1/retrieval",
-    "version": "v1"
+    "version": "v1",
+    "models": {
+      "chat": "deepseek-ai/deepseek-v4-flash-0731",
+      "embed": "nvidia/llama-3.2-nv-embedqa-1b-v1"
+    }
   },
   "models": {
     "replicate": {
@@ -110,6 +186,7 @@ module.exports={
     }
   }
 }
+
 },{}],2:[function(require,module,exports){
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
@@ -117,6 +194,8 @@ const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const EmbedInput = require('../model/input/EmbedInput');
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
+const NvidiaWrapper = require('../wrappers/NvidiaWrapper');
+const OpenAICompatibleWrapper = require('../wrappers/OpenAICompatibleWrapper');
 
 const SupportedEmbedModels = {
   OPENAI: 'openai',
@@ -124,8 +203,19 @@ const SupportedEmbedModels = {
   REPLICATE: 'replicate',
   GEMINI: 'gemini',
   NVIDIA: 'nvidia',
-  VLLM: "vllm"
+  VLLM: "vllm",
+  // any service with an OpenAI embeddings API (needs { baseUrl } as the third argument)
+  OPENAI_COMPATIBLE: 'openai_compatible',
+  OPENROUTER: 'openrouter',
+  TOGETHER: 'together',
+  OLLAMA: 'ollama',
+  LMSTUDIO: 'lmstudio'
 };
+
+const COMPATIBLE_PROVIDERS = new Set([
+  SupportedEmbedModels.OPENAI_COMPATIBLE, SupportedEmbedModels.OPENROUTER, SupportedEmbedModels.TOGETHER,
+  SupportedEmbedModels.OLLAMA, SupportedEmbedModels.LMSTUDIO
+]);
 
 class RemoteEmbedModel {
   constructor(keyValue, provider, customProxyHelper = null) {
@@ -159,6 +249,16 @@ class RemoteEmbedModel {
     } else if (keyType === SupportedEmbedModels.VLLM) {
       const baseUrl = customProxyHelper.baseUrl;
       this.vllmWrapper = new VLLMWrapper(baseUrl);
+    } else if (COMPATIBLE_PROVIDERS.has(keyType)) {
+      const options = customProxyHelper || {};
+      if (keyType === SupportedEmbedModels.OPENAI_COMPATIBLE && !options.baseUrl) {
+        throw new Error("The openai_compatible provider requires { baseUrl } as the third argument.");
+      }
+      this.compatibleWrapper = new OpenAICompatibleWrapper(keyValue, {
+        preset: keyType === SupportedEmbedModels.OPENAI_COMPATIBLE ? null : keyType,
+        baseUrl: options.baseUrl,
+        headers: options.headers,
+      });
     } else {
       throw new Error('Invalid provider name');
     }
@@ -184,6 +284,8 @@ class RemoteEmbedModel {
         inputs = embedInput.getNvidiaInputs();
       } else if (this.keyType === SupportedEmbedModels.VLLM) {
         inputs = embedInput.getVLLMInputs();
+      } else if (COMPATIBLE_PROVIDERS.has(this.keyType)) {
+        inputs = embedInput.getOpenAIInputs();
      } else {
         throw new Error('The keyType is not supported');
       }
@@ -243,7 +345,7 @@ class RemoteEmbedModel {
       return await this.geminiWrapper.getEmbeddings(inputs);
     } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
       const result = await this.nvidiaWrapper.generateRetrieval(inputs);
-      return Array.isArray(result) ? result : [];
+      return Array.isArray(result) ? result : (result.data || []);
     } else if (this.keyType === SupportedEmbedModels.VLLM) {
       const results = await this.vllmWrapper.getEmbeddings(inputs.texts);
       return results.embeddings.map((embedding, index) => ({
@@ -251,7 +353,10 @@ class RemoteEmbedModel {
         index: index,
         embedding: embedding
       }));
-    }else {
+    } else if (COMPATIBLE_PROVIDERS.has(this.keyType)) {
+      const results = await this.compatibleWrapper.getEmbeddings(inputs);
+      return results.data;
+    } else {
       throw new Error('The keyType is not supported');
     }
   }
@@ -261,7 +366,7 @@ module.exports = {
   RemoteEmbedModel,
   SupportedEmbedModels,
 };
-},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":43,"../wrappers/GeminiAIWrapper":44,"../wrappers/OpenAIWrapper":50,"../wrappers/ReplicateWrapper":51,"../wrappers/VLLMWrapper":53}],3:[function(require,module,exports){
+},{"../model/input/EmbedInput":15,"../wrappers/CohereAIWrapper":49,"../wrappers/GeminiAIWrapper":50,"../wrappers/NvidiaWrapper":55,"../wrappers/OpenAICompatibleWrapper":56,"../wrappers/OpenAIWrapper":57,"../wrappers/ReplicateWrapper":58,"../wrappers/VLLMWrapper":60}],3:[function(require,module,exports){
 /*
 Apache License
 
@@ -347,7 +452,7 @@ module.exports = {
     SupportedFineTuneModels,
 };
 
-},{"../model/input/FineTuneInput":15,"../wrappers/OpenAIWrapper":50}],4:[function(require,module,exports){
+},{"../model/input/FineTuneInput":16,"../wrappers/OpenAIWrapper":57}],4:[function(require,module,exports){
 /*
 Apache License
 
@@ -408,7 +513,9 @@ class RemoteImageModel {
         throw new Error("The keyType is not supported");
       }
     } else if (typeof imageInput === "object") {
-      inputs = imageInput;
+      inputs = this.keyType === SupportedImageModels.OPENAI
+        ? ImageModelInput.normalizeOpenAIParams(imageInput)
+        : imageInput;
     } else {
       throw new Error(
         "Invalid input: Must be an instance of ImageModelInput or a dictionary"
@@ -446,7 +553,7 @@ module.exports = {
   RemoteImageModel,
   SupportedImageModels,
 };
-},{"../model/input/ImageModelInput":17,"../wrappers/OpenAIWrapper":50,"../wrappers/StabilityAIWrapper":52}],5:[function(require,module,exports){
+},{"../model/input/ImageModelInput":18,"../wrappers/OpenAIWrapper":57,"../wrappers/StabilityAIWrapper":59}],5:[function(require,module,exports){
 /*
 Apache License
 
@@ -457,6 +564,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const LanguageModelInput = require('../model/input/LanguageModelInput');
+const config = require('../config.json');
 
 const SupportedLangModels = {
   OPENAI: 'openai',
@@ -517,8 +625,20 @@ class RemoteLanguageModel {
       const results = await this.openaiWrapper.generateText(inputs);
       return results.choices.map((choice) => choice.text);
     } else if (this.keyType === SupportedLangModels.COHERE) {
-      const results = await this.cohereWrapper.generateText(inputs);
-      return results.generations.map((generation) => generation.text);
+      // Cohere removed the Generate API, so completions are served through the Chat API.
+      const chatParams = {
+        model: inputs.model || config.url.cohere.models.chat,
+        message: inputs.prompt,
+        ...(inputs.temperature != null && { temperature: inputs.temperature }),
+        ...(inputs.max_tokens != null && { max_tokens: inputs.max_tokens }),
+      };
+      const results = [];
+      const generations = Math.max(1, inputs.num_generations || 1);
+      for (let i = 0; i < generations; i++) {
+        const response = await this.cohereWrapper.generateChatText(chatParams);
+        results.push(response.text);
+      }
+      return results;
     } else {
       throw new Error('The keyType is not supported');
     }
@@ -529,7 +649,7 @@ module.exports = {
   RemoteLanguageModel,
   SupportedLangModels,
 };
-},{"../model/input/LanguageModelInput":18,"../wrappers/CohereAIWrapper":43,"../wrappers/OpenAIWrapper":50}],6:[function(require,module,exports){
+},{"../config.json":1,"../model/input/LanguageModelInput":19,"../wrappers/CohereAIWrapper":49,"../wrappers/OpenAIWrapper":57}],6:[function(require,module,exports){
 /*
 Apache License
 
@@ -616,7 +736,7 @@ module.exports = {
   SupportedSpeechModels,
 };
 
-},{"../model/input/Text2SpeechInput":19,"../wrappers/GoogleAIWrapper":45,"../wrappers/OpenAIWrapper":50}],7:[function(require,module,exports){
+},{"../model/input/Text2SpeechInput":20,"../wrappers/GoogleAIWrapper":51,"../wrappers/OpenAIWrapper":57}],7:[function(require,module,exports){
 /*
 Apache License
 
@@ -627,7 +747,13 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('../wrappers/AWSEndpointWrapper');
-const { GPTStreamParser, CohereStreamParser, VLLMStreamParser } = require('../utils/StreamParser');
+const {
+    GPTStreamParser,
+    CohereStreamParser,
+    VLLMStreamParser,
+    AnthropicStreamParser,
+    readStreamChunks
+} = require('../utils/StreamParser');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const IntellicloudWrapper = require("../wrappers/IntellicloudWrapper");
 const MistralAIWrapper = require('../wrappers/MistralAIWrapper');
@@ -636,6 +762,18 @@ const AnthropicWrapper = require('../wrappers/AnthropicWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
+const OpenAICompatibleWrapper = require('../wrappers/OpenAICompatibleWrapper');
+const FetchClient = require('../utils/FetchClient');
+const { parseJson } = require('../utils/OutputParser');
+const {
+    isReasoningModel,
+    stripRouteOverride,
+    functionsToTools,
+    functionCallToToolChoice,
+    toResponsesTools,
+    toResponsesToolChoice,
+    toChatTools
+} = require('../utils/ModelHelper');
 
 const {
     ChatGPTInput,
@@ -649,7 +787,8 @@ const {
     GeminiInput,
     AnthropicInput,
     NvidiaInput,
-    VLLMInput
+    VLLMInput,
+    OpenAICompatibleInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
@@ -661,10 +800,44 @@ const SupportedChatModels = {
     GEMINI: "gemini",
     ANTHROPIC: "anthropic",
     NVIDIA: "nvidia",
-    VLLM: "vllm"
+    VLLM: "vllm",
+    // any service with an OpenAI chat-completions API (needs options.baseUrl)
+    OPENAI_COMPATIBLE: "openai_compatible",
+    OPENROUTER: "openrouter",
+    GROQ: "groq",
+    DEEPSEEK: "deepseek",
+    XAI: "xai",
+    TOGETHER: "together",
+    OLLAMA: "ollama",
+    LMSTUDIO: "lmstudio"
+};
+
+// Providers served by OpenAICompatibleWrapper, keyed by the config preset name.
+const COMPATIBLE_PROVIDERS = new Set([
+    SupportedChatModels.OPENAI_COMPATIBLE, SupportedChatModels.OPENROUTER, SupportedChatModels.GROQ,
+    SupportedChatModels.DEEPSEEK, SupportedChatModels.XAI, SupportedChatModels.TOGETHER,
+    SupportedChatModels.OLLAMA, SupportedChatModels.LMSTUDIO
+]);
+
+// The input class of every provider that takes a system message and plain text turns.
+const CHAT_INPUTS = {
+    [SupportedChatModels.OPENAI]: ChatGPTInput,
+    [SupportedChatModels.ANTHROPIC]: AnthropicInput,
+    [SupportedChatModels.GEMINI]: GeminiInput,
+    [SupportedChatModels.MISTRAL]: MistralInput,
+    [SupportedChatModels.COHERE]: CohereInput,
+    [SupportedChatModels.NVIDIA]: NvidiaInput,
+    [SupportedChatModels.VLLM]: VLLMInput,
+    ...Object.fromEntries([...COMPATIBLE_PROVIDERS].map((provider) => [provider, OpenAICompatibleInput])),
 };
 
 class Chatbot {
+    /**
+     * @param {string} keyValue - provider API key.
+     * @param {string} provider - one of SupportedChatModels.
+     * @param {object} customProxyHelper - OpenAI proxy/Azure helper, or { url } for SageMaker.
+     * @param {object} options - { oneKey, intelliBase, baseUrl, headers, timeout, retries, retryDelay, signal }.
+     */
     constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null, options = {}) {
 
         const supportedModels = this.getSupportedModels();
@@ -682,6 +855,7 @@ class Chatbot {
 
     initiate(keyValue, provider, customProxyHelper = null, options = {}) {
         this.provider = provider;
+        options = options || {};
 
         if (provider === SupportedChatModels.OPENAI) {
             this.openaiWrapper = new OpenAIWrapper(keyValue, customProxyHelper);
@@ -698,8 +872,7 @@ class Chatbot {
         } else if (provider === SupportedChatModels.ANTHROPIC) {
             this.anthropicWrapper = new AnthropicWrapper(keyValue);
         } else if (provider === SupportedChatModels.NVIDIA) {
-            const my_options = options || {};
-            const baseUrl = (my_options.nvidiaOptions && my_options.nvidiaOptions.baseUrl) || my_options.baseUrl;
+            const baseUrl = (options.nvidiaOptions && options.nvidiaOptions.baseUrl) || options.baseUrl;
             if (baseUrl) {
                 this.nvidiaWrapper = new NvidiaWrapper(keyValue, { baseUrl: baseUrl });
             } else {
@@ -709,20 +882,58 @@ class Chatbot {
             const baseUrl = options.baseUrl;
             if (!baseUrl) throw new Error("VLLM requires 'baseUrl' in options.");
             this.vllmWrapper = new VLLMWrapper(baseUrl);
+        } else if (COMPATIBLE_PROVIDERS.has(provider)) {
+            // the settings can also come in the third argument, as RemoteEmbedModel accepts them
+            const helper = customProxyHelper && typeof customProxyHelper === 'object' ? customProxyHelper : {};
+            const baseUrl = options.baseUrl || helper.baseUrl;
+            if (provider === SupportedChatModels.OPENAI_COMPATIBLE && !baseUrl) {
+                throw new Error("The openai_compatible provider requires 'baseUrl' in options.");
+            }
+            this.compatibleWrapper = new OpenAICompatibleWrapper(keyValue, {
+                preset: provider === SupportedChatModels.OPENAI_COMPATIBLE ? null : provider,
+                baseUrl,
+                headers: options.headers || helper.headers,
+                model: options.model || helper.model,
+            });
         } else {
             throw new Error("Invalid provider name");
         }
 
+        this.setRequestOptions(options);
+
         // initiate the optional search feature
-        if (options && options.oneKey) {
+        if (options.oneKey) {
             const apiBase = options.intelliBase ? options.intelliBase : null;
             this.extendedController = options.oneKey.startsWith("in") ? new IntellicloudWrapper(options.oneKey, apiBase) : null;
         }
 
     }
 
+    /** Apply timeout (ms), retries, retryDelay (ms) or an AbortSignal to every request of this chatbot. */
+    setRequestOptions({ timeout, retries, retryDelay, signal } = {}) {
+        const requestOptions = { timeout, retries, retryDelay, signal };
+        for (const value of Object.values(this)) {
+            if (value && value.client instanceof FetchClient) {
+                value.client.setRequestOptions(requestOptions);
+            }
+        }
+        return this;
+    }
+
     getSupportedModels() {
         return Object.values(SupportedChatModels);
+    }
+
+    /**
+     * The chat input class of a provider, created with a system message: ChatGPTInput for openai, AnthropicInput
+     * for anthropic, ..., OpenAICompatibleInput for the OpenAI-compatible services.
+     */
+    static createInput(provider, systemMessage, options = {}) {
+        const InputClass = CHAT_INPUTS[provider];
+        if (!InputClass) {
+            throw new Error(`No chat input for provider '${provider}'. Use one of: ${Object.keys(CHAT_INPUTS).join(', ')}`);
+        }
+        return new InputClass(systemMessage, options);
     }
 
     async chat(modelInput, functions = null, function_call = null, debugMode = true) {
@@ -763,9 +974,159 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.VLLM) {
             let result = await this._chatVLLM(modelInput);
             return modelInput.attachReference ? { result: result, references } : result;
+        } else if (COMPATIBLE_PROVIDERS.has(this.provider)) {
+            const result = await this._chatCompatible(modelInput);
+            return modelInput.attachReference ? { result, references } : result;
         } else {
             throw new Error("The provider is not supported");
         }
+    }
+
+    /**
+     * Chat and parse the first reply as JSON. Set `responseSchema` (a JSON Schema) or `responseFormat: 'json'`
+     * on the input so the model is asked for JSON; the reply is parsed even when it is wrapped in prose or fences.
+     */
+    async chatJson(modelInput) {
+        const response = await this.chat(modelInput);
+        const replies = Array.isArray(response) ? response : response.result;
+        const first = replies[0];
+        const text = typeof first === 'string' ? first : (first && first.content) || '';
+        const schema = modelInput instanceof ChatModelInput ? modelInput.responseSchema : null;
+        const kind = schema && (schema.type === 'array' ? 'array' : schema.type === 'object' ? 'object' : null);
+        return parseJson(text, kind);
+    }
+
+    /**
+     * Run a tool-calling loop: call the model, execute every requested tool, feed the results back and repeat
+     * until the model answers with text or `maxSteps` rounds have run.
+     *
+     * @param {ChatModelInput} modelInput - an input with `tools` set, or tools are taken from `tools`.
+     * @param {object|Array|MCPClient} tools - { name: async (args) => result }, [{ name, description, parameters, handler }],
+     *   or an MCP client (anything with callTool and toChatTools).
+     * @param {object} options - { maxSteps = 5, onToolCall(name, args), onToolResult(name, result) }.
+     * @returns {Promise<{ text: string, steps: Array<{ name, arguments, result, isError }>, toolCalls: number }>}
+     */
+    async runTools(modelInput, tools = {}, options = {}) {
+        if (!(modelInput instanceof ChatModelInput)) {
+            throw new Error('runTools needs a chat input instance (ChatGPTInput, AnthropicInput, GeminiInput, ...).');
+        }
+        const maxSteps = options.maxSteps || 5;
+        // an MCP client that has not listed its tools yet
+        if (tools && typeof tools.fetchTools === 'function' && (!Array.isArray(tools.tools) || tools.tools.length === 0)) {
+            await tools.fetchTools();
+        }
+        const registry = Chatbot._toolRegistry(tools);
+        if (!modelInput.tools && registry.definitions.length > 0) {
+            modelInput.tools = registry.definitions;
+        }
+        if (!modelInput.tools || modelInput.tools.length === 0) {
+            throw new Error('runTools needs tool definitions: pass tools with descriptions and parameters, or an MCP client.');
+        }
+
+        const steps = [];
+        // maxSteps tool rounds, then one more model call for the answer
+        for (let step = 0; ; step++) {
+            const response = await this.chat(modelInput);
+            const replies = Array.isArray(response) ? response : response.result;
+            const first = replies[0];
+            if (!first || typeof first === 'string' || !Array.isArray(first.tool_calls) || first.tool_calls.length === 0) {
+                const text = typeof first === 'string' ? first : (first && first.content) || '';
+                return { text, steps, toolCalls: steps.length };
+            }
+            if (step >= maxSteps) break;
+
+            const results = [];
+            for (const call of first.tool_calls) {
+                const name = call.function ? call.function.name : call.name;
+                const { args, invalid } = Chatbot._readArguments(call);
+                let content;
+                let isError = false;
+                if (invalid !== undefined) {
+                    // never run a tool with arguments the model did not actually send; let it retry
+                    content = `Error: the arguments are not valid JSON: ${invalid}`;
+                    isError = true;
+                } else {
+                    if (options.onToolCall) await options.onToolCall(name, args);
+                    try {
+                        const handler = registry.handlers[name];
+                        if (!handler) throw new Error(`Unknown tool '${name}'.`);
+                        content = await handler(args, call);
+                    } catch (error) {
+                        content = `Error: ${error && error.message !== undefined ? error.message : String(error)}`;
+                        isError = true;
+                    }
+                }
+                if (options.onToolResult) await options.onToolResult(name, content, isError);
+                steps.push({ name, arguments: args, result: content, isError });
+                results.push({ id: call.id, name, content, isError });
+            }
+            modelInput.addToolCalls(first.tool_calls, first.content);
+            modelInput.addToolResults(results);
+        }
+        throw new Error(`runTools stopped after ${maxSteps} tool rounds without a final answer; raise options.maxSteps.`);
+    }
+
+    static _parseArguments(call) {
+        return Chatbot._readArguments(call).args;
+    }
+
+    // { args } for valid (or empty) arguments, { args: {}, invalid: raw } when the JSON cannot be parsed.
+    static _readArguments(call) {
+        const raw = call.function ? call.function.arguments : call.arguments;
+        if (raw && typeof raw === 'object') return { args: raw };
+        if (raw === undefined || raw === null || String(raw).trim() === '') return { args: {} };
+        try {
+            const args = JSON.parse(raw);
+            return args && typeof args === 'object' && !Array.isArray(args) ? { args } : { args: {}, invalid: String(raw) };
+        } catch (error) {
+            return { args: {}, invalid: String(raw) };
+        }
+    }
+
+    // A short text stand-in for MCP content without text (images, audio, resources), so no payload reaches the model.
+    static _describeContent(content) {
+        return content.map((block) => {
+            if (!block || typeof block !== 'object') return String(block);
+            const uri = (block.resource && block.resource.uri) || block.uri;
+            return `[${block.type || 'content'}${block.mimeType ? ` ${block.mimeType}` : ''}${uri ? ` ${uri}` : ''}]`;
+        }).join('\n');
+    }
+
+    // Normalise the accepted tool shapes into { definitions, handlers }.
+    static _toolRegistry(tools) {
+        const handlers = {};
+        const definitions = [];
+        if (tools && typeof tools.callTool === 'function' && typeof tools.toChatTools === 'function') {
+            for (const definition of tools.toChatTools()) {
+                definitions.push(definition);
+                handlers[definition.function.name] = async (args) => {
+                    const result = await tools.callTool(definition.function.name, args);
+                    if (result && result.isError) throw new Error(result.text || 'The tool reported an error.');
+                    if (result && result.text) return result.text;
+                    if (result && result.structuredContent !== undefined) return result.structuredContent;
+                    if (result && Array.isArray(result.content)) return Chatbot._describeContent(result.content);
+                    return result;
+                };
+            }
+        } else if (Array.isArray(tools)) {
+            for (const tool of tools) {
+                const spec = tool.function || tool;
+                if (typeof (tool.handler || spec.handler) === 'function') handlers[spec.name] = tool.handler || spec.handler;
+                definitions.push({
+                    type: 'function',
+                    function: {
+                        name: spec.name,
+                        ...(spec.description && { description: spec.description }),
+                        parameters: spec.parameters || spec.input_schema || { type: 'object', properties: {} },
+                    },
+                });
+            }
+        } else if (tools && typeof tools === 'object') {
+            for (const [name, handler] of Object.entries(tools)) {
+                if (typeof handler === 'function') handlers[name] = handler;
+            }
+        }
+        return { definitions, handlers };
     }
 
     async *stream(modelInput) {
@@ -774,15 +1135,58 @@ class Chatbot {
 
         if (this.provider === SupportedChatModels.OPENAI) {
             yield* this._chatGPTStream(modelInput);
+        } else if (this.provider === SupportedChatModels.ANTHROPIC) {
+            yield* this._streamAnthropic(modelInput);
+        } else if (this.provider === SupportedChatModels.MISTRAL) {
+            yield* this._streamMistral(modelInput);
         } else if (this.provider === SupportedChatModels.COHERE) {
             yield* this._streamCohere(modelInput)
         } else if (this.provider === SupportedChatModels.NVIDIA) {
             yield* this._streamNvidia(modelInput);
         } else if (this.provider === SupportedChatModels.VLLM) {
             yield* this._streamVLLM(modelInput);
+        } else if (COMPATIBLE_PROVIDERS.has(this.provider)) {
+            yield* this._streamCompatible(modelInput);
         } else {
-            throw new Error("The stream function support only chatGPT, for other providers use chat function.");
+            throw new Error("The stream function supports openai, anthropic, mistral, cohere, nvidia, vllm and the OpenAI-compatible providers; for other providers use the chat function.");
         }
+    }
+
+    _getCompatibleParams(modelInput) {
+        if (modelInput instanceof ChatGPTInput && !(modelInput instanceof CohereInput)) {
+            // ChatGPTInput would build a Responses API body for gpt-5+ model names
+            const params = OpenAICompatibleInput.prototype.getChatInput.call(modelInput);
+            return params.model ? { ...params, model: stripRouteOverride(params.model) } : params;
+        } else if (modelInput instanceof ChatModelInput) {
+            return modelInput.getChatInput();
+        } else if (modelInput && typeof modelInput === "object") {
+            return { ...modelInput };
+        }
+        throw new Error("Invalid input: Must be an instance of OpenAICompatibleInput or a chat-completions object");
+    }
+
+    async _chatCompatible(modelInput) {
+        const params = this._getCompatibleParams(modelInput);
+        const results = await this.compatibleWrapper.generateChatText(params);
+        return this._parseChatChoices(results);
+    }
+
+    async *_streamCompatible(modelInput) {
+        const params = this._getCompatibleParams(modelInput);
+        params.stream = true;
+        const stream = await this.compatibleWrapper.generateChatText(params);
+        const streamParser = new GPTStreamParser();
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
+        }
+    }
+
+    /** Model ids served by an OpenAI-compatible provider (openrouter, ollama, ...). */
+    async listModels() {
+        if (!this.compatibleWrapper) {
+            throw new Error('listModels is available for the OpenAI-compatible providers only.');
+        }
+        return this.compatibleWrapper.listModels();
     }
 
     async *_streamVLLM(modelInput) {
@@ -816,8 +1220,7 @@ class Chatbot {
       const streamParser = new VLLMStreamParser();
 
       // Process the streaming response
-      for await (const chunk of stream) {
-        const chunkText = chunk.toString('utf8');
+      for await (const chunkText of readStreamChunks(stream)) {
         yield* streamParser.feed(chunkText);
       }
     }
@@ -842,7 +1245,9 @@ class Chatbot {
         } else if (modelInput instanceof GeminiInput) {
             messages = modelInput.messages.map(message => {
                 const role = message.role;
-                const content = message.parts.map(part => part.text).join(" ");
+                const parts = message.parts || [];
+                // a function response turn is not a question
+                const content = parts.some(part => part.functionResponse) ? null : parts.map(part => part.text).join(" ");
                 return { role, content };
             });
         } else if (Array.isArray(modelInput.messages)) {
@@ -854,12 +1259,13 @@ class Chatbot {
 
         lastMessage = messages[messages.length - 1];
 
-        if (lastMessage && lastMessage.role === "user") {
+        // tool results (Anthropic content blocks, Gemini function responses) and multimodal parts are not queries
+        if (lastMessage && lastMessage.role === "user" && typeof lastMessage.content === "string" && lastMessage.content.trim()) {
 
             const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
 
             if (semanticResult && semanticResult.length > 0) {
-                
+
                 references = semanticResult.reduce((acc, doc) => {
                     // check if the document_name exists in the accumulator
                     if (!acc[doc.document_name]) {
@@ -888,7 +1294,7 @@ class Chatbot {
                 }
             }
         }
-        
+
         return references;
     }
 
@@ -917,8 +1323,16 @@ class Chatbot {
         return result.choices.map(c => c.text.trim());
       } else {
         const result = await this.vllmWrapper.generateChatText(params);
-        return result.choices.map(c => c.message.content);
+        return this._parseChatChoices(result);
       }
+    }
+
+    // gpt-5+ inputs go to the Responses API; plain request objects are routed by their shape.
+    _isResponsesRequest(modelInput, params) {
+        if (modelInput instanceof ChatModelInput) {
+            return isReasoningModel(modelInput.model);
+        }
+        return params.input !== undefined && params.messages === undefined;
     }
 
     async *_chatGPTStream(modelInput) {
@@ -926,30 +1340,20 @@ class Chatbot {
 
         if (modelInput instanceof ChatModelInput) {
             params = modelInput.getChatInput();
-            params.stream = true;
         } else if (typeof modelInput === "object") {
-            params = modelInput;
-            params.stream = true;
+            params = { ...modelInput };
         } else {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
+        params.stream = true;
 
-        // Check if this is GPT-5
-        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
-        
-        if (isGPT5) {
-            // GPT-5 doesn't support streaming in the same way
-            // For now, throw an error or handle as non-streaming
-            throw new Error("GPT-5 streaming is not yet supported. Please use the chat() method instead.");
-        }
+        const stream = this._isResponsesRequest(modelInput, params)
+            ? await this.openaiWrapper.generateGPT5Response(params)
+            : await this.openaiWrapper.generateChatText(params);
 
+        // the parser understands both chat completions and Responses API events
         const streamParser = new GPTStreamParser();
-
-        const stream = await this.openaiWrapper.generateChatText(params);
-
-        // Collect data from the stream
-        for await (const chunk of stream) {
-            const chunkText = chunk.toString('utf8');
+        for await (const chunkText of readStreamChunks(stream)) {
             yield* streamParser.feed(chunkText);
         }
     }
@@ -966,42 +1370,80 @@ class Chatbot {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
 
-        // Check if this is GPT-5
-        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
-        
-        if (isGPT5) {
-            // GPT-5 uses different endpoint and response format
+        if (this._isResponsesRequest(modelInput, params)) {
+            const legacyFunctions = functions != null;
+            if (legacyFunctions) {
+                // the Responses API has no `functions` field, so send them as tools
+                params = {
+                    ...params,
+                    tools: [...(params.tools || []), ...toResponsesTools(functionsToTools(functions))],
+                    ...(function_call != null && { tool_choice: toResponsesToolChoice(functionCallToToolChoice(function_call)) }),
+                };
+            }
             const results = await this.openaiWrapper.generateGPT5Response(params);
-            // GPT-5 response format: { output: [ {type: 'reasoning'}, {type: 'message', content: [...]} ] }
-            if (results.output && Array.isArray(results.output)) {
-                // Extract text from the message content
-                const messageObjects = results.output.filter(item => item.type === 'message');
-                const responses = messageObjects.map(msg => {
-                    if (msg.content && Array.isArray(msg.content)) {
-                        return msg.content.map(c => c.text || c).join('');
-                    }
-                    return msg.content || '';
-                });
-                return responses.length > 0 ? responses : [''];
-            } else if (results.choices && results.choices.length > 0) {
-                // Fallback to choices format if available
+            return this._parseResponsesOutput(results, legacyFunctions);
+        }
+
+        const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
+        return this._parseChatChoices(results);
+    }
+
+    // Chat-completions choices: text, or { content, function_call } / { content, tool_calls }.
+    _parseChatChoices(results) {
+        return (results.choices || []).map((choice) => {
+            const message = choice.message || {};
+            if (message.function_call) {
+                return {
+                    content: message.content,
+                    function_call: message.function_call
+                };
+            }
+            if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+                return {
+                    content: message.content,
+                    tool_calls: message.tool_calls
+                };
+            }
+            return message.content;
+        });
+    }
+
+    // Responses API output: { output: [ {type: 'reasoning'}, {type: 'message', content: [...]}, {type: 'function_call'} ] }
+    _parseResponsesOutput(results, legacyFunctions = false) {
+        if (!Array.isArray(results.output)) {
+            if (results.choices && results.choices.length > 0) {
                 return results.choices.map(choice => choice.output || choice.text || choice.message?.content);
             }
             return [''];
-        } else {
-            // Standard chat completion for GPT-4 and others
-            const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
-            return results.choices.map((choice) => {
-                if (choice.finish_reason === 'function_call' && choice.message.function_call) {
-                    return {
-                        content: choice.message.content,
-                        function_call: choice.message.function_call
-                    };
-                } else {
-                    return choice.message.content;
-                }
-            });
         }
+
+        const texts = [];
+        const toolCalls = [];
+        for (const item of results.output) {
+            if (item.type === 'message') {
+                const content = Array.isArray(item.content)
+                    ? item.content.map((part) => part.text ?? part.refusal ?? '').join('')
+                    : (item.content || '');
+                texts.push(content);
+            } else if (item.type === 'function_call') {
+                toolCalls.push({
+                    id: item.call_id || item.id,
+                    type: 'function',
+                    function: { name: item.name, arguments: item.arguments }
+                });
+            }
+        }
+
+        if (toolCalls.length > 0) {
+            const content = texts.join('') || null;
+            if (legacyFunctions) {
+                return toolCalls.map((call) => ({ content, function_call: call.function }));
+            }
+            return [{ content, tool_calls: toolCalls }];
+        }
+
+        // an incomplete response (e.g. max_output_tokens spent on reasoning) keeps returning ['']
+        return texts.length > 0 ? texts : [''];
     }
 
     async _chatReplicateLLama(modelInput, debugMode) {
@@ -1095,116 +1537,154 @@ class Chatbot {
 
         if (modelInput instanceof CohereInput) {
             params = modelInput.getChatInput();
-            params.stream = true;
         } else if (typeof modelInput === "object") {
-            params = modelInput;
-            params.stream = true;
+            params = { ...modelInput };
         } else {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
+        params.stream = true;
 
         const streamParser = new CohereStreamParser();
 
         const stream = await this.cohereWrapper.generateChatText(params);
 
-        // Collect data from the stream
-        for await (const chunk of stream) {
-            const chunkText = chunk.toString('utf8');
+        for await (const chunkText of readStreamChunks(stream)) {
             yield* streamParser.feed(chunkText);
         }
     }
 
-    async _chatMistral(modelInput) {
-        let params;
-
-        if (modelInput instanceof MistralInput) {
-            params = modelInput.getChatInput();
-        } if (modelInput instanceof ChatGPTInput) {
-            params = modelInput.getChatInput();
+    _getMistralParams(modelInput) {
+        if (modelInput instanceof MistralInput || modelInput instanceof ChatGPTInput) {
+            return modelInput.getChatInput();
         } else if (typeof modelInput === "object") {
-            params = modelInput;
-        } else {
-            throw new Error("Invalid input: Must be an instance of MistralInput or an object");
+            return { ...modelInput };
         }
+        throw new Error("Invalid input: Must be an instance of MistralInput or an object");
+    }
+
+    async _chatMistral(modelInput) {
+        const params = this._getMistralParams(modelInput);
 
         const results = await this.mistralWrapper.generateText(params);
 
-        return results.choices.map(choice => choice.message.content);
+        return this._parseChatChoices(results);
+    }
+
+    async *_streamMistral(modelInput) {
+        const params = this._getMistralParams(modelInput);
+        params.stream = true;
+
+        const streamParser = new GPTStreamParser();
+        const stream = await this.mistralWrapper.generateText(params);
+
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
+        }
     }
 
     async _chatGemini(modelInput) {
         let params;
+        let model = null;
 
         if (modelInput instanceof GeminiInput) {
             params = modelInput.getChatInput();
+            model = modelInput.model;
         } else if (typeof modelInput === "object") {
+            // an optional `model` key selects the model; the wrapper removes it from the body
             params = modelInput;
         } else {
             throw new Error("Invalid input: Must be an instance of GeminiInput");
         }
 
         // call Gemini
-        const result = await this.geminiWrapper.generateContent(params);
+        const result = await this.geminiWrapper.generateContent(params, false, model);
 
         if (!Array.isArray(result.candidates) || result.candidates.length === 0) {
-            throw new Error("Invalid response from Gemini API: Expected 'candidates' array with content");
+            const feedback = result.promptFeedback ? ` Prompt feedback: ${JSON.stringify(result.promptFeedback)}` : '';
+            throw new Error(`Invalid response from Gemini API: Expected 'candidates' array with content.${feedback}`);
         }
 
-        // iterate over all the candidates
-        const responses = result.candidates.map(candidate => {
-            // combine text from all parts
-            return candidate.content.parts
+        // a candidate can have no parts, e.g. when thinking used the whole output budget
+        return result.candidates.map((candidate, index) => {
+            const parts = (candidate.content && candidate.content.parts) || [];
+            const text = parts
+                .filter(part => typeof part.text === 'string' && !part.thought)
                 .map(part => part.text)
-                .join(' ');
+                .join('');
+            // Gemini has no call ids, so function calls get local ones for the tool loop
+            const toolCalls = parts
+                .filter(part => part.functionCall)
+                .map((part, callIndex) => ({
+                    id: part.functionCall.id || `call_${index}_${callIndex}`,
+                    type: 'function',
+                    function: { name: part.functionCall.name, arguments: JSON.stringify(part.functionCall.args || {}) },
+                    // Gemini 3 needs the signature echoed back with the call
+                    ...(part.thoughtSignature && { thoughtSignature: part.thoughtSignature })
+                }));
+            return toolCalls.length > 0 ? { content: text || null, tool_calls: toolCalls } : text;
         });
+    }
 
-        return responses;
+    _getAnthropicParams(modelInput) {
+        if (modelInput instanceof AnthropicInput) {
+            return modelInput.getChatInput();
+        } else if (modelInput && typeof modelInput === "object" && !(modelInput instanceof ChatModelInput)) {
+            return { ...modelInput };
+        }
+        throw new Error("Invalid input: Must be an instance of AnthropicInput or a Messages API object");
     }
 
     async _chatAnthropic(modelInput) {
-        let params;
-    
-        if (modelInput instanceof AnthropicInput) {
-            params = modelInput.getChatInput();
-        } else {
-            throw new Error("Invalid input: Must be an instance of AnthropicInput");
-        }
-    
+        const params = this._getAnthropicParams(modelInput);
+
         const results = await this.anthropicWrapper.generateText(params);
-        
-        return results.content.map(choice => choice.text);
+
+        // Claude 5 models can return thinking blocks before the answer; keep the text blocks only
+        const blocks = Array.isArray(results.content) ? results.content : [];
+        const texts = blocks.filter(block => block.type === 'text').map(block => block.text);
+        const toolUses = blocks.filter(block => block.type === 'tool_use');
+
+        if (toolUses.length > 0) {
+            return [{
+                content: texts.join('') || null,
+                tool_calls: toolUses.map(block => ({
+                    id: block.id,
+                    type: 'function',
+                    function: { name: block.name, arguments: JSON.stringify(block.input || {}) }
+                }))
+            }];
+        }
+
+        // e.g. max_tokens spent on thinking: keep the string array shape
+        return texts.length > 0 ? texts : [''];
+    }
+
+    async *_streamAnthropic(modelInput) {
+        const params = this._getAnthropicParams(modelInput);
+
+        const streamParser = new AnthropicStreamParser();
+        const stream = await this.anthropicWrapper.streamText(params);
+
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
+        }
     }
 
     async _chatNvidia(modelInput) {
         let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
         if (params.stream) throw new Error("Use stream() for NVIDIA streaming.");
         let resp = await this.nvidiaWrapper.generateText(params);
-        return resp.choices.map(c => c.message.content);
+        return this._parseChatChoices(resp);
     }
 
     async *_streamNvidia(modelInput) {
-        let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
+        let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : { ...modelInput };
         params.stream = true;
         const stream = await this.nvidiaWrapper.generateTextStream(params);
-        let buffer = '';
-        for await (const chunk of stream) {
-          const lines = chunk.toString('utf8').split('\n');
-          for (let line of lines) {
-            line = line.trim();
-            if (!line) continue;
-            if (line.startsWith('data: [DONE]')) {
-              yield buffer;
-              return;
-            }
-            if (line.startsWith('data: ')) {
-              try {
-                let parsed = JSON.parse(line.replace('data: ', ''));
-                let content = parsed.choices?.[0]?.delta?.content || '';
-                buffer += content;
-                yield content;
-              } catch(e) {}
-            }
-          }
+
+        const streamParser = new GPTStreamParser();
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
         }
     }
 
@@ -1214,93 +1694,679 @@ module.exports = {
     Chatbot,
     SupportedChatModels,
 };
-},{"../model/input/ChatModelInput":13,"../utils/StreamParser":39,"../utils/SystemHelper":40,"../wrappers/AWSEndpointWrapper":41,"../wrappers/AnthropicWrapper":42,"../wrappers/CohereAIWrapper":43,"../wrappers/GeminiAIWrapper":44,"../wrappers/IntellicloudWrapper":47,"../wrappers/MistralAIWrapper":48,"../wrappers/NvidiaWrapper":49,"../wrappers/OpenAIWrapper":50,"../wrappers/ReplicateWrapper":51,"../wrappers/VLLMWrapper":53}],8:[function(require,module,exports){
+
+},{"../model/input/ChatModelInput":14,"../utils/FetchClient":35,"../utils/ModelHelper":41,"../utils/OutputParser":42,"../utils/StreamParser":45,"../utils/SystemHelper":46,"../wrappers/AWSEndpointWrapper":47,"../wrappers/AnthropicWrapper":48,"../wrappers/CohereAIWrapper":49,"../wrappers/GeminiAIWrapper":50,"../wrappers/IntellicloudWrapper":53,"../wrappers/MistralAIWrapper":54,"../wrappers/NvidiaWrapper":55,"../wrappers/OpenAICompatibleWrapper":56,"../wrappers/OpenAIWrapper":57,"../wrappers/ReplicateWrapper":58,"../wrappers/VLLMWrapper":60}],8:[function(require,module,exports){
 (function (Buffer){(function (){
-// Gen.js
-const { RemoteLanguageModel } = require("../controller/RemoteLanguageModel");
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
 const { RemoteImageModel, SupportedImageModels } = require("../controller/RemoteImageModel");
 const { RemoteSpeechModel } = require("../controller/RemoteSpeechModel");
-const LanguageModelInput = require("../model/input/LanguageModelInput");
+const { SupportedLangModels } = require('../controller/RemoteLanguageModel');
 const ImageModelInput = require("../model/input/ImageModelInput");
 const Text2SpeechInput = require("../model/input/Text2SpeechInput");
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
-const { ChatGPTInput, ChatGPTMessage, NvidiaInput } = require("../model/input/ChatModelInput");
-const { SupportedLangModels } = require('../controller/RemoteLanguageModel');
+const {
+  ChatGPTInput,
+  AnthropicInput,
+  GeminiInput,
+  MistralInput,
+  CohereInput,
+  NvidiaInput,
+  VLLMInput,
+  OpenAICompatibleInput
+} = require("../model/input/ChatModelInput");
 const SystemHelper = require("../utils/SystemHelper");
 const Prompt = require("../utils/Prompt");
 const FileHelper = require("../utils/FileHelper");
 const path = require('path');
+const config = require('../config.json');
+const { isReasoningModel } = require('../utils/ModelHelper');
+const { stripThinking, extractBlocks, extractCode, extractMarkdown, parseJson, extractSvg } = require('../utils/OutputParser');
 
-function stripThinking(text) {
-  /** emove any <think>...</think> block from NVIDIA responses. */
-  return text.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+const DEFAULT_OPENAI_MODEL = config.url.openai.models.chat;
+const DEFAULT_SYSTEM = 'You are a helpful assistant.';
+
+// The chat input class of every provider Gen can talk to through the Chatbot.
+const CHAT_INPUTS = {
+  [SupportedChatModels.OPENAI]: ChatGPTInput,
+  [SupportedChatModels.ANTHROPIC]: AnthropicInput,
+  [SupportedChatModels.GEMINI]: GeminiInput,
+  [SupportedChatModels.MISTRAL]: MistralInput,
+  [SupportedChatModels.COHERE]: CohereInput,
+  [SupportedChatModels.NVIDIA]: NvidiaInput,
+  [SupportedChatModels.VLLM]: VLLMInput,
+  // OpenAI-compatible services share one chat-completions input
+  [SupportedChatModels.OPENAI_COMPATIBLE]: OpenAICompatibleInput,
+  [SupportedChatModels.OPENROUTER]: OpenAICompatibleInput,
+  [SupportedChatModels.GROQ]: OpenAICompatibleInput,
+  [SupportedChatModels.DEEPSEEK]: OpenAICompatibleInput,
+  [SupportedChatModels.XAI]: OpenAICompatibleInput,
+  [SupportedChatModels.TOGETHER]: OpenAICompatibleInput,
+  [SupportedChatModels.OLLAMA]: OpenAICompatibleInput,
+  [SupportedChatModels.LMSTUDIO]: OpenAICompatibleInput,
+};
+
+// Providers whose models (e.g. DeepSeek, local reasoning models) can return <think> reasoning inline;
+// the other providers separate it already.
+const INLINE_REASONING_PROVIDERS = new Set([
+  SupportedChatModels.NVIDIA, SupportedChatModels.VLLM, SupportedChatModels.OPENAI_COMPATIBLE,
+  SupportedChatModels.OPENROUTER, SupportedChatModels.GROQ, SupportedChatModels.DEEPSEEK, SupportedChatModels.XAI,
+  SupportedChatModels.TOGETHER, SupportedChatModels.OLLAMA, SupportedChatModels.LMSTUDIO,
+]);
+
+// Chatbot options that Gen passes straight through from options.
+const CHATBOT_OPTION_KEYS = ['baseUrl', 'headers', 'timeout', 'retries', 'retryDelay', 'signal'];
+
+function chatbotOptionsFrom(options) {
+  const chatbotOptions = {};
+  for (const key of CHATBOT_OPTION_KEYS) {
+    if (options[key] !== undefined) chatbotOptions[key] = options[key];
+  }
+  return chatbotOptions;
+}
+
+// Output token budgets for the generation use cases (ignored for OpenAI reasoning models).
+const TOKENS = { short: 1200, medium: 4000, long: 8000, page: 12000 };
+
+// Output floors for providers whose input class default cap is too small once adaptive thinking counts toward it.
+const MAX_TOKEN_FLOORS = {
+  [SupportedChatModels.ANTHROPIC]: 16000,
+};
+
+// Gen's own token budgets never undercut a provider floor; a caller's options.maxTokens is used as given.
+function budgetFor(provider, tokens) {
+  return Math.max(tokens, MAX_TOKEN_FLOORS[provider] || 0);
+}
+
+function buildChatInput(provider, system, options) {
+  const InputClass = CHAT_INPUTS[provider];
+  if (!InputClass) {
+    throw new Error(`Unsupported provider '${provider}'. Use one of: ${Object.keys(CHAT_INPUTS).join(', ')}`);
+  }
+  const inputOptions = {
+    ...(options.model && { model: options.model }),
+    ...(options.responseSchema && { responseSchema: options.responseSchema }),
+    ...(options.responseFormat && { responseFormat: options.responseFormat }),
+  };
+  // reasoning models (gpt-5+) spend output tokens on thinking, so only cap and tune the other models
+  const reasoning = provider === SupportedChatModels.OPENAI && isReasoningModel(options.model || DEFAULT_OPENAI_MODEL);
+  if (!reasoning) {
+    const maxTokens = options.maxTokens || MAX_TOKEN_FLOORS[provider];
+    if (maxTokens) inputOptions.maxTokens = maxTokens;
+    if (options.temperature != null) inputOptions.temperature = options.temperature;
+  }
+  return new InputClass(system, inputOptions);
+}
+
+// The legacy functions take an OpenAI model name positionally. Released versions always used the default NVIDIA
+// model (the name only picked the token budget), and an OpenAI model name is never sent to another provider.
+function resolveLegacyModel(provider, modelName) {
+  if (provider === SupportedChatModels.OPENAI) return modelName || null;
+  if (provider === SupportedChatModels.NVIDIA) return null;
+  if (!modelName || /^(gpt-|o\d|chatgpt-)/i.test(modelName)) return null;
+  return modelName;
+}
+
+function legacyTokenSize(modelName, base) {
+  const name = modelName || '';
+  if (name.includes('-16k')) return 8000;
+  if (name.includes('gpt-4o')) return 12000;
+  if (name.includes('gpt-4')) return base;
+  if (name.includes('deepseek')) return 15000;
+  return 8000;
+}
+
+// The released page functions parsed with JSON.parse, so an unusable answer still rejects with a SyntaxError.
+function parseLegacyPage(text, allowArray) {
+  let value;
+  try {
+    value = parseJson(text, allowArray ? null : 'object');
+  } catch (error) {
+    throw new SyntaxError(error.message);
+  }
+  const page = Array.isArray(value) ? value[0] : value;
+  if (!page || typeof page !== 'object' || typeof page.html !== 'string') {
+    throw new SyntaxError(`The model response is not a JSON object with an html field: ${String(text).trim().slice(0, 200)}`);
+  }
+  return value;
+}
+
+function quoteBlock(title, content, language = '') {
+  return content ? `${title}\n\`\`\`${language}\n${content}\n\`\`\`\n` : '';
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Scalar meta values; an array (e.g. several og:image URLs) becomes one tag per value.
+function metaValues(content) {
+  return (Array.isArray(content) ? content : [content]).filter((value) => value != null && typeof value !== 'object');
+}
+
+// Render <title>, <meta> and JSON-LD tags from the parsed SEO fields (safer than asking the model for HTML inside JSON).
+function renderSeoHtml(meta) {
+  const lines = [`<title>${escapeHtml(meta.title)}</title>`];
+  if (meta.description) lines.push(`<meta name="description" content="${escapeHtml(meta.description)}">`);
+  if (Array.isArray(meta.keywords) && meta.keywords.length) {
+    lines.push(`<meta name="keywords" content="${escapeHtml(meta.keywords.join(', '))}">`);
+  }
+  for (const [property, content] of Object.entries(meta.openGraph || {})) {
+    for (const value of metaValues(content)) {
+      lines.push(`<meta property="${escapeHtml(property)}" content="${escapeHtml(value)}">`);
+    }
+  }
+  for (const [name, content] of Object.entries(meta.twitter || {})) {
+    for (const value of metaValues(content)) {
+      lines.push(`<meta name="${escapeHtml(name)}" content="${escapeHtml(value)}">`);
+    }
+  }
+  if (meta.jsonLd) {
+    lines.push(`<script type="application/ld+json">${JSON.stringify(meta.jsonLd).replace(/</g, '\\u003c')}</script>`);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * "code block + json block" answers. The details block is the last json block whose content has the expected shape
+ * (so fixed code that is itself JSON is not mistaken for it); the code is the block tagged `language`, otherwise
+ * the longest remaining block.
+ */
+function parseCodeWithDetails(text, codeKey, language, isDetails) {
+  const blocks = extractBlocks(text);
+  let detailsBlock = null;
+  let details = null;
+  for (const block of blocks.filter((candidate) => candidate.lang === 'json').reverse()) {
+    try {
+      const parsed = parseJson(block.code);
+      if (isDetails(parsed)) {
+        detailsBlock = block;
+        details = parsed;
+        break;
+      }
+    } catch (error) {
+      // not the details block
+    }
+  }
+  const codeBlocks = blocks.filter((block) => block !== detailsBlock);
+  const preferred = language ? codeBlocks.find((block) => block.lang === language) : null;
+  const codeBlock = preferred || codeBlocks.reduce((best, block) => (!best || block.code.length > best.code.length ? block : best), null);
+  return { [codeKey]: codeBlock ? codeBlock.code : extractCode(text, language), details: details || {} };
+}
+
+const FRAMEWORK_LABELS = {
+  html: 'plain HTML, CSS and JavaScript (one self-contained .html file)',
+  react: 'React (function component with hooks)',
+  vue: 'Vue 3 (single-file component with <script setup>)',
+  svelte: 'Svelte (single-file component)',
+  angular: 'Angular (standalone component)',
+};
+
+const STYLE_FORMATS = {
+  css: 'plain CSS',
+  scss: 'SCSS',
+  tailwind: 'HTML markup styled with Tailwind CSS utility classes (return the markup with the classes applied)',
+};
+
+const PYTHON_FRAMEWORKS = /^(flask|fastapi|django|pytest|unittest)/i;
+const JAVASCRIPT_REGEX_ENGINES = /^(javascript|js|typescript|ts|node(\.?js)?)$/i;
+
+// ---------------------------------------------------------------------
+// OpenAPI normalisation
+// ---------------------------------------------------------------------
+
+const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
+
+function operationIdFor(method, pathKey) {
+  const words = `${method} ${pathKey}`.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  return words.map((word, index) => (index === 0 ? word.toLowerCase() : word[0].toUpperCase() + word.slice(1))).join('');
+}
+
+function resolveRef(doc, ref) {
+  return ref.slice(2).split('/').reduce(
+    (node, part) => (node == null ? undefined : node[part.replace(/~1/g, '/').replace(/~0/g, '~')]), doc);
+}
+
+function collectRefs(node, refs = new Set()) {
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectRefs(item, refs));
+  } else if (node && typeof node === 'object') {
+    for (const [key, value] of Object.entries(node)) {
+      if (key === '$ref' && typeof value === 'string') refs.add(value);
+      else collectRefs(value, refs);
+    }
+  }
+  return refs;
+}
+
+// Make a model-written OpenAPI document internally consistent so Swagger UI and code generators accept it.
+function normalizeOpenApi(doc, options = {}) {
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc) || !doc.paths || typeof doc.paths !== 'object') {
+    throw new Error('Gen: the model did not return an OpenAPI document with paths.');
+  }
+  const trimmedBase = options.basePath ? String(options.basePath).replace(/^\/+|\/+$/g, '') : '';
+  const basePath = trimmedBase ? `/${trimmedBase}` : '';
+  const info = doc.info || {};
+  const result = {
+    ...doc,
+    openapi: options.openapiVersion || '3.1.0',
+    info: { ...info, title: options.title || info.title || 'Generated API', version: options.version || info.version || '1.0.0' },
+    paths: {},
+  };
+  if (options.serverUrl) result.servers = [{ url: options.serverUrl }];
+
+  // a { $ref } parameter is resolved so its name and location count as declared
+  const parameterInfo = (param) => {
+    if (param && typeof param.$ref === 'string') {
+      const target = param.$ref.startsWith('#/') ? resolveRef(doc, param.$ref) : undefined;
+      return target && typeof target === 'object' ? target : null;
+    }
+    return param && typeof param === 'object' ? param : null;
+  };
+
+  const usedIds = new Set();
+  for (const [rawPath, rawItem] of Object.entries(doc.paths)) {
+    if (!rawItem || typeof rawItem !== 'object') continue;
+    // Express ":param" segments become "{param}"; a colon after a brace (custom methods such as {name}:cancel) is kept
+    let pathKey = `/${String(rawPath).trim().replace(/^\/+/, '')}`.replace(/(^|\/):([A-Za-z_][A-Za-z0-9_]*)/g, '$1{$2}');
+    if (basePath && pathKey !== basePath && !pathKey.startsWith(`${basePath}/`)) {
+      pathKey = pathKey === '/' ? basePath : `${basePath}${pathKey}`;
+    }
+    const templateParams = [...pathKey.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]);
+    // inline path parameters must match a template segment and are always required
+    const fixParameters = (parameters) => (Array.isArray(parameters) ? parameters : [])
+      .filter((param) => !(param && !param.$ref && param.in === 'path' && !templateParams.includes(param.name)))
+      .map((param) => (param && !param.$ref && param.in === 'path' ? { ...param, required: true } : param));
+
+    // when two raw keys normalise to the same path, the first definition of each field and method wins
+    const item = { ...(result.paths[pathKey] || {}) };
+    for (const [key, value] of Object.entries(rawItem)) {
+      if (!HTTP_METHODS.includes(key.toLowerCase()) && !(key in item)) item[key] = value;
+    }
+    if (Array.isArray(item.parameters)) item.parameters = fixParameters(item.parameters);
+    const pathLevelParams = Array.isArray(item.parameters) ? item.parameters : [];
+
+    for (const [key, value] of Object.entries(rawItem)) {
+      const method = key.toLowerCase();
+      if (!HTTP_METHODS.includes(method) || !value || typeof value !== 'object' || item[method]) continue;
+      const operation = { ...value };
+      if (method === 'get' || method === 'delete') delete operation.requestBody;
+      if (!operation.responses || typeof operation.responses !== 'object' || Object.keys(operation.responses).length === 0) {
+        operation.responses = { 200: { description: 'Successful response' } };
+      }
+      const parameters = fixParameters(operation.parameters);
+      const declared = new Set([...pathLevelParams, ...parameters]
+        .map(parameterInfo)
+        .filter((param) => param && param.in === 'path')
+        .map((param) => param.name));
+      for (const name of templateParams.filter((param) => !declared.has(param))) {
+        parameters.push({ name, in: 'path', required: true, schema: { type: 'string' } });
+      }
+      if (parameters.length) operation.parameters = parameters;
+      else delete operation.parameters;
+
+      const base = operation.operationId || operationIdFor(method, pathKey);
+      let id = base;
+      for (let n = 2; usedIds.has(id); n++) id = `${base}${n}`;
+      operation.operationId = id;
+      usedIds.add(id);
+      item[method] = operation;
+    }
+    result.paths[pathKey] = item;
+  }
+
+  // a dangling component reference breaks Swagger UI and code generators, so give it a placeholder schema
+  for (const ref of collectRefs(result)) {
+    if (!ref.startsWith('#/') || resolveRef(result, ref) !== undefined) continue;
+    const match = /^#\/components\/schemas\/([^/]+)$/.exec(ref);
+    if (!match) {
+      throw new Error(`Gen: the OpenAPI document references ${ref}, which it does not define.`);
+    }
+    const name = match[1].replace(/~1/g, '/').replace(/~0/g, '~');
+    result.components = { ...(result.components || {}) };
+    result.components.schemas = {
+      ...(result.components.schemas || {}),
+      [name]: { type: 'object', description: 'Referenced by the API; the model did not define this schema.' },
+    };
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------
+// Design token normalisation
+// ---------------------------------------------------------------------
+
+const TOKEN_SCALES = ['primary', 'secondary', 'neutral', 'success', 'warning', 'danger'];
+const TOKEN_STEPS = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+const TOKEN_ROLES = [
+  'background', 'foreground', 'muted', 'muted-foreground', 'primary', 'primary-foreground', 'secondary',
+  'secondary-foreground', 'accent', 'border', 'ring', 'danger', 'danger-foreground',
+];
+const CONTRAST_PAIRS = [
+  ['foreground', 'background'], ['muted-foreground', 'background'], ['primary-foreground', 'primary'], ['danger-foreground', 'danger'],
+];
+const NAMED_COLORS = {
+  white: '#ffffff', black: '#000000', red: '#ff0000', green: '#008000', blue: '#0000ff', gray: '#808080', grey: '#808080',
+  silver: '#c0c0c0', navy: '#000080', teal: '#008080', purple: '#800080', orange: '#ffa500', yellow: '#ffff00',
+};
+
+function toHex(red, green, blue) {
+  // the epsilon absorbs floating point error on exact .5 channels, so they round up like browsers do
+  return `#${[red, green, blue].map((channel) => Math.max(0, Math.min(255, Math.round(channel + 1e-9))).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function hslToRgb(hue, saturation, lightness) {
+  const h = (((hue % 360) + 360) % 360) / 360;
+  const s = saturation / 100;
+  const l = lightness / 100;
+  if (s === 0) return [l * 255, l * 255, l * 255];
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const channel = (t) => {
+    let x = t;
+    if (x < 0) x += 1;
+    if (x > 1) x -= 1;
+    if (x < 1 / 6) return p + (q - p) * 6 * x;
+    if (x < 1 / 2) return q;
+    if (x < 2 / 3) return p + (q - p) * (2 / 3 - x) * 6;
+    return p;
+  };
+  return [channel(h + 1 / 3) * 255, channel(h) * 255, channel(h - 1 / 3) * 255];
+}
+
+function parseAlpha(value) {
+  if (value === undefined) return 1;
+  const text = String(value).trim();
+  return text.endsWith('%') ? Number(text.slice(0, -1)) / 100 : Number(text);
+}
+
+/**
+ * Normalise a color to a lowercase six digit hex. Unsupported formats throw. Tokens are opaque, so a translucent
+ * color keeps its RGB value and a warning is added when a warnings list is given.
+ */
+function normalizeColor(value, key, warnings = null) {
+  const text = String(value).trim().toLowerCase();
+  let hex = null;
+  let alpha = 1;
+  let match;
+  if ((match = /^#([0-9a-f]{3})([0-9a-f])?$/.exec(text))) {
+    hex = `#${match[1].split('').map((digit) => digit + digit).join('')}`;
+    if (match[2]) alpha = parseInt(match[2] + match[2], 16) / 255;
+  } else if ((match = /^#([0-9a-f]{6})([0-9a-f]{2})?$/.exec(text))) {
+    hex = `#${match[1]}`;
+    if (match[2]) alpha = parseInt(match[2], 16) / 255;
+  } else if ((match = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+%?)\s*)?\)$/.exec(text))) {
+    hex = toHex(Number(match[1]), Number(match[2]), Number(match[3]));
+    alpha = parseAlpha(match[4]);
+  } else if ((match = /^hsla?\(\s*([\d.]+)(?:deg)?[\s,]+([\d.]+)%[\s,]+([\d.]+)%\s*(?:[,/]\s*([\d.]+%?)\s*)?\)$/.exec(text))) {
+    hex = toHex(...hslToRgb(Number(match[1]), Number(match[2]), Number(match[3])));
+    alpha = parseAlpha(match[4]);
+  } else if (NAMED_COLORS[text]) {
+    hex = NAMED_COLORS[text];
+  }
+  if (!hex) {
+    throw new Error(`Gen: unsupported color "${value}" at ${key}; expected a hex, rgb() or hsl() color.`);
+  }
+  if (alpha < 1 && warnings) {
+    warnings.push(`${key} was the translucent color ${value}; tokens are opaque, so the transparency was dropped (${hex}).`);
+  }
+  return hex;
+}
+
+function relativeLuminance(hex) {
+  const [red, green, blue] = [1, 3, 5]
+    .map((index) => parseInt(hex.slice(index, index + 2), 16) / 255)
+    .map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function contrastRatio(first, second) {
+  const [lighter, darker] = [relativeLuminance(first), relativeLuminance(second)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function buildTokenCss(palette, semantic, radius, modes, prefix) {
+  const declarations = (entries, indent = '  ') => entries.map(([name, value]) => `${indent}--${name}: ${value};`).join('\n');
+  const rootEntries = [];
+  for (const [scaleName, scaleSteps] of Object.entries(palette)) {
+    for (const [step, value] of Object.entries(scaleSteps)) rootEntries.push([`${prefix}-${scaleName}-${step}`, value]);
+  }
+  for (const [size, value] of Object.entries(radius)) rootEntries.push([`radius-${size}`, value]);
+  rootEntries.push(...Object.entries(semantic[modes[0]]));
+
+  const blocks = [`:root {\n${declarations(rootEntries)}\n}`];
+  for (const mode of modes.slice(1)) {
+    const entries = Object.entries(semantic[mode]);
+    blocks.push(`[data-theme="${mode}"] {\n${declarations(entries)}\n}`);
+    if (mode === 'dark') {
+      // only when no theme is chosen explicitly, so a selected data-theme always wins
+      blocks.push(`@media (prefers-color-scheme: dark) {\n  :root:not([data-theme]) {\n${declarations(entries, '    ')}\n  }\n}`);
+    }
+  }
+  return blocks.join('\n\n');
+}
+
+function buildTailwindTheme(palette, semantic, typography, radius, spacing, modes) {
+  const colors = {};
+  for (const [scaleName, scaleSteps] of Object.entries(palette)) colors[scaleName] = { ...scaleSteps };
+  const roles = Object.keys(semantic[modes[0]]);
+  for (const role of roles.filter((name) => !name.endsWith('-foreground'))) {
+    colors[role] = { ...(colors[role] || {}), DEFAULT: `var(--${role})` };
+  }
+  for (const role of roles.filter((name) => name.endsWith('-foreground'))) {
+    const base = role.slice(0, -'-foreground'.length);
+    colors[base] = { ...(colors[base] || {}), foreground: `var(--${role})` };
+  }
+  const extend = { colors, borderRadius: { ...radius } };
+  if (typography && typography.fontFamily) extend.fontFamily = { ...typography.fontFamily };
+  if (typography && typography.fontSize) extend.fontSize = { ...typography.fontSize };
+  if (spacing) extend.spacing = { ...spacing };
+  return { theme: { extend } };
+}
+
+// Validate and complete model-written design tokens; syntax (hex, CSS, Tailwind) is produced by the library.
+function normalizeDesignTokens(raw, options) {
+  if (!raw || typeof raw !== 'object' || !raw.palette || typeof raw.palette !== 'object') {
+    throw new Error('Gen: the model did not return design tokens with a palette.');
+  }
+  const modes = options.modes;
+  const warnings = [];
+
+  const palette = {};
+  const missingSteps = [];
+  for (const scaleName of TOKEN_SCALES) {
+    palette[scaleName] = {};
+    for (const step of TOKEN_STEPS) {
+      const value = raw.palette[scaleName] && raw.palette[scaleName][step];
+      if (value == null || value === '') {
+        missingSteps.push(`${scaleName}.${step}`);
+      } else {
+        palette[scaleName][step] = normalizeColor(value, `palette.${scaleName}.${step}`, warnings);
+      }
+    }
+  }
+  if (missingSteps.length) {
+    throw new Error(`Gen: the design tokens are missing palette steps: ${missingSteps.join(', ')}`);
+  }
+  if (options.brandColor) {
+    const brand = normalizeColor(options.brandColor, 'options.brandColor');
+    if (palette.primary['500'] !== brand) {
+      warnings.push(`primary.500 was ${palette.primary['500']} and was set to the brand color ${brand}.`);
+      palette.primary['500'] = brand;
+    }
+  }
+
+  const resolve = (value, key) => {
+    const reference = /^\s*([a-z]+)[.-](\d{2,3})\s*$/i.exec(String(value));
+    if (reference) {
+      const scaleSteps = palette[reference[1].toLowerCase()];
+      if (scaleSteps && scaleSteps[reference[2]]) return scaleSteps[reference[2]];
+    }
+    return normalizeColor(value, key, warnings);
+  };
+
+  const semantic = {};
+  const missingRoles = [];
+  for (const mode of modes) {
+    const source = (raw.semantic && raw.semantic[mode]) || {};
+    semantic[mode] = {};
+    for (const role of TOKEN_ROLES) {
+      if (source[role] == null || source[role] === '') {
+        missingRoles.push(`${mode}.${role}`);
+      } else {
+        semantic[mode][role] = resolve(source[role], `semantic.${mode}.${role}`);
+      }
+    }
+  }
+  if (missingRoles.length) {
+    throw new Error(`Gen: the design tokens are missing semantic roles: ${missingRoles.join(', ')}`);
+  }
+
+  const contrast = [];
+  for (const mode of modes) {
+    for (const [foreground, background] of CONTRAST_PAIRS) {
+      const exact = contrastRatio(semantic[mode][foreground], semantic[mode][background]);
+      // WCAG compares the exact ratio; the reported value is truncated so it never looks like a pass when it is not
+      const ratio = Math.floor(exact * 100) / 100;
+      contrast.push({ mode, pair: `${foreground}/${background}`, ratio, aa: exact >= 4.5 });
+      if (exact < 4.5) {
+        warnings.push(`${mode}: ${foreground} on ${background} has a contrast of ${ratio}:1, below WCAG AA (4.5:1).`);
+      }
+    }
+  }
+
+  const typography = options.includeTypography === false ? null : (raw.typography || null);
+  const spacing = options.includeSpacing === false ? null : (raw.spacing || null);
+  const radius = { sm: '0.25rem', md: '0.5rem', lg: '1rem', full: '9999px', ...(raw.radius || {}) };
+  return {
+    name: raw.name || 'Design tokens',
+    palette,
+    semantic,
+    typography,
+    radius,
+    spacing,
+    contrast,
+    css: buildTokenCss(palette, semantic, radius, modes, options.cssPrefix || 'color'),
+    tailwind: buildTailwindTheme(palette, semantic, typography, radius, spacing, modes),
+    warnings,
+  };
 }
 
 class Gen {
+  /**
+   * One call to any chat provider. Returns the model text; for providers that return reasoning inline
+   * (nvidia, vllm) the leading <think> block is removed.
+   *
+   * @param {string} prompt - the user message.
+   * @param {string} apiKey - the provider key.
+   * @param {string} provider - openai, anthropic, gemini, mistral, cohere, nvidia, vllm, or an OpenAI-compatible
+   *   service: openrouter, groq, deepseek, xai, together, ollama, lmstudio, openai_compatible (with options.baseUrl).
+   * @param {object} options - { system, model, maxTokens, temperature, customProxyHelper, baseUrl, headers,
+   *   timeout, retries, retryDelay, signal }.
+   */
+  static async generate_text(prompt, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const input = buildChatInput(provider, options.system || DEFAULT_SYSTEM, options);
+    input.addUserMessage(prompt);
+
+    const chatbot = new Chatbot(apiKey, provider, options.customProxyHelper || null, chatbotOptionsFrom(options));
+    const responses = await chatbot.chat(input);
+
+    const first = responses[0];
+    const text = typeof first === 'string' ? first : (first && first.content) || '';
+    return INLINE_REASONING_PROVIDERS.has(provider) ? stripThinking(text) : String(text).trim();
+  }
+
+  /**
+   * One call that returns parsed JSON. With a JSON Schema the provider's structured output is used (OpenAI,
+   * Anthropic, Gemini, Mistral, Cohere and compatible services), so the reply matches the schema; without one the
+   * model is asked for JSON and the reply is parsed even when it is wrapped in prose or fences.
+   *
+   * @param {string} prompt - the user message.
+   * @param {object|null} schema - a JSON Schema for the reply, or null for free-form JSON.
+   * @param {string} apiKey - the provider key.
+   * @param {string} provider - any provider accepted by generate_text.
+   * @param {object} options - the generate_text options.
+   */
+  static async generate_json(prompt, schema, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const text = await Gen.generate_text(prompt, apiKey, provider, {
+      ...options,
+      ...(schema ? { responseSchema: schema } : { responseFormat: 'json' }),
+      system: options.system || 'You are a helpful assistant that replies with JSON.',
+    });
+    if (!text) {
+      throw new Error(`Gen: empty response from ${provider}. The output budget may have been spent before any text was produced; raise options.maxTokens.`);
+    }
+    const kind = schema && (schema.type === 'array' ? 'array' : schema.type === 'object' ? 'object' : null);
+    return parseJson(text, kind || null);
+  }
+
+  // Fill a prompt template, call the provider and parse the output as text, markdown, code, json or svg.
+  static async _generate(templateName, variables, apiKey, provider, options = {}, settings = {}) {
+    const template = new SystemHelper().loadPrompt(templateName);
+    const prompt = new Prompt(template).format(variables);
+    const defaults = settings.defaults && settings.defaults.maxTokens
+      ? { ...settings.defaults, maxTokens: budgetFor(provider, settings.defaults.maxTokens) }
+      : settings.defaults;
+    const text = await Gen.generate_text(prompt, apiKey, provider, {
+      ...defaults,
+      ...options,
+      system: options.system || settings.system || DEFAULT_SYSTEM,
+    });
+
+    if (!text && !settings.legacy) {
+      const model = options.model ? ` (${options.model})` : '';
+      throw new Error(`Gen: empty response from ${provider}${model}. The output budget may have been spent before any text was produced; raise options.maxTokens.`);
+    }
+
+    if (typeof settings.parse === 'function') {
+      return settings.parse(text);
+    }
+    switch (settings.parse) {
+      case 'json': return parseJson(text, settings.kind || null);
+      case 'code': return extractCode(text, settings.language || null);
+      case 'markdown': return extractMarkdown(text);
+      case 'svg': return extractSvg(text);
+      default: return text;
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Content
+  // ---------------------------------------------------------------------
+
   // Marketing description generation
   static async get_marketing_desc(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    if (provider === SupportedLangModels.OPENAI) {
-      const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      const input = new ChatGPTInput("generate marketing description", { maxTokens: 800 });
-      input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
-      const responses = await chatbot.chat(input);
-      return responses[0].trim();
-    } else if (provider === SupportedLangModels.COHERE) {
-      const langInput = new LanguageModelInput({ prompt: `Create a marketing description for the following: ${promptString}` });
-      langInput.setDefaultValues(SupportedLangModels.COHERE, 400);
-      const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
-      const responses = await cohereLanguageModel.generateText(langInput);
-      return responses[0].trim();
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      const input = new NvidiaInput("generate marketing description", { maxTokens: 800, model: 'deepseek-ai/deepseek-r1', temperature: 0.6 });
-      input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
-      const responses = await chatbot.chat(input);
-      let text = responses[0].trim();
-      return stripThinking(text);
-    } else {
-      const supported = RemoteLanguageModel.getSupportedModels().join(' - ');
-      throw new Error(`Unsupported provider. Use one of: ${supported}, ${SupportedChatModels.NVIDIA}`);
-    }
+    return Gen.generate_text(`Create a marketing description for the following: ${promptString}`, apiKey, provider, {
+      system: 'generate marketing description',
+      maxTokens: budgetFor(provider, 800),
+      ...(provider === SupportedChatModels.NVIDIA && { temperature: 0.6 }),
+      customProxyHelper,
+    });
   }
 
   // Blog post generation
   static async get_blog_post(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    if (provider === SupportedLangModels.OPENAI) {
-      const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      const input = new ChatGPTInput("generate blog post", { maxTokens: 1200 });
-      input.addUserMessage(`Write a blog post about ${promptString}`);
-      const responses = await chatbot.chat(input);
-      return responses[0].trim();
-    } else if (provider === SupportedLangModels.COHERE) {
-      const langInput = new LanguageModelInput({ prompt: `Write a blog post with section titles about ${promptString}` });
-      langInput.setDefaultValues(SupportedLangModels.COHERE, 1200);
-      const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
-      const responses = await cohereLanguageModel.generateText(langInput);
-      return responses[0].trim();
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      const input = new NvidiaInput("generate blog post", { maxTokens: 1200, model: 'deepseek-ai/deepseek-r1', temperature: 0.6 });
-      input.addUserMessage(`Write a blog post about ${promptString}`);
-      const responses = await chatbot.chat(input);
-      let text = responses[0].trim();
-      return stripThinking(text);
-    } else {
-      const supported = RemoteLanguageModel.getSupportedModels().join(' - ');
-      throw new Error(`Unsupported provider. Use one of: ${supported}, ${SupportedChatModels.NVIDIA}`);
-    }
+    return Gen.generate_text(`Write a blog post with section titles about ${promptString}`, apiKey, provider, {
+      system: 'generate blog post',
+      maxTokens: budgetFor(provider, 1200),
+      ...(provider === SupportedChatModels.NVIDIA && { temperature: 0.6 }),
+      customProxyHelper,
+    });
   }
 
-  // Image description (unchanged)
-  static async getImageDescription(promptString, apiKey, customProxyHelper = null) {
-    const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-    const input = new ChatGPTInput("Generate image description", {});
-    input.addUserMessage(`Generate image description from the following text: ${promptString}`);
-    const responses = await chatbot.chat(input);
-    return responses[0].trim();
+  // Image description
+  static async getImageDescription(promptString, apiKey, customProxyHelper = null, provider = SupportedChatModels.OPENAI) {
+    return Gen.generate_text(`Generate image description from the following text: ${promptString}`, apiKey, provider,
+      { system: 'Generate image description', customProxyHelper });
   }
 
-  // Generate image from description (unchanged)
+  // Generate image from description
   static async generate_image_from_desc(promptString, openaiKey, imageApiKey, is_base64 = true, width = 1024,
                                           height = 1024, provider = SupportedImageModels.STABILITY, customProxyHelper = null) {
     const imageDescription = await Gen.getImageDescription(promptString, openaiKey, customProxyHelper);
@@ -1317,53 +2383,91 @@ class Gen {
     return is_base64 ? images[0] : Buffer.from(images[0], "base64");
   }
 
-  // Speech synthesis (unchanged)
+  // Speech synthesis
   static async generate_speech_synthesis(text, googleKey) {
     const speechModel = new RemoteSpeechModel(googleKey, "google");
     const input = new Text2SpeechInput({ text: text, language: "en-gb" });
     return await speechModel.generateSpeech(input);
   }
 
+  /** Landing page copy: { headline, subheadline, features, cta, socialProof, faq }. options: { featureCount, tone }. */
+  static async generate_landing_copy(product, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('landing_copy', {
+      text: product,
+      feature_count: options.featureCount || 3,
+      tone: options.tone || 'professional',
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.medium } });
+  }
+
+  /** FAQ list: [{ question, answer }]. options: { count, tone }. */
+  static async generate_faq(topic, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('faq', {
+      text: topic,
+      count: options.count || 5,
+      tone: options.tone || 'friendly and professional',
+    }, apiKey, provider, options, { parse: 'json', kind: 'array', defaults: { maxTokens: TOKENS.medium } });
+  }
+
+  /** SEO metadata: { title, description, keywords, openGraph, twitter, jsonLd, html }. options: { url, siteName }. */
+  static async generate_seo_meta(pageDescription, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const meta = await Gen._generate('seo_meta', {
+      text: pageDescription,
+      url: options.url || 'https://example.com/',
+      site_name: options.siteName || 'the website',
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.medium } });
+    return { ...meta, html: renderSeoHtml(meta) };
+  }
+
+  /**
+   * Translate a UI strings object (or JSON string) keeping keys and placeholders.
+   * options: { targetLanguage (required), sourceLanguage }.
+   */
+  static async translate_ui_strings(strings, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    if (!options.targetLanguage) {
+      throw new Error("translate_ui_strings requires options.targetLanguage, e.g. { targetLanguage: 'es' }");
+    }
+    const text = typeof strings === 'string' ? strings : JSON.stringify(strings, null, 2);
+    return Gen._generate('translate_strings', {
+      text,
+      source_language: options.sourceLanguage || 'the source language',
+      target_language: options.targetLanguage,
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
+  }
+
+  /** Release notes in Markdown. options: { version }. */
+  static async generate_release_notes(changes, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('release_notes', {
+      text: changes,
+      version: options.version || 'Unreleased',
+    }, apiKey, provider, options, { parse: 'markdown', defaults: { maxTokens: TOKENS.medium } });
+  }
+
+  /** README.md content in Markdown for a project description. */
+  static async generate_readme(projectDescription, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('readme', { text: projectDescription }, apiKey, provider, options,
+      { parse: 'markdown', defaults: { maxTokens: TOKENS.long } });
+  }
+
+  // ---------------------------------------------------------------------
+  // Frontend
+  // ---------------------------------------------------------------------
+
   // Generate HTML page
-  static async generate_html_page(text, apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    const template = new SystemHelper().loadPrompt("html_page");
-    const promptTemp = new Prompt(template);
-    let tokenSize = 8000;
-    if (model_name.includes('-16k')) {
-      tokenSize = 8000;
-    } else if (model_name.includes('gpt-4o')) {
-      tokenSize = 12000;
-    } else if (model_name.includes('gpt-4')) {
-      tokenSize = 4000;
-    } else if (model_name.includes('deepseek')) {
-      tokenSize = 15000;
-    }
-    let chatbot, input;
-    if (provider === SupportedLangModels.OPENAI) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      input = new ChatGPTInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
-        { maxTokens: tokenSize, model: model_name, temperature: 0.8 });
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      input = new NvidiaInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
-        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.8 });
-    } else {
-      throw new Error("Unsupported provider for generate_html_page.");
-    }
-    input.addUserMessage(promptTemp.format({ 'text': text }));
-    const responses = await chatbot.chat(input);
-    let cleaned = responses[0]
-      .trim()
-      .replace(/```json/g, '')
-      .replace(/```/g, '');
-    if (provider === SupportedChatModels.NVIDIA) {
-      cleaned = stripThinking(cleaned);
-    }
-    return JSON.parse(cleaned);
+  static async generate_html_page(text, apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+    return Gen._generate('html_page', { text }, apiKey, provider, {
+      model: resolveLegacyModel(provider, model_name),
+      maxTokens: budgetFor(provider, legacyTokenSize(model_name, 4000)),
+      temperature: 0.8,
+      customProxyHelper,
+    }, {
+      parse: (answer) => parseLegacyPage(answer, false),
+      legacy: true,
+      system: 'generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
+    });
   }
 
   // Save HTML page (calls generate_html_page)
-  static async save_html_page(text, folder, file_name, apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async save_html_page(text, folder, file_name, apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     const htmlCode = await Gen.generate_html_page(text, apiKey, model_name, provider, customProxyHelper);
     const folderPath = path.join(folder, file_name + '.html');
     FileHelper.writeDataToFile(folderPath, htmlCode['html']);
@@ -1371,80 +2475,291 @@ class Gen {
   }
 
   // Generate dashboard
-  static async generate_dashboard(csvStrData, topic, apiKey, model_name = 'gpt-4o', num_graphs = 1, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async generate_dashboard(csvStrData, topic, apiKey, model_name = DEFAULT_OPENAI_MODEL, num_graphs = 1, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     if (num_graphs < 1 || num_graphs > 4) {
       throw new Error('num_graphs must be between 1 and 4.');
     }
-    const template = new SystemHelper().loadPrompt("graph_dashboard");
-    const promptTemp = new Prompt(template);
-    let tokenSize = 2100;
-    if (model_name.includes('-16k')) {
-      tokenSize = 8000;
-    } else if (model_name.includes('gpt-4o')) {
-      tokenSize = 12000;
-    } else if (model_name.includes('gpt-4')) {
-      tokenSize = 3900;
-    } else if (model_name.includes('deepseek')) {
-      tokenSize = 15000;
+    const result = await Gen._generate('graph_dashboard', { count: num_graphs, topic, text: csvStrData }, apiKey, provider, {
+      model: resolveLegacyModel(provider, model_name),
+      maxTokens: budgetFor(provider, legacyTokenSize(model_name, 3900)),
+      temperature: 0.3,
+      customProxyHelper,
+    }, {
+      parse: (answer) => parseLegacyPage(answer, true),
+      legacy: true,
+      system: 'Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
+    });
+    return Array.isArray(result) ? result[0] : result;
+  }
+
+  /**
+   * UI component source code. options: { framework: react|vue|svelte|angular|html, language: javascript|typescript,
+   * styling: css|tailwind|css-modules|styled-components }.
+   */
+  static async generate_component(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const framework = options.framework || 'react';
+    return Gen._generate('component', {
+      text: description,
+      framework: FRAMEWORK_LABELS[framework] || framework,
+      language: options.language || (framework === 'angular' ? 'typescript' : 'javascript'),
+      styling: options.styling || 'css',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
+  }
+
+  /** Form with client-side validation. options: { framework: html|react|vue|svelte, action (URL to POST the values to) }. */
+  static async generate_form(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const framework = options.framework || 'html';
+    return Gen._generate('form', {
+      text: description,
+      framework: FRAMEWORK_LABELS[framework] || framework,
+      submit: options.action
+        ? `On submit, POST the values as JSON to ${options.action} and show the result to the user.`
+        : 'On submit, prevent the default action and log the collected values as JSON.',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
+  }
+
+  /** A page section (hero, pricing, features, testimonials, footer, ...). options: { sectionType, styling }. */
+  static async generate_page_section(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('page_section', {
+      text: description,
+      section_type: options.sectionType || 'hero',
+      styling: options.styling === 'tailwind' ? 'Tailwind CSS utility classes' : 'plain CSS',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.3 } });
+  }
+
+  /** Stylesheet or Tailwind markup. options: { format: css|scss|tailwind, html (markup to style) }. */
+  static async generate_css(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const format = options.format || 'css';
+    return Gen._generate('styles', {
+      text: description,
+      format: STYLE_FORMATS[format] || format,
+      html_section: quoteBlock('Target this HTML markup:', options.html, 'html'),
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.medium, temperature: 0.2 } });
+  }
+
+  /** Accessibility fixes: { html, issues: [{ issue, fix, wcag }] }. */
+  static async improve_accessibility(html, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('accessibility', { text: html }, apiKey, provider, options, {
+      defaults: { maxTokens: TOKENS.long, temperature: 0.1 },
+      parse: (text) => {
+        const isDetails = (value) => Array.isArray(value) || Boolean(value && Array.isArray(value.issues));
+        const { html: fixed, details } = parseCodeWithDetails(text, 'html', 'html', isDetails);
+        return { html: fixed, issues: Array.isArray(details) ? details : (details.issues || []) };
+      },
+    });
+  }
+
+  /** Responsive, email-client-safe HTML email. */
+  static async generate_email_template(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('email_template', { text: description }, apiKey, provider, options,
+      { parse: 'code', language: 'html', defaults: { maxTokens: TOKENS.long, temperature: 0.3 } });
+  }
+
+  /** SVG icon markup. options: { size, style: outline|filled }. */
+  static async generate_svg_icon(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('svg_icon', {
+      text: description,
+      size: options.size || 24,
+      style: options.style === 'filled' ? 'filled (solid shapes)' : 'outline (stroke based, stroke-width 2, round line caps)',
+    }, apiKey, provider, options, { parse: 'svg', defaults: { maxTokens: TOKENS.short, temperature: 0.2 } });
+  }
+
+  /** Color palette: { name, colors: [{ name, hex, usage }], css }. options: { count }. */
+  static async generate_color_palette(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('color_palette', { text: description, count: options.count || 6 }, apiKey, provider, options,
+      { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.short } });
+  }
+
+  // ---------------------------------------------------------------------
+  // Backend and developer workflow
+  // ---------------------------------------------------------------------
+
+  /**
+   * API endpoint source. options: { framework: express|fastify|nextjs|koa|hono|flask|fastapi, language }.
+   * The language defaults to python for flask, fastapi and django, otherwise javascript.
+   */
+  static async generate_api_endpoint(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const framework = options.framework || 'Express';
+    return Gen._generate('api_endpoint', {
+      text: description,
+      framework,
+      language: options.language || (PYTHON_FRAMEWORKS.test(framework) ? 'python' : 'javascript'),
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.medium, temperature: 0.2 } });
+  }
+
+  /** SQL statements. options: { dialect: postgresql|mysql|sqlite|sqlserver, schema (existing tables) }. */
+  static async generate_sql(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('sql', {
+      text: description,
+      dialect: options.dialect || 'PostgreSQL',
+      schema_section: quoteBlock('Existing schema:', options.schema, 'sql'),
+    }, apiKey, provider, options, { parse: 'code', language: 'sql', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
+  }
+
+  /** JSON Schema (draft 2020-12) object for a data description. */
+  static async generate_json_schema(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('json_schema', { text: description }, apiKey, provider, options,
+      { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
+  }
+
+  /** Realistic mock records as an array. options: { count }. */
+  static async generate_mock_data(schema, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const text = typeof schema === 'string' ? schema : JSON.stringify(schema, null, 2);
+    const result = await Gen._generate('mock_data', { text, count: options.count || 5 }, apiKey, provider, options,
+      { parse: 'json', defaults: { maxTokens: TOKENS.long, temperature: 0.7 } });
+    return Array.isArray(result) ? result : [result];
+  }
+
+  /**
+   * Regular expression: { pattern, flags, explanation, matches, nonMatches, regex (RegExp), verified }.
+   * verified is true when the pattern behaves as the model's own examples claim, false when it does not (or there
+   * is no pattern or no example to check), and null when options.language is not JavaScript, since the check runs
+   * with JavaScript regex semantics. options: { language }.
+   */
+  static async generate_regex(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const language = options.language || 'JavaScript';
+    const result = await Gen._generate('regex', { text: description, language },
+      apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.short, temperature: 0.1 } });
+    // a single-escaped \b is read by JSON as a backspace character; in a pattern it means a word boundary
+    result.pattern = typeof result.pattern === 'string' ? result.pattern.replace(/\x08/g, '\\b') : null;
+    result.matches = Array.isArray(result.matches) ? result.matches : [];
+    result.nonMatches = Array.isArray(result.nonMatches) ? result.nonMatches : [];
+    try {
+      // g and y make test() stateful, so they are left out of the returned RegExp
+      result.regex = result.pattern ? new RegExp(result.pattern, String(result.flags || '').replace(/[gy]/g, '')) : null;
+    } catch (error) {
+      result.regex = null;
     }
-    let chatbot, input;
-    if (provider === SupportedLangModels.OPENAI) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      input = new ChatGPTInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
-        { maxTokens: tokenSize, model: model_name, temperature: 0.3 });
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      input = new NvidiaInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
-        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.3 });
+    if (!result.regex || result.matches.length + result.nonMatches.length === 0) {
+      result.verified = false;
+    } else if (!JAVASCRIPT_REGEX_ENGINES.test(String(language).trim())) {
+      result.verified = null;
     } else {
-      throw new Error("Unsupported provider for generate_dashboard.");
+      result.verified = result.matches.every((sample) => result.regex.test(sample))
+        && result.nonMatches.every((sample) => !result.regex.test(sample));
     }
-    input.addUserMessage(promptTemp.format({ 'count': num_graphs, 'topic': topic, 'text': csvStrData }));
-    const responses = await chatbot.chat(input);
-    let cleaned = responses[0]
-      .trim()
-      .replace(/```json/g, '')
-      .replace(/```/g, '');
-    if (provider === SupportedChatModels.NVIDIA) {
-      cleaned = stripThinking(cleaned);
-    }
-    return JSON.parse(cleaned)[0];
+    return result;
+  }
+
+  /** Unit test file source. options: { framework: jest|vitest|mocha|pytest, modulePath }. */
+  static async generate_unit_tests(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const framework = options.framework || 'Jest';
+    return Gen._generate('unit_tests', {
+      text: code,
+      framework,
+      module_path: options.modulePath || (PYTHON_FRAMEWORKS.test(framework) ? 'module' : './module'),
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
+  }
+
+  /** Code review: { summary, score, issues: [{ severity, title, description, suggestion }] }. options: { language }. */
+  static async review_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('code_review', { text: code, language: options.language || '' }, apiKey, provider, options,
+      { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
+  }
+
+  /** Explain code in Markdown. options: { language, audience }. */
+  static async explain_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('explain_code', {
+      text: code,
+      language: options.language || '',
+      audience: options.audience || 'junior developer',
+    }, apiKey, provider, options, { parse: 'markdown', defaults: { maxTokens: TOKENS.medium } });
+  }
+
+  /** Fix a bug: { code, explanation, changes }. options: { problem (error message or description), language }. */
+  static async fix_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const language = options.language ? String(options.language).trim().toLowerCase() : null;
+    return Gen._generate('fix_code', {
+      text: code,
+      problem: options.problem || 'the code does not work as intended',
+      language: options.language || '',
+    }, apiKey, provider, options, {
+      defaults: { maxTokens: TOKENS.long, temperature: 0.1 },
+      parse: (text) => {
+        const isDetails = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+          && ('explanation' in value || 'changes' in value);
+        const { code: fixed, details } = parseCodeWithDetails(text, 'code', language, isDetails);
+        return { code: fixed, explanation: details.explanation || '', changes: Array.isArray(details.changes) ? details.changes : [] };
+      },
+    });
+  }
+
+  /** Convert code between languages or frameworks. options: { from, to }. */
+  static async convert_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('convert_code', {
+      text: code,
+      from: options.from || 'JavaScript',
+      to: options.to || 'TypeScript',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.1 } });
+  }
+
+  /** Commit message for a diff. options: { style: conventional|plain }. */
+  static async generate_commit_message(diff, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('commit_message', {
+      text: diff,
+      style_rule: options.style === 'plain'
+        ? 'Use an imperative, capitalized subject line without a trailing period.'
+        : 'Use the Conventional Commits format for the subject: type(scope): summary, where type is one of feat, fix, docs, style, refactor, perf, test, chore, build or ci, and the summary is imperative and lowercase.',
+    }, apiKey, provider, options, { parse: 'text', defaults: { maxTokens: TOKENS.short, temperature: 0.2 } });
+  }
+
+  /**
+   * OpenAPI document (plain object) from route code or an API description. The library normalises it so paths use
+   * {param} keys, path parameters are declared, operationIds are unique and every $ref resolves.
+   * options: { title, version, openapiVersion ('3.1.0'), basePath, serverUrl }.
+   */
+  static async generate_openapi_spec(input, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const doc = await Gen._generate('openapi_spec', {
+      text: input,
+      openapi_version: options.openapiVersion || '3.1.0',
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.long, temperature: 0.1 } });
+    return normalizeOpenApi(doc, options);
+  }
+
+  /**
+   * Design tokens: 11-step color scales, light/dark semantic roles, typography, radius and spacing, plus WCAG contrast,
+   * CSS custom properties and a Tailwind theme.extend object computed by the library.
+   * options: { brandColor, modes (['light', 'dark']), includeTypography, includeSpacing, cssPrefix ('color') }.
+   */
+  static async generate_design_tokens(input, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const modes = Array.isArray(options.modes) && options.modes.length ? options.modes : ['light', 'dark'];
+    // validate the brand color before paying for a request, and give the model the normalised hex
+    const brandColor = options.brandColor ? normalizeColor(options.brandColor, 'options.brandColor') : null;
+    const raw = await Gen._generate('design_tokens', {
+      text: input,
+      brand_color_rule: brandColor
+        ? `Use ${brandColor} exactly as primary 500.`
+        : 'Choose a primary 500 color that fits the brand.',
+      modes: modes.join(', '),
+      typography_rule: options.includeTypography === false
+        ? '- Set typography to null.'
+        : '- typography has fontFamily with sans and mono font stacks, and fontSize from xs to 4xl as rem strings.',
+      spacing_rule: options.includeSpacing === false
+        ? '- Set spacing to null.'
+        : '- spacing maps 1, 2, 3, 4, 6, 8, 12 and 16 to rem strings.',
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.long, temperature: 0.3 } });
+    return normalizeDesignTokens(raw, { ...options, brandColor, modes });
   }
 
   // Instruct update
-  static async instructUpdate(modelOutput, userInstruction, type = '', apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    const template = new SystemHelper().loadPrompt("instruct_update");
-    const promptTemp = new Prompt(template);
-    let tokenSize = 2000;
-    if (model_name.includes('gpt-4')) {
-      tokenSize = 3900;
-    }
-    let chatbot, input;
-    if (provider === SupportedLangModels.OPENAI) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      input = new ChatGPTInput('Update the model message based on user feedback while maintaining format.',
-        { maxTokens: tokenSize, model: model_name, temperature: 0.2 });
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      input = new NvidiaInput('Update the model message based on user feedback while maintaining format.',
-        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.2 });
-    } else {
-      throw new Error("Unsupported provider for instructUpdate.");
-    }
-    input.addUserMessage(promptTemp.format({ 'model_output': modelOutput, 'user_instruction': userInstruction, 'type': type }));
-    const responses = await chatbot.chat(input);
-    let text = responses[0].trim();
-    if (provider === SupportedChatModels.NVIDIA) {
-      text = stripThinking(text);
-    }
-    return text;
+  static async instructUpdate(modelOutput, userInstruction, type = '', apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+    return Gen._generate('instruct_update', { model_output: modelOutput, user_instruction: userInstruction, type }, apiKey, provider, {
+      model: resolveLegacyModel(provider, model_name),
+      maxTokens: budgetFor(provider, (model_name || '').includes('gpt-4') ? 3900 : 2000),
+      temperature: 0.2,
+      customProxyHelper,
+    }, {
+      parse: 'text',
+      legacy: true,
+      system: 'Update the model message based on user feedback while maintaining format.',
+    });
   }
 }
 
 module.exports = { Gen };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/ImageModelInput":17,"../model/input/LanguageModelInput":18,"../model/input/Text2SpeechInput":19,"../utils/FileHelper":32,"../utils/Prompt":37,"../utils/SystemHelper":40,"buffer":22,"path":26}],9:[function(require,module,exports){
+},{"../config.json":1,"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":14,"../model/input/ImageModelInput":18,"../model/input/Text2SpeechInput":20,"../utils/FileHelper":36,"../utils/ModelHelper":41,"../utils/OutputParser":42,"../utils/Prompt":43,"../utils/SystemHelper":46,"buffer":24,"path":28}],9:[function(require,module,exports){
 /*
 Apache License
 
@@ -1526,7 +2841,7 @@ class SemanticSearch {
 
 module.exports = { SemanticSearch };
 
-},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":14,"../utils/MatchHelpers":35}],10:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":15,"../utils/MatchHelpers":39}],10:[function(require,module,exports){
 const { SemanticSearch } = require('./SemanticSearch'); // assuming path
 
 class SemanticSearchPaging extends SemanticSearch {
@@ -1615,13 +2930,15 @@ class TextAnalyzer {
     modelInput.setDefaultModels(this.provider);
     const [sentiment] = await this.remoteLanguageModel.generateText(modelInput);
 
-    const sentiment_output = JSON.parse(sentiment.trim());
+    // chat models can wrap the JSON in a markdown code fence
+    const cleaned = sentiment.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const sentiment_output = JSON.parse(cleaned);
     return sentiment_output;
   }
 }
 
 module.exports = { TextAnalyzer };
-},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":18,"../utils/SystemHelper":40}],12:[function(require,module,exports){
+},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":19,"../utils/SystemHelper":46}],12:[function(require,module,exports){
 // controllers
 const {
   RemoteLanguageModel,
@@ -1654,6 +2971,10 @@ const {
 } = require('./function/SemanticSearchPaging');
 const { TextAnalyzer } = require('./function/TextAnalyzer');
 const { Gen } = require('./function/Gen');
+// Node only: the browser bundle maps these modules to empty objects (package.json "browser")
+const { CodingAgent } = require('./function/CodingAgent');
+const WorkspaceToolkitModule = require('./utils/WorkspaceToolkit');
+const WorkspaceToolkit = typeof WorkspaceToolkitModule === 'function' ? WorkspaceToolkitModule : undefined;
 
 // inputs
 const LanguageModelInput = require('./model/input/LanguageModelInput');
@@ -1670,7 +2991,8 @@ const {
   GeminiInput,
   AnthropicInput,
   NvidiaInput,
-  VLLMInput
+  VLLMInput,
+  OpenAICompatibleInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
@@ -1689,6 +3011,7 @@ const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('./wrappers/AnthropicWrapper');
 const NvidiaWrapper = require('./wrappers/NvidiaWrapper');
 const VLLMWrapper = require('./wrappers/VLLMWrapper');
+const OpenAICompatibleWrapper = require('./wrappers/OpenAICompatibleWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -1697,9 +3020,14 @@ const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
-const { GPTStreamParser, CohereStreamParser, VLLMStreamParser} = require('./utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser, VLLMStreamParser, AnthropicStreamParser } = require('./utils/StreamParser');
+const ModelHelper = require('./utils/ModelHelper');
 const ChatContext = require('./utils/ChatContext');
 const MCPClient = require('./utils/MCPClient');
+// Node only: the browser bundle maps this module to an empty object (package.json "browser")
+const { MCPServer } = require('./mcp/server');
+const FetchClient = require('./utils/FetchClient');
+const OutputParser = require('./utils/OutputParser');
 
 module.exports = {
   RemoteLanguageModel,
@@ -1759,10 +3087,364 @@ module.exports = {
   VLLMWrapper,
   VLLMInput,
   VLLMStreamParser,
-  MCPClient
+  AnthropicStreamParser,
+  ModelHelper,
+  MCPClient,
+  MCPServer,
+  CodingAgent,
+  WorkspaceToolkit,
+  OpenAICompatibleWrapper,
+  OpenAICompatibleInput,
+  FetchClient,
+  OutputParser
 };
 
-},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":28,"./utils/ChatContext":29,"./utils/ConnHelper":30,"./utils/LLMEvaluation":33,"./utils/MCPClient":34,"./utils/MatchHelpers":35,"./utils/Prompt":37,"./utils/ProxyHelper":38,"./utils/StreamParser":39,"./utils/SystemHelper":40,"./wrappers/AWSEndpointWrapper":41,"./wrappers/AnthropicWrapper":42,"./wrappers/CohereAIWrapper":43,"./wrappers/GeminiAIWrapper":44,"./wrappers/GoogleAIWrapper":45,"./wrappers/HuggingWrapper":46,"./wrappers/IntellicloudWrapper":47,"./wrappers/MistralAIWrapper":48,"./wrappers/NvidiaWrapper":49,"./wrappers/OpenAIWrapper":50,"./wrappers/ReplicateWrapper":51,"./wrappers/StabilityAIWrapper":52,"./wrappers/VLLMWrapper":53}],13:[function(require,module,exports){
+},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/CodingAgent":22,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./mcp/server":22,"./model/input/ChatModelInput":14,"./model/input/EmbedInput":15,"./model/input/FineTuneInput":16,"./model/input/FunctionModelInput":17,"./model/input/ImageModelInput":18,"./model/input/LanguageModelInput":19,"./model/input/Text2SpeechInput":20,"./utils/AudioHelper":32,"./utils/ChatContext":33,"./utils/ConnHelper":34,"./utils/FetchClient":35,"./utils/LLMEvaluation":37,"./utils/MCPClient":38,"./utils/MatchHelpers":39,"./utils/ModelHelper":41,"./utils/OutputParser":42,"./utils/Prompt":43,"./utils/ProxyHelper":44,"./utils/StreamParser":45,"./utils/SystemHelper":46,"./utils/WorkspaceToolkit":22,"./wrappers/AWSEndpointWrapper":47,"./wrappers/AnthropicWrapper":48,"./wrappers/CohereAIWrapper":49,"./wrappers/GeminiAIWrapper":50,"./wrappers/GoogleAIWrapper":51,"./wrappers/HuggingWrapper":52,"./wrappers/IntellicloudWrapper":53,"./wrappers/MistralAIWrapper":54,"./wrappers/NvidiaWrapper":55,"./wrappers/OpenAICompatibleWrapper":56,"./wrappers/OpenAIWrapper":57,"./wrappers/ReplicateWrapper":58,"./wrappers/StabilityAIWrapper":59,"./wrappers/VLLMWrapper":60}],13:[function(require,module,exports){
+(function (Buffer){(function (){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const { readStreamChunks } = require('../utils/StreamParser');
+
+/**
+ * JSON-RPC 2.0 helpers shared by the MCP client and server: message builders and validators, the error codes
+ * used by MCP, a newline-delimited JSON reader (stdio transport) and an SSE parser (Streamable HTTP transport).
+ */
+
+const JSONRPC_VERSION = '2.0';
+
+const ERROR_CODES = {
+  PARSE_ERROR: -32700,
+  INVALID_REQUEST: -32600,
+  METHOD_NOT_FOUND: -32601,
+  INVALID_PARAMS: -32602,
+  INTERNAL_ERROR: -32603,
+  // MCP 2026-07-28 protocol errors
+  HEADER_MISMATCH: -32020,
+  MISSING_REQUIRED_CLIENT_CAPABILITY: -32021,
+  UNSUPPORTED_PROTOCOL_VERSION: -32022,
+  // legacy (2025-xx) Streamable HTTP servers use these for "not initialized" and "session not found"
+  SERVER_NOT_INITIALIZED: -32000,
+  SESSION_NOT_FOUND: -32001,
+};
+
+// A JSON-RPC error with one of these codes can only come from a modern (2026-07-28+) server.
+const MODERN_ERROR_CODES = new Set([
+  ERROR_CODES.HEADER_MISMATCH,
+  ERROR_CODES.MISSING_REQUIRED_CLIENT_CAPABILITY,
+  ERROR_CODES.UNSUPPORTED_PROTOCOL_VERSION,
+]);
+
+// Protocol revisions: modern ones carry per-request _meta, legacy ones start with an initialize handshake.
+const MODERN_VERSIONS = ['2026-07-28'];
+const LEGACY_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
+const LATEST_LEGACY_VERSION = LEGACY_VERSIONS[0];
+
+const META_KEYS = {
+  protocolVersion: 'io.modelcontextprotocol/protocolVersion',
+  clientInfo: 'io.modelcontextprotocol/clientInfo',
+  clientCapabilities: 'io.modelcontextprotocol/clientCapabilities',
+  serverInfo: 'io.modelcontextprotocol/serverInfo',
+};
+
+// Methods whose params.name / params.uri is mirrored into the Mcp-Name HTTP header.
+const NAME_HEADER_FIELDS = {
+  'tools/call': 'name',
+  'resources/read': 'uri',
+  'prompts/get': 'name',
+};
+
+class JsonRpcError extends Error {
+  constructor(code, message, data) {
+    super(message);
+    this.name = 'JsonRpcError';
+    this.code = code;
+    if (data !== undefined) this.data = data;
+  }
+
+  toJSON() {
+    return { code: this.code, message: this.message, ...(this.data !== undefined && { data: this.data }) };
+  }
+}
+
+function hasId(message) {
+  return message.id !== undefined && message.id !== null;
+}
+
+function isObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isMessage(message) {
+  return isObject(message) && message.jsonrpc === JSONRPC_VERSION
+    && (typeof message.method === 'string' || 'result' in message || isObject(message.error));
+}
+
+function isRequest(message) {
+  return isMessage(message) && typeof message.method === 'string' && hasId(message);
+}
+
+// A notification has no id member: a method with id null is an invalid request (MCP forbids null request ids).
+function isNotification(message) {
+  return isMessage(message) && typeof message.method === 'string' && message.id === undefined;
+}
+
+function isResponse(message) {
+  return isMessage(message) && typeof message.method !== 'string' && ('result' in message || isObject(message.error));
+}
+
+function request(id, method, params) {
+  return { jsonrpc: JSONRPC_VERSION, id, method, ...(params !== undefined && { params }) };
+}
+
+function notification(method, params) {
+  return { jsonrpc: JSONRPC_VERSION, method, ...(params !== undefined && { params }) };
+}
+
+function response(id, result) {
+  return { jsonrpc: JSONRPC_VERSION, id, result };
+}
+
+// id is null when the request id could not be determined (parse errors, invalid requests).
+function errorResponse(id, code, message, data) {
+  return {
+    jsonrpc: JSONRPC_VERSION,
+    id: id === undefined ? null : id,
+    error: { code, message, ...(data !== undefined && { data }) },
+  };
+}
+
+function errorFromResponse(message) {
+  const error = message && message.error ? message.error : {};
+  return new JsonRpcError(
+    typeof error.code === 'number' ? error.code : ERROR_CODES.INTERNAL_ERROR,
+    error.message || 'Unknown JSON-RPC error',
+    error.data,
+  );
+}
+
+// JSON.stringify escapes control characters, so the output never contains an embedded newline.
+function serialize(message) {
+  return JSON.stringify(message);
+}
+
+function parseMessage(text) {
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    throw new JsonRpcError(ERROR_CODES.PARSE_ERROR, `Parse error: ${error.message}`);
+  }
+  if (!isMessage(value)) {
+    throw new JsonRpcError(ERROR_CODES.INVALID_REQUEST, 'Invalid Request: not a JSON-RPC 2.0 message');
+  }
+  return value;
+}
+
+// ---------------------------------------------------------------------
+// HTTP header value encoding (Mcp-Name, Mcp-Param-*)
+// ---------------------------------------------------------------------
+
+const SENTINEL_PREFIX = '=?base64?';
+const SENTINEL_SUFFIX = '?=';
+
+// visible ASCII plus inner spaces/tabs, without leading or trailing whitespace
+function isPlainHeaderValue(value) {
+  return /^[\x21-\x7e]([\x20\x21-\x7e\t]*[\x21-\x7e])?$/.test(value);
+}
+
+function isSentinel(value) {
+  return value.startsWith(SENTINEL_PREFIX) && value.endsWith(SENTINEL_SUFFIX);
+}
+
+// Base64 helpers that work in Node and in the browser bundle.
+function toBase64(text) {
+  if (typeof Buffer !== 'undefined') return Buffer.from(text, 'utf8').toString('base64');
+  return btoa(unescape(encodeURIComponent(text)));
+}
+
+function fromBase64(text) {
+  if (typeof Buffer !== 'undefined') return Buffer.from(text, 'base64').toString('utf8');
+  return decodeURIComponent(escape(atob(text)));
+}
+
+/** Encode a body value for a mirrored header; non-ASCII, padded or sentinel-looking values use the Base64 form. */
+function encodeHeaderValue(value) {
+  const text = String(value);
+  if (isPlainHeaderValue(text) && !isSentinel(text)) return text;
+  return `${SENTINEL_PREFIX}${toBase64(text)}${SENTINEL_SUFFIX}`;
+}
+
+/** Decode a mirrored header value; throws on a malformed Base64 sentinel. */
+function decodeHeaderValue(value) {
+  const text = String(value);
+  if (!isSentinel(text)) return text;
+  const encoded = text.slice(SENTINEL_PREFIX.length, -SENTINEL_SUFFIX.length);
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) {
+    throw new JsonRpcError(ERROR_CODES.HEADER_MISMATCH, 'Header value is not valid Base64');
+  }
+  return fromBase64(encoded);
+}
+
+// ---------------------------------------------------------------------
+// Stream readers
+// ---------------------------------------------------------------------
+
+/**
+ * Yield one parsed JSON value per non-empty line of a text stream (Node stream, web ReadableStream or an
+ * iterable of string/Buffer chunks). Lines that are not valid JSON are passed to onInvalid and skipped.
+ */
+async function* readJsonLines(stream, onInvalid = null) {
+  let buffer = '';
+  const parse = (line) => {
+    const text = line.endsWith('\r') ? line.slice(0, -1) : line;
+    if (!text.trim()) return undefined;
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      if (onInvalid) onInvalid(text, error);
+      return undefined;
+    }
+  };
+  for await (const chunk of readStreamChunks(stream)) {
+    buffer += chunk;
+    let index;
+    while ((index = buffer.indexOf('\n')) !== -1) {
+      const value = parse(buffer.slice(0, index));
+      buffer = buffer.slice(index + 1);
+      if (value !== undefined) yield value;
+    }
+  }
+  const last = parse(buffer);
+  if (last !== undefined) yield last;
+}
+
+/**
+ * Incremental text/event-stream parser. feed(chunk) returns the events completed by that chunk as
+ * { event, data, id }; end() flushes a final event that was not terminated by a blank line.
+ * Handles data:/event:/id:/retry: fields, comment lines, multi-line data and LF, CRLF or CR line endings.
+ */
+class SSEParser {
+  constructor() {
+    this.buffer = '';
+    this._reset();
+  }
+
+  _reset() {
+    this.dataLines = [];
+    this.eventName = null;
+    this.eventId = null;
+  }
+
+  feed(chunk) {
+    this.buffer += chunk;
+    const events = [];
+    let index;
+    while ((index = this.buffer.search(/\r\n|\n|\r/)) !== -1) {
+      // a trailing CR may be the first half of a CRLF split across chunks
+      if (this.buffer[index] === '\r' && index === this.buffer.length - 1) break;
+      const line = this.buffer.slice(0, index);
+      const width = this.buffer[index] === '\r' && this.buffer[index + 1] === '\n' ? 2 : 1;
+      this.buffer = this.buffer.slice(index + width);
+      const event = this._line(line);
+      if (event) events.push(event);
+    }
+    return events;
+  }
+
+  end() {
+    const events = [];
+    const rest = this.buffer.replace(/\r$/, '');
+    this.buffer = '';
+    if (rest) {
+      const event = this._line(rest);
+      if (event) events.push(event);
+    }
+    const last = this._dispatch();
+    if (last) events.push(last);
+    return events;
+  }
+
+  _line(line) {
+    if (line === '') return this._dispatch();
+    if (line.startsWith(':')) return null;
+    const colon = line.indexOf(':');
+    const field = colon === -1 ? line : line.slice(0, colon);
+    let value = colon === -1 ? '' : line.slice(colon + 1);
+    if (value.startsWith(' ')) value = value.slice(1);
+    if (field === 'data') this.dataLines.push(value);
+    else if (field === 'event') this.eventName = value;
+    else if (field === 'id' && !value.includes(' ')) this.eventId = value;
+    // retry and unknown fields are ignored
+    return null;
+  }
+
+  _dispatch() {
+    if (this.dataLines.length === 0) {
+      this._reset();
+      return null;
+    }
+    const event = { event: this.eventName || 'message', data: this.dataLines.join('\n'), id: this.eventId };
+    this._reset();
+    return event;
+  }
+}
+
+/** Yield the JSON-RPC messages carried by the data of an SSE body; events with other data are skipped. */
+async function* readSSEMessages(body, onInvalid = null) {
+  const parser = new SSEParser();
+  const messages = (events) => events.map((event) => {
+    if (!event.data.trim()) return undefined;
+    try {
+      const value = JSON.parse(event.data);
+      if (isMessage(value)) return value;
+      if (onInvalid) onInvalid(event.data, new Error('not a JSON-RPC message'));
+    } catch (error) {
+      if (onInvalid) onInvalid(event.data, error);
+    }
+    return undefined;
+  }).filter((value) => value !== undefined);
+
+  for await (const chunk of readStreamChunks(body)) {
+    for (const message of messages(parser.feed(chunk))) yield message;
+  }
+  for (const message of messages(parser.end())) yield message;
+}
+
+module.exports = {
+  JSONRPC_VERSION,
+  ERROR_CODES,
+  MODERN_ERROR_CODES,
+  MODERN_VERSIONS,
+  LEGACY_VERSIONS,
+  LATEST_LEGACY_VERSION,
+  META_KEYS,
+  NAME_HEADER_FIELDS,
+  JsonRpcError,
+  isMessage,
+  isRequest,
+  isNotification,
+  isResponse,
+  request,
+  notification,
+  response,
+  errorResponse,
+  errorFromResponse,
+  serialize,
+  parseMessage,
+  encodeHeaderValue,
+  decodeHeaderValue,
+  readJsonLines,
+  SSEParser,
+  readSSEMessages,
+};
+
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"../utils/StreamParser":45,"buffer":24}],14:[function(require,module,exports){
 /*
 Apache License
 
@@ -1771,6 +3453,21 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 const config = require('../../config.json');
+const {
+  isReasoningModel,
+  isReasoningChatModel,
+  stripRouteOverride,
+  defaultReasoningEffort,
+  claudeRejectsSamplingParams,
+  toChatTools,
+  toResponsesTools,
+  toAnthropicTools,
+  toChatToolChoice,
+  toResponsesToolChoice,
+  toAnthropicToolChoice,
+} = require('../../utils/ModelHelper');
+
+let cohereWebWarningShown = false;
 
 class ChatGPTMessage {
   constructor(content, role, name = null) {
@@ -1784,15 +3481,143 @@ class ChatGPTMessage {
   }
 }
 
+// Tool-call arguments arrive as a JSON string; the Anthropic and Gemini bodies need the object.
+function parseArguments(call) {
+  const args = call.function ? call.function.arguments : call.arguments;
+  if (args && typeof args === 'object') return args;
+  try {
+    return args ? JSON.parse(args) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function callName(call) {
+  return call.function ? call.function.name : call.name;
+}
+
+function resultText(result) {
+  const content = result.content !== undefined ? result.content : result.result;
+  if (content === undefined || content === null) return '';
+  return typeof content === 'string' ? content : JSON.stringify(content);
+}
+
+// Schema helpers for the structured-output options shared by every input class.
+function schemaName(schema, fallback = 'response') {
+  const raw = (schema && (schema.title || schema.name)) || fallback;
+  return String(raw).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64) || fallback;
+}
+
+// JSON Schema keywords whose values are schemas, so a walk never mistakes a property name for a keyword.
+const SCHEMA_MAPS = new Set(['properties', 'patternProperties', '$defs', 'definitions']);
+const SCHEMA_LISTS = new Set(['anyOf', 'oneOf', 'allOf', 'prefixItems']);
+const SCHEMA_VALUES = new Set(['items', 'additionalItems', 'contains', 'not', 'if', 'then', 'else']);
+
+// Copy a schema, applying visit(node) to every schema node from the leaves up.
+function mapSchema(schema, visit) {
+  if (Array.isArray(schema)) return schema.map((item) => mapSchema(item, visit));
+  if (!schema || typeof schema !== 'object') return schema;
+  const copy = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (SCHEMA_MAPS.has(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+      copy[key] = Object.fromEntries(Object.entries(value).map(([name, sub]) => [name, mapSchema(sub, visit)]));
+    } else if ((SCHEMA_LISTS.has(key) && Array.isArray(value)) || SCHEMA_VALUES.has(key)) {
+      copy[key] = mapSchema(value, visit);
+    } else {
+      copy[key] = value;
+    }
+  }
+  return visit(copy);
+}
+
+function isObjectSchema(node) {
+  return node.type === 'object' || (Array.isArray(node.type) && node.type.includes('object'));
+}
+
+function nullableSchema(schema) {
+  if (!schema || typeof schema !== 'object') return schema;
+  const withNull = Array.isArray(schema.enum) && !schema.enum.includes(null) ? { enum: [...schema.enum, null] } : {};
+  if (typeof schema.type === 'string') return schema.type === 'null' ? schema : { ...schema, ...withNull, type: [schema.type, 'null'] };
+  if (Array.isArray(schema.type)) return schema.type.includes('null') ? schema : { ...schema, ...withNull, type: [...schema.type, 'null'] };
+  return { anyOf: [schema, { type: 'null' }] };
+}
+
+// Structured output (Anthropic, OpenAI strict mode) needs additionalProperties: false on every object. OpenAI strict
+// mode also needs every property in required, so optional properties become required and nullable.
+function closedObjectSchema(schema, { requireAll = false } = {}) {
+  return mapSchema(schema, (node) => {
+    if (!isObjectSchema(node)) return node;
+    if (node.additionalProperties === undefined) node.additionalProperties = false;
+    if (requireAll && node.properties && typeof node.properties === 'object') {
+      const required = new Set(Array.isArray(node.required) ? node.required : []);
+      for (const name of Object.keys(node.properties)) {
+        if (!required.has(name)) node.properties[name] = nullableSchema(node.properties[name]);
+      }
+      node.required = Object.keys(node.properties);
+    }
+    return node;
+  });
+}
+
+// OpenAI-style structured output: json_schema when a schema is given, json_object otherwise.
+// The Responses API defaults strict to true, so strict is always sent explicitly there.
+function openAIResponseFormat(input, { nested = true } = {}) {
+  if (input.responseSchema) {
+    const strict = Boolean(input.strictSchema);
+    const definition = {
+      name: schemaName(input.responseSchema),
+      schema: strict ? closedObjectSchema(input.responseSchema, { requireAll: true }) : input.responseSchema,
+      ...((strict || !nested) && { strict }),
+    };
+    return nested ? { type: 'json_schema', json_schema: definition } : { type: 'json_schema', ...definition };
+  }
+  if (input.responseFormat === 'json') return { type: 'json_object' };
+  return null;
+}
+
+function jsonModeInstruction(input) {
+  return input.responseFormat === 'json' && !input.responseSchema ? 'Respond with valid JSON only, without markdown fences.' : null;
+}
+
 class ChatModelInput {
-  constructor(options = {}) { 
+  constructor(options = {}) {
     this.searchK = options.searchK || 3;
     this.attachReference = options.attachReference || false;
+    // structured output: a JSON Schema for the reply, or 'json' for free-form JSON
+    this.responseSchema = options.responseSchema || null;
+    this.responseFormat = options.responseFormat || (options.responseSchema ? 'json' : null);
+    // OpenAI strict mode: every object gets additionalProperties: false and the model cannot deviate from the schema
+    this.strictSchema = options.strictSchema || false;
   }
-  
+
   getChatInput() {
     return null;
   }
+
+  // Tool round trips are implemented per provider; inputs without them cannot run Chatbot.runTools.
+  addToolCalls() {
+    throw new Error(`${this.constructor.name} does not support tool calls.`);
+  }
+
+  addToolResults() {
+    throw new Error(`${this.constructor.name} does not support tool results.`);
+  }
+}
+
+// Convert chat-completions content parts into the Responses API part types.
+function toResponsesContent(content, role) {
+  if (!Array.isArray(content)) return content;
+  const textType = role === 'assistant' ? 'output_text' : 'input_text';
+  return content.map((part) => {
+    if (!part || typeof part !== 'object') return part;
+    if (part.type === 'text') return { type: textType, text: part.text };
+    if (part.type === 'image_url') {
+      const image = part.image_url;
+      const url = typeof image === 'string' ? image : image && image.url;
+      return { type: 'input_image', image_url: url, ...(image && image.detail && { detail: image.detail }) };
+    }
+    return part;
+  });
 }
 
 class ChatGPTInput extends ChatModelInput {
@@ -1810,11 +3635,18 @@ class ChatGPTInput extends ChatModelInput {
         'The input type should be system to define the chatbot theme or instructions.'
       );
     }
-    this.model = options.model || 'gpt-5';
-    this.temperature = options.temperature || 1;
+    this.model = options.model || config.url.openai.models.chat;
+    this.temperature = options.temperature ?? 1;
     this.maxTokens = options.maxTokens || null;
     this.numberOfOutputs = 1;
-    this.effort = options.effort || 'low'; // GPT-5 reasoning effort: minimal, low, medium, high
+    // gpt-5+ reasoning effort: none, low, medium, high, xhigh (the original gpt-5 also accepts minimal).
+    // Defaults to low, or medium for the *-pro models that reject low.
+    this.effort = options.effort || options.reasoningEffort || defaultReasoningEffort(this.model);
+    // gpt-5+ answer length: low, medium, high.
+    this.verbosity = options.verbosity || null;
+    // Function tools in chat-completions or Responses format; converted for the target endpoint.
+    this.tools = options.tools || null;
+    this.toolChoice = options.toolChoice ?? null;
   }
 
   addMessage(message) {
@@ -1831,6 +3663,27 @@ class ChatGPTInput extends ChatModelInput {
 
   addSystemMessage(prompt) {
     this.messages.push(new ChatGPTMessage(prompt, 'system'));
+  }
+
+  /** Record the assistant turn that requested tools (tool_calls in chat-completions format). */
+  addToolCalls(toolCalls, content = null) {
+    const message = new ChatGPTMessage(content, 'assistant');
+    message.toolCalls = toolCalls.map((call) => ({
+      id: call.id,
+      type: 'function',
+      function: { name: callName(call), arguments: typeof call.function?.arguments === 'string' ? call.function.arguments : JSON.stringify(parseArguments(call)) },
+    }));
+    this.messages.push(message);
+  }
+
+  /** Record tool results: [{ id, name, content, isError }]. */
+  addToolResults(results) {
+    for (const result of results) {
+      const message = new ChatGPTMessage(resultText(result), 'tool');
+      message.toolCallId = result.id;
+      message.toolName = result.name;
+      this.messages.push(message);
+    }
   }
 
   cleanMessages() {
@@ -1854,50 +3707,104 @@ class ChatGPTInput extends ChatModelInput {
     return false;
   }
 
-  getChatInput() {
-    const messages = this.messages.map((message) => {
-      if (message.name) {
+  // Messages in chat-completions format, including tool calls and tool results.
+  getChatMessages({ toolResultName = false } = {}) {
+    return this.messages.map((message) => {
+      if (message.toolCalls) {
+        return { role: 'assistant', content: message.content ?? null, tool_calls: message.toolCalls };
+      }
+      if (message.role === 'tool') {
         return {
-          role: message.role,
-          name: message.name,
-          content: message.content,
-        };
-      } else {
-        return {
-          role: message.role,
+          role: 'tool',
+          tool_call_id: message.toolCallId,
+          ...(toolResultName && message.toolName && { name: message.toolName }),
           content: message.content,
         };
       }
+      return {
+        role: message.role,
+        ...(message.name && { name: message.name }),
+        content: message.content,
+      };
     });
+  }
 
-    // Check if this is GPT-5
-    const isGPT5 = this.model && this.model.toLowerCase().includes('gpt-5');
-    
-    if (isGPT5) {
-      // GPT-5 uses different format: input instead of messages
-      // Combine messages into a single input string
-      const input = messages
-        .map(msg => `${msg.role}: ${msg.content}`)
-        .join('\n');
-      
-      const params = {
-        model: this.model,
-        input: input,
-        reasoning: { effort: this.effort },
-        ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
-      };
-      return params;
-    } else {
-      // Standard chat completion format for GPT-4 and others
-      const params = {
-        model: this.model,
-        messages: messages,
-        ...(this.temperature && { temperature: this.temperature }),
-        ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
-        ...(this.maxTokens && { max_tokens: this.maxTokens }),
-      };
-      return params;
+  getChatInput() {
+    // gpt-5 and newer use the Responses API (a ":chat" model suffix keeps chat completions).
+    if (isReasoningModel(this.model)) {
+      return this.getResponsesInput();
     }
+
+    // o-series and gpt-5+ on chat completions reject max_tokens and custom temperature.
+    const reasoningChat = isReasoningChatModel(this.model);
+    const responseFormat = openAIResponseFormat(this);
+
+    return {
+      model: stripRouteOverride(this.model),
+      messages: this.getChatMessages(),
+      ...(!reasoningChat && this.temperature != null && { temperature: this.temperature }),
+      ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
+      ...(this.maxTokens && (reasoningChat ? { max_completion_tokens: this.maxTokens } : { max_tokens: this.maxTokens })),
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
+    };
+  }
+
+  // Request body for the Responses API (/v1/responses).
+  getResponsesInput() {
+    // Responses input messages accept role and content only (no name field); tool turns become items.
+    const input = [];
+    for (const message of this.messages) {
+      if (message.toolCalls) {
+        if (message.content) input.push({ role: 'assistant', content: toResponsesContent(message.content, 'assistant') });
+        for (const call of message.toolCalls) {
+          input.push({ type: 'function_call', call_id: call.id, name: call.function.name, arguments: call.function.arguments });
+        }
+      } else if (message.role === 'tool') {
+        input.push({ type: 'function_call_output', call_id: message.toolCallId, output: message.content });
+      } else {
+        input.push({ role: message.role, content: toResponsesContent(message.content, message.role) });
+      }
+    }
+
+    const format = openAIResponseFormat(this, { nested: false });
+    const text = { ...(this.verbosity && { verbosity: this.verbosity }), ...(format && { format }) };
+
+    return {
+      model: stripRouteOverride(this.model),
+      input: input,
+      reasoning: { effort: this.effort || defaultReasoningEffort(this.model) },
+      ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
+      ...(Object.keys(text).length > 0 && { text }),
+      ...(this.tools && { tools: toResponsesTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toResponsesToolChoice(this.toolChoice) }),
+    };
+  }
+}
+
+/**
+ * Chat-completions input for OpenAI-compatible services (OpenRouter, Groq, DeepSeek, xAI, Together, Ollama,
+ * LM Studio, ...). The model defaults to the provider preset when omitted.
+ */
+class OpenAICompatibleInput extends ChatGPTInput {
+  constructor(systemMessage, options = {}) {
+    super(systemMessage, options);
+    this.model = options.model || null;
+    this.temperature = options.temperature ?? null;
+  }
+
+  getChatInput() {
+    const responseFormat = openAIResponseFormat(this);
+    return {
+      ...(this.model && { model: this.model }),
+      messages: this.getChatMessages(),
+      ...(this.temperature != null && { temperature: this.temperature }),
+      ...(this.maxTokens && { max_tokens: this.maxTokens }),
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
+    };
   }
 }
 
@@ -1905,7 +3812,8 @@ class CohereInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
     this.web = options.web || false;
-    this.model = options.model || 'command-r';
+    this.model = options.model || config.url.cohere.models.chat;
+    this.temperature = options.temperature ?? null;
   }
 
   addUserMessage(prompt) {
@@ -1920,9 +3828,18 @@ class CohereInput extends ChatGPTInput {
     this.messages.push(new ChatGPTMessage(prompt, 'System'));
   }
 
+  addToolCalls() {
+    throw new Error('CohereInput does not support tool calls; use openai, anthropic, gemini, mistral, nvidia or an OpenAI-compatible provider for Chatbot.runTools.');
+  }
+
   getChatInput() {
     if (this.messages.length < 1) {
         throw new Error("At least one message is required for Cohere API");
+    }
+
+    if (this.web && !cohereWebWarningShown) {
+        cohereWebWarningShown = true;
+        console.warn("CohereInput: the 'web' option is ignored because Cohere removed connectors from the Chat API.");
     }
 
     const chatHistory = [];
@@ -1941,7 +3858,10 @@ class CohereInput extends ChatGPTInput {
         'model': this.model,
         'message': latestMessage.content,
         'chat_history': chatHistory,
-        ...(this.web && {'connectors': [{id: 'web-search'}]}),
+        ...(this.temperature != null && { 'temperature': this.temperature }),
+        ...(this.maxTokens && { 'max_tokens': this.maxTokens }),
+        ...(this.responseSchema && { 'response_format': { type: 'json_object', schema: this.responseSchema } }),
+        ...(!this.responseSchema && this.responseFormat === 'json' && { 'response_format': { type: 'json_object' } }),
     };
 
     return params;
@@ -1952,34 +3872,84 @@ class CohereInput extends ChatGPTInput {
 class MistralInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
-    
-    this.model = options.model || 'mistral-medium'; 
 
+    this.model = options.model || config.url.mistral.models.chat;
+    this.temperature = options.temperature ?? null;
   }
 
   getChatInput() {
-    // Prepare the messages in the expected format
-    const messages = this.messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
+    const responseFormat = openAIResponseFormat(this);
 
-    // Construct Mistral input parameters
+    // Construct Mistral input parameters (tool messages carry the tool name)
     const params = {
       model: this.model,
-      messages: messages,
+      messages: this.getChatMessages({ toolResultName: true }),
+      ...(this.temperature != null && { temperature: this.temperature }),
+      ...(this.maxTokens && { max_tokens: this.maxTokens }),
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
 
     return params;
   }
 }
 
+// Gemini's schema dialect rejects $schema and additionalProperties; they are removed from schema nodes only,
+// so a property that happens to be called "title" or "additionalProperties" is kept.
+function toGeminiSchema(schema) {
+  return mapSchema(schema, (node) => {
+    delete node.$schema;
+    delete node.additionalProperties;
+    return node;
+  });
+}
+
+// Function tools in any supported format become one functionDeclarations entry; Gemini-native tools
+// (googleSearch, codeExecution, urlContext, functionDeclarations) pass through unchanged.
+function toGeminiTools(tools) {
+  if (!Array.isArray(tools)) return tools;
+  const declarations = [];
+  const native = [];
+  for (const tool of tools) {
+    const fn = tool && typeof tool === 'object' && (tool.function || ((tool.type === 'function' || (!tool.type && tool.name)) ? tool : null));
+    if (!fn || !fn.name) {
+      native.push(tool);
+      continue;
+    }
+    const parameters = fn.parameters || fn.input_schema;
+    declarations.push({
+      name: fn.name,
+      ...(fn.description && { description: fn.description }),
+      ...(parameters && { parameters: toGeminiSchema(parameters) }),
+    });
+  }
+  return [...(declarations.length ? [{ functionDeclarations: declarations }] : []), ...native];
+}
+
+function toGeminiToolConfig(choice) {
+  if (choice === 'auto') return { functionCallingConfig: { mode: 'AUTO' } };
+  if (choice === 'required' || choice === 'any') return { functionCallingConfig: { mode: 'ANY' } };
+  if (choice === 'none') return { functionCallingConfig: { mode: 'NONE' } };
+  if (choice && typeof choice === 'object') {
+    if (choice.functionCallingConfig) return choice;
+    const name = choice.function ? choice.function.name : choice.name;
+    if (name) return { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: [name] } };
+  }
+  return null;
+}
+
 class GeminiInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super(options);
     this.messages = [];
+    // the bare 'gemini' placeholder from older examples maps to the default model
+    this.model = options.model && options.model !== 'gemini' ? options.model : config.url.gemini.models.chat;
     this.maxOutputTokens = options.maxTokens
     this.temperature = options.temperature
+    // tools in Gemini (functionDeclarations) or OpenAI function format
+    this.tools = options.tools || null;
+    this.toolChoice = options.toolChoice ?? null;
 
     if (systemMessage && typeof systemMessage === 'string') {
       this.addUserMessage(systemMessage);
@@ -2005,13 +3975,39 @@ class GeminiInput extends ChatModelInput {
     this.addModelMessage(text);
   }
 
+  addToolCalls(toolCalls, content = null) {
+    // Gemini 3 rejects a function call turn whose thought signature was dropped
+    const parts = toolCalls.map((call) => ({
+      functionCall: { name: callName(call), args: parseArguments(call) },
+      ...(call.thoughtSignature && { thoughtSignature: call.thoughtSignature }),
+    }));
+    if (content) parts.unshift({ text: content });
+    this.messages.push({ role: 'model', parts });
+  }
+
+  addToolResults(results) {
+    // functionResponse.response must be an object
+    const parts = results.map((result) => {
+      const content = result.content !== undefined ? result.content : result.result;
+      const response = content && typeof content === 'object' && !Array.isArray(content) ? content : { result: resultText(result) };
+      return { functionResponse: { name: result.name, response: result.isError ? { error: resultText(result) } : response } };
+    });
+    this.messages.push({ role: 'user', parts });
+  }
+
+  // The model is part of the endpoint URL, so it is not included in the body.
   getChatInput() {
+    const toolConfig = this.toolChoice != null ? toGeminiToolConfig(this.toolChoice) : null;
     return {
       contents: this.messages,
-      generationConfig: { 
-        ...(this.temperature && { temperature: this.temperature }),
+      generationConfig: {
+        ...(this.temperature != null && { temperature: this.temperature }),
         ...(this.maxOutputTokens && { maxOutputTokens: this.maxOutputTokens }),
-      }
+        ...(this.responseFormat === 'json' && { responseMimeType: 'application/json' }),
+        ...(this.responseSchema && { responseSchema: toGeminiSchema(this.responseSchema) }),
+      },
+      ...(this.tools && { tools: toGeminiTools(this.tools) }),
+      ...(toolConfig && { toolConfig }),
     };
   }
 
@@ -2034,9 +4030,15 @@ class AnthropicInput extends ChatModelInput {
   constructor(system, options = {}) {
       super(options);
       this.system = system;
-      this.model = options.model || 'claude-3-sonnet-20240229'; 
-      this.maxTokens = options.maxTokens  || 800;
-      this.temperature = options.temperature || 1.0;
+      this.model = options.model || config.url.anthropic.models.chat;
+      // Claude 5 models think adaptively and thinking counts toward max_tokens.
+      this.maxTokens = options.maxTokens || 2048;
+      // Sent only when set; Opus 4.7+ and Claude 5 models reject sampling parameters.
+      this.temperature = options.temperature ?? null;
+      // Tools in Anthropic format or OpenAI function format.
+      this.tools = options.tools || null;
+      // 'auto' | 'any' | 'required' | 'none', or an Anthropic tool_choice object.
+      this.toolChoice = options.toolChoice ?? null;
       this.messages = [];
   }
 
@@ -2054,13 +4056,57 @@ class AnthropicInput extends ChatModelInput {
       });
   }
 
+  addToolCalls(toolCalls, content = null) {
+      const blocks = toolCalls.map((call) => ({ type: 'tool_use', id: call.id, name: callName(call), input: parseArguments(call) }));
+      if (content) blocks.unshift({ type: 'text', text: content });
+      this.messages.push({ role: 'assistant', content: blocks });
+  }
+
+  addToolResults(results) {
+      this.messages.push({
+          role: 'user',
+          content: results.map((result) => ({
+              type: 'tool_result',
+              tool_use_id: result.id,
+              content: resultText(result),
+              ...(result.isError && { is_error: true }),
+          })),
+      });
+  }
+
+  cleanMessages() {
+      this.messages = [];
+  }
+
+  deleteLastMessage(message) {
+      for (let i = this.messages.length - 1; i >= 0; i--) {
+          if (this.messages[i].role === message.role && this.messages[i].content === message.content) {
+              this.messages.splice(i, 1);
+              return true;
+          }
+      }
+      return false;
+  }
+
   getChatInput() {
+      // Claude has no free-form JSON mode, so plain JSON requests become a system instruction
+      const jsonInstruction = jsonModeInstruction(this);
+      let system = this.system;
+      if (jsonInstruction) {
+          // a content-block system prompt (e.g. with cache_control) keeps its blocks
+          system = Array.isArray(this.system)
+              ? [...this.system, { type: 'text', text: jsonInstruction }]
+              : [this.system, jsonInstruction].filter(Boolean).join('\n');
+      }
       return {
-          system: this.system,
+          ...(system && { system }),
           model: this.model,
           messages: this.messages,
           max_tokens: this.maxTokens,
-          temperature: this.temperature,
+          ...(this.temperature != null && !claudeRejectsSamplingParams(this.model) && { temperature: this.temperature }),
+          ...(this.tools && { tools: toAnthropicTools(this.tools) }),
+          ...(this.toolChoice != null && { tool_choice: toAnthropicToolChoice(this.toolChoice) }),
+          ...(this.responseSchema && { output_config: { format: { type: 'json_schema', schema: closedObjectSchema(this.responseSchema) } } }),
       };
   }
 }
@@ -2248,7 +4294,7 @@ class LLamaSageInput extends ChatModelInput {
       ],
     };
   }
-  
+
 }
 
 class NvidiaInput extends ChatModelInput {
@@ -2259,13 +4305,15 @@ class NvidiaInput extends ChatModelInput {
     } else {
       this.messages = [];
     }
-    this.model = options.model || 'deepseek-ai/deepseek-r1';
-    this.temperature = options.temperature || 0.7;
+    this.model = options.model || config.nvidia.models.chat;
+    this.temperature = options.temperature ?? 0.7;
     this.maxTokens = options.maxTokens || 1024;
-    this.topP = options.topP || 1.0;
-    this.presencePenalty = options.presencePenalty || 0;
-    this.frequencyPenalty = options.frequencyPenalty || 0;
+    this.topP = options.topP ?? 1.0;
+    this.presencePenalty = options.presencePenalty ?? 0;
+    this.frequencyPenalty = options.frequencyPenalty ?? 0;
     this.stream = options.stream || false;
+    this.tools = options.tools || null;
+    this.toolChoice = options.toolChoice ?? null;
   }
 
   addUserMessage(text) {
@@ -2274,6 +4322,29 @@ class NvidiaInput extends ChatModelInput {
 
   addAssistantMessage(text) {
     this.messages.push({ role: 'assistant', content: text });
+  }
+
+  addToolCalls(toolCalls, content = null) {
+    this.messages.push({
+      role: 'assistant',
+      content: content ?? null,
+      tool_calls: toolCalls.map((call) => ({
+        id: call.id,
+        type: 'function',
+        function: { name: callName(call), arguments: typeof call.function?.arguments === 'string' ? call.function.arguments : JSON.stringify(parseArguments(call)) },
+      })),
+    });
+  }
+
+  addToolResults(results) {
+    for (const result of results) {
+      this.messages.push({ role: 'tool', tool_call_id: result.id, content: resultText(result) });
+    }
+  }
+
+  cleanMessages() {
+    // keep the system message
+    this.messages = this.messages.filter((message, index) => index === 0 && message.role === 'system');
   }
 
   deleteLastMessage(message) {
@@ -2290,6 +4361,7 @@ class NvidiaInput extends ChatModelInput {
   }
 
   getChatInput() {
+    const responseFormat = openAIResponseFormat(this);
     return {
       model: this.model,
       messages: this.messages,
@@ -2298,7 +4370,10 @@ class NvidiaInput extends ChatModelInput {
       top_p: this.topP,
       presence_penalty: this.presencePenalty,
       frequency_penalty: this.frequencyPenalty,
-      stream: this.stream
+      stream: this.stream,
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 }
@@ -2308,22 +4383,21 @@ class VLLMInput extends ChatGPTInput {
     super(systemMessage, options);
     this.model = options.model || 'Qwen/Qwen2.5-1.5B-Instruct';
     this.maxTokens = options.maxTokens || 1024;
-    this.temperature = options.temperature || 0.7;
-    this.top_p = options.top_p || 1.0;
+    this.temperature = options.temperature ?? 0.7;
+    this.top_p = options.top_p ?? 1.0;
   }
 
   getChatInput() {
-    const messages = this.messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
-
+    const responseFormat = openAIResponseFormat(this);
     return {
       model: this.model,
-      messages: messages,
+      messages: this.getChatMessages(),
       max_tokens: this.maxTokens,
       temperature: this.temperature,
       top_p: this.top_p,
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 }
@@ -2331,6 +4405,7 @@ class VLLMInput extends ChatGPTInput {
 
 module.exports = {
   ChatGPTInput,
+  OpenAICompatibleInput,
   ChatModelInput,
   ChatGPTMessage,
   ChatLLamaInput,
@@ -2344,22 +4419,27 @@ module.exports = {
   VLLMInput
 };
 
-},{"../../config.json":1}],14:[function(require,module,exports){
+},{"../../config.json":1,"../../utils/ModelHelper":41}],15:[function(require,module,exports){
 const config = require('../../config.json');
 
 class EmbedInput {
   constructor({
     texts,
     model = null,
+    inputType = null,
   }) {
     this.texts = texts;
     this.model = model;
+    // Cohere: search_document, search_query, classification or clustering. NVIDIA: query or passage.
+    this.inputType = inputType;
   }
 
   getCohereInputs() {
     const inputs = {
       texts: this.texts,
       ...this.model && { model: this.model },
+      // Cohere embed v3 and newer require an input type.
+      input_type: this.inputType || 'search_document',
     };
 
     return inputs;
@@ -2396,8 +4476,8 @@ class EmbedInput {
   getNvidiaInputs(input_type="query") {
     return {
       input: this.texts,
-      model: this.model,
-      input_type: input_type,
+      model: this.model || config.nvidia.models.embed,
+      input_type: this.inputType || input_type,
       encoding_format: "float",
       truncate: "NONE"
     };
@@ -2411,14 +4491,19 @@ class EmbedInput {
 
   setDefaultValues(provider) {
     if (provider === "openai") {
-      this.model = "text-embedding-3-small";
+      this.model = config.url.openai.models.embed;
     } else if (provider === "cohere") {
-      this.model = "embed-multilingual-v2.0";
+      this.model = config.url.cohere.models.embed;
     } else if (provider === "replicate") {
         this.model = config.models.replicate.llama['llama-2-13b-embeddings-version'];
     } else if (provider === "gemini") {
-        this.model = "models/embedding-001";
+        this.model = `models/${config.url.gemini.models.embed}`;
+    } else if (provider === "nvidia") {
+        this.model = config.nvidia.models.embed;
     } else if (provider === "vllm") {
+        this.model = null;
+    } else if (["openai_compatible", "openrouter", "together", "ollama", "lmstudio"].includes(provider)) {
+        // the preset default (or the model given in the request) is applied by the wrapper
         this.model = null;
     } else {
       throw new Error("Invalid provider name");
@@ -2427,7 +4512,8 @@ class EmbedInput {
 }
 
 module.exports = EmbedInput;
-},{"../../config.json":1}],15:[function(require,module,exports){
+
+},{"../../config.json":1}],16:[function(require,module,exports){
 /*
 Apache License
 
@@ -2452,7 +4538,7 @@ class FineTuneInput {
 
 module.exports = FineTuneInput;
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 /*
 Apache License
 
@@ -2487,7 +4573,7 @@ class FunctionModelInput {
 
 module.exports = FunctionModelInput ;
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /*
 Apache License
 
@@ -2495,6 +4581,11 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+const config = require('../../config.json');
+
+// gpt-image models only accept low/medium/high/auto quality.
+const GPT_IMAGE_QUALITY = { standard: 'medium', hd: 'high' };
+
 class ImageModelInput {
   constructor({
     prompt,
@@ -2507,6 +4598,7 @@ class ImageModelInput {
     diffusion_style_preset = null,
     engine = null,
     model = null,
+    quality = null,
   }) {
     this.prompt = prompt;
     this.numberOfImages = numberOfImages;
@@ -2518,6 +4610,7 @@ class ImageModelInput {
     this.diffusion_style_preset = diffusion_style_preset;
     this.engine = engine;
     this.model = model;
+    this.quality = quality;
     if (width != null && height != null && imageSize == null) {
         this.imageSize = width+'x'+height;
     } else if (width == null && height == null && imageSize != null) {
@@ -2534,10 +4627,27 @@ class ImageModelInput {
       ...this.numberOfImages && { n: this.numberOfImages },
       ...this.imageSize && { size: this.imageSize },
       ...this.responseFormat && { response_format: this.responseFormat },
+      ...this.quality && { quality: this.quality },
       ...this.model && { model: this.model }
     };
 
-    return inputs;
+    return ImageModelInput.normalizeOpenAIParams(inputs);
+  }
+
+  /**
+   * The images API now requires a model, and gpt-image models always return base64 and
+   * reject the dall-e era response_format/style parameters, so translate them.
+   */
+  static normalizeOpenAIParams(params) {
+    const normalized = { ...params, model: params.model || config.url.openai.models.image };
+    if (String(normalized.model).startsWith('gpt-image')) {
+      delete normalized.response_format;
+      delete normalized.style;
+      if (normalized.quality) {
+        normalized.quality = GPT_IMAGE_QUALITY[normalized.quality] || normalized.quality;
+      }
+    }
+    return normalized;
   }
 
   getStabilityInputs() {
@@ -2558,11 +4668,12 @@ class ImageModelInput {
     if (provider === "openai") {
       this.numberOfImages = 1;
       this.imageSize = '1024x1024';
+      this.model = this.model || config.url.openai.models.image;
     } else if (provider === "stability") {
       this.numberOfImages = 1;
-      this.height = 512;
-      this.width = 512;
-      this.engine = 'stable-diffusion-xl-beta-v2-2-2';
+      this.height = 1024;
+      this.width = 1024;
+      this.engine = 'stable-diffusion-xl-1024-v1-0';
     } else {
       throw new Error("Invalid provider name");
     }
@@ -2570,7 +4681,8 @@ class ImageModelInput {
 }
 
 module.exports = ImageModelInput;
-},{}],18:[function(require,module,exports){
+
+},{"../../config.json":1}],19:[function(require,module,exports){
 /*
 Apache License
 
@@ -2578,6 +4690,8 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+const config = require('../../config.json');
+
 class LanguageModelInput {
   constructor({
     prompt,
@@ -2635,9 +4749,11 @@ class LanguageModelInput {
 
   setDefaultModels(provider) {
     if (provider === "openai") {
-      this.model = "gpt-3.5-turbo-instruct";
+      // the completions endpoint only serves instruct models
+      this.model = config.url.openai.models.completion;
     } else if (provider === "cohere") {
-      this.model = "command";
+      // Cohere text generation now runs on the Chat API
+      this.model = config.url.cohere.models.chat;
     } else {
       throw new Error("Invalid provider name");
     }
@@ -2645,7 +4761,8 @@ class LanguageModelInput {
 }
 
 module.exports = LanguageModelInput;
-},{}],19:[function(require,module,exports){
+
+},{"../../config.json":1}],20:[function(require,module,exports){
 /*
 Apache License
 
@@ -2653,8 +4770,10 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+const config = require('../../config.json');
+
 class Text2SpeechInput {
-  constructor({ text, language = "en-gb", gender = "FEMALE", voice, model = 'tts-1', stream = true }) {
+  constructor({ text, language = "en-gb", gender = "FEMALE", voice, model = config.url.openai.models.speech, stream = true }) {
     this.text = text;
     this.language = language.toLowerCase();
     this.gender = gender;
@@ -2709,7 +4828,7 @@ Text2SpeechInput.Gender = {
 
 module.exports = Text2SpeechInput;
 
-},{}],20:[function(require,module,exports){
+},{"../../config.json":1}],21:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -2861,9 +4980,11 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],21:[function(require,module,exports){
-
 },{}],22:[function(require,module,exports){
+
+},{}],23:[function(require,module,exports){
+arguments[4][22][0].apply(exports,arguments)
+},{"dup":22}],24:[function(require,module,exports){
 (function (Buffer){(function (){
 /*!
  * The buffer module from node.js, for the browser.
@@ -4644,7 +6765,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"base64-js":20,"buffer":22,"ieee754":25}],23:[function(require,module,exports){
+},{"base64-js":21,"buffer":24,"ieee754":27}],25:[function(require,module,exports){
 (function (global){(function (){
 // Save global object in a variable
 var __global__ =
@@ -5332,11 +7453,13 @@ exports.Response = ctx.Response
 module.exports = exports
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],24:[function(require,module,exports){
-/* eslint-env browser */
-module.exports = typeof self == 'object' ? self.FormData : window.FormData;
+},{}],26:[function(require,module,exports){
+'use strict';
 
-},{}],25:[function(require,module,exports){
+/* eslint-env browser */
+module.exports = typeof self === 'object' ? self.FormData : window.FormData;
+
+},{}],27:[function(require,module,exports){
 /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
@@ -5423,7 +7546,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],26:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 (function (process){(function (){
 // 'path' module extracted from Node.js v8.11.1 (only the posix part)
 // transplited with Babel
@@ -5956,7 +8079,7 @@ posix.posix = posix;
 module.exports = posix;
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":27}],27:[function(require,module,exports){
+},{"_process":29}],29:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -6142,7 +8265,112 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],28:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
+module.exports={
+  "name": "intellinode",
+  "version": "3.0.0",
+  "description": "Unified AI toolkit: one API for OpenAI, Anthropic, Gemini, Mistral, Cohere, NVIDIA and OpenAI-compatible services, with a tool loop, structured output, generators for web developers and an MCP server.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "bin": {
+    "intellinode": "bin/intellinode.js"
+  },
+  "mcpName": "io.github.intelligentnode/intellinode",
+  "browser": {
+    "./mcp/server.js": false,
+    "./function/CodingAgent.js": false,
+    "./utils/WorkspaceToolkit.js": false
+  },
+  "keywords": [
+    "ai",
+    "ChatGPT",
+    "stable diffusion",
+    "openai",
+    "huggingface",
+    "Llama",
+    "image generation",
+    "speech synthesis",
+    "prompt",
+    "automation",
+    "mistral",
+    "gemini",
+    "deepseek",
+    "framework",
+    "mcp",
+    "anthropic",
+    "claude",
+    "ollama",
+    "openrouter",
+    "groq",
+    "openai-compatible",
+    "tool-calling",
+    "structured-output",
+    "model-context-protocol",
+    "coding-agent",
+    "agent"
+  ],
+  "author": "IntelliNode",
+  "license": "Apache",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/intelligentnode/IntelliNode.git"
+  },
+  "scripts": {
+    "build": "node scripts/build-templates.js && browserify index.js --standalone IntelliNode -o front/intellinode.js && uglifyjs front/intellinode.js -o front/intellinode.min.js",
+    "test": "node test/unit/testRunner"
+  },
+  "homepage": "https://docs.intellinode.ai",
+  "devDependencies": {
+    "browserify": "^17.0.1",
+    "uglify-js": "^3.19.3"
+  },
+  "dependencies": {
+    "cross-fetch": "^4.1.0",
+    "dotenv": "^17.4.2",
+    "form-data": "^4.0.6"
+  }
+}
+
+},{}],31:[function(require,module,exports){
+// Generated by scripts/build-templates.js from resource/templates/*.in - do not edit.
+module.exports = {
+  "accessibility_prompt.in": "You are a web accessibility (WCAG 2.2 AA) expert. Review the HTML below, fix every accessibility problem you find and report what changed.\n\nReturn exactly two markdown code blocks and nothing else:\n1. A block tagged html containing the complete corrected HTML.\n2. A block tagged json containing an array of the problems you fixed, in this shape:\n[{\"issue\": \"what was wrong\", \"fix\": \"what you changed\", \"wcag\": \"criterion id, e.g. 1.1.1\"}]\n\nRules:\n- Keep the original structure, content and styling; only change what accessibility requires (alt text, labels, roles, landmarks, heading order, focus order, ARIA attributes, language, link text).\n- If the HTML has no problems, return it unchanged and an empty JSON array.\n\nHTML:\n${text}\n",
+  "api_endpoint_prompt.in": "You are an expert backend engineer. Implement a ${framework} API endpoint in ${language} for the request below.\n\nRequirements:\n- Return only the complete source code of one file inside a single markdown code block. No explanation.\n- Validate the input, return proper HTTP status codes and JSON responses, and handle errors without crashing the process.\n- Use async/await and keep the handler easy to test; include a short usage comment showing the route and an example request.\n- Do not include credentials; use a placeholder data layer or in-memory data where storage is needed.\n\nRequest: ${text}\n",
+  "augmented_chatbot.in": "Using the provided context, craft a  cohesive response that directly addresses the user's query. If the context lacks relevance or is absent, focus on generating a knowledgeable and accurate answer based on the user's question alone. Aim for clarity and conciseness in your reply.\nContext:\n${semantic_search}\n---------------------------------\nUser's Question:\n${user_query}",
+  "code_review_prompt.in": "You are a senior software engineer doing a code review. Review the ${language} code below for bugs, security issues, performance problems, readability and best practices.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"summary\": \"one paragraph overall assessment\", \"score\": 7, \"issues\": [{\"severity\": \"high\", \"title\": \"short title\", \"description\": \"what is wrong and why it matters\", \"suggestion\": \"how to fix it, with a code snippet when useful\"}]}\n\nRules:\n- score is an integer from 1 (unsafe to ship) to 10 (excellent); severity is one of high, medium or low.\n- Order issues from highest to lowest severity and only report real problems; return an empty issues array for clean code.\n- Escape double quotes and newlines inside JSON strings so the JSON is valid.\n\nCode:\n${text}\n",
+  "color_palette_prompt.in": "You are an expert UI designer. Create a ${count}-color palette for the request below.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"name\": \"palette name\", \"colors\": [{\"name\": \"primary\", \"hex\": \"#RRGGBB\", \"usage\": \"where to use it\"}], \"css\": \":root { --color-primary: #RRGGBB; }\"}\n\nRules:\n- Return exactly ${count} colors, each with a unique lowercase kebab-case name, a 6-digit hex value and a short usage note.\n- Include at least one background, one text and one accent color, and make sure text and background colors have enough contrast.\n- The css field must declare one CSS custom property per color inside :root.\n\nRequest: ${text}\n",
+  "commit_message_prompt.in": "You are an expert developer writing a git commit message for the diff below.\n\nRequirements:\n- Return only the commit message as plain text: a subject line of at most 72 characters, then a blank line, then a short body with bullet points describing the changes and why.\n- ${style_rule}\n- Do not wrap the message in quotes or markdown.\n\nDiff:\n${text}\n",
+  "component_prompt.in": "You are an expert frontend engineer. Build a ${framework} component in ${language} using ${styling} for styling, based on the request below.\n\nRequirements:\n- Return only the complete source code of one file inside a single markdown code block. No explanation before or after it.\n- The component must be self-contained, production quality, accessible (semantic HTML, labels, keyboard support) and responsive.\n- Export the component as the default export when the framework supports it.\n- Include realistic placeholder content and sensible props or state where useful.\n\nRequest: ${text}\n",
+  "convert_code_prompt.in": "You are an expert software engineer. Convert the code below from ${from} to ${to}.\n\nRequirements:\n- Return only the converted code inside a single markdown code block. No explanation.\n- Preserve the behaviour, structure, names and comments; use idiomatic ${to} (for example proper types when converting to TypeScript, or utility classes when converting to Tailwind CSS).\n- Do not add features or remove existing ones.\n\nCode:\n${text}\n",
+  "design_tokens_prompt.in": "You are a design systems engineer. Create the design tokens for the brand described below.\n\nColor rules:\n- Six scales: primary, secondary, neutral, success, warning and danger. Each scale has exactly these eleven steps, from lightest to darkest: 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950.\n- Every color is a six digit hex string such as #1d4ed8. Never use rgb(), hsl(), oklch(), a three digit hex or a color name.\n- ${brand_color_rule}\n- Steps change evenly in perceived lightness. Neutral carries a slight tint of the brand hue. Secondary is an analogous or complementary hue.\n- Define semantic roles for each of these modes: ${modes}. Each mode defines all thirteen roles: background, foreground, muted, muted-foreground, primary, primary-foreground, secondary, secondary-foreground, accent, border, ring, danger and danger-foreground.\n- A role value is a hex string or a reference to a scale step such as primary.600.\n- In every mode, foreground on background, muted-foreground on background, primary-foreground on primary and danger-foreground on danger reach a contrast ratio of at least 4.5 to 1. Design the dark mode on purpose instead of inverting the light one.\n${typography_rule}\n${spacing_rule}\n- radius has sm, md, lg and full as CSS length strings.\n\nReturn only one JSON object and no markdown fences, in this shape, filling in every object shown empty:\n{\"name\": \"token set name\", \"palette\": {\"primary\": {\"50\": \"#eef2ff\", \"100\": \"#e0e7ff\", \"200\": \"#c7d2fe\", \"300\": \"#a5b4fc\", \"400\": \"#818cf8\", \"500\": \"#4f46e5\", \"600\": \"#4338ca\", \"700\": \"#3730a3\", \"800\": \"#312e81\", \"900\": \"#1e1b4b\", \"950\": \"#131029\"}, \"secondary\": {}, \"neutral\": {}, \"success\": {}, \"warning\": {}, \"danger\": {}}, \"semantic\": {\"light\": {\"background\": \"#ffffff\", \"foreground\": \"neutral.900\", \"muted\": \"neutral.100\", \"muted-foreground\": \"neutral.600\", \"primary\": \"primary.600\", \"primary-foreground\": \"#ffffff\", \"secondary\": \"secondary.500\", \"secondary-foreground\": \"#ffffff\", \"accent\": \"primary.100\", \"border\": \"neutral.200\", \"ring\": \"primary.500\", \"danger\": \"danger.600\", \"danger-foreground\": \"#ffffff\"}, \"dark\": {}}, \"typography\": {\"fontFamily\": {\"sans\": \"Inter, system-ui, sans-serif\", \"mono\": \"ui-monospace, SFMono-Regular, monospace\"}, \"fontSize\": {\"xs\": \"0.75rem\", \"sm\": \"0.875rem\", \"base\": \"1rem\", \"lg\": \"1.125rem\", \"xl\": \"1.25rem\", \"2xl\": \"1.5rem\", \"3xl\": \"1.875rem\", \"4xl\": \"2.25rem\"}}, \"radius\": {\"sm\": \"0.25rem\", \"md\": \"0.5rem\", \"lg\": \"1rem\", \"full\": \"9999px\"}, \"spacing\": {\"1\": \"0.25rem\", \"2\": \"0.5rem\", \"3\": \"0.75rem\", \"4\": \"1rem\", \"6\": \"1.5rem\", \"8\": \"2rem\", \"12\": \"3rem\", \"16\": \"4rem\"}}\n\nBrand:\n${text}\n",
+  "email_template_prompt.in": "You are an expert in HTML email development. Build a responsive HTML email for the request below.\n\nRequirements:\n- Return only the complete HTML document inside a single markdown code block. No explanation.\n- Use a table-based layout, inline CSS on elements, a 600px maximum width and web-safe fonts so it renders in Gmail, Outlook and Apple Mail.\n- Include a preheader, a header, the main content, a clear call-to-action button and a footer with an unsubscribe link placeholder.\n- Use placeholders like {{first_name}} and {{unsubscribe_url}} for dynamic values.\n- Add alt text to every image and keep the total size small.\n\nRequest: ${text}\n",
+  "explain_code_prompt.in": "You are a patient senior engineer. Explain the ${language} code below to a ${audience}.\n\nRequirements:\n- Return Markdown only, no surrounding code fence.\n- Start with a one-paragraph summary of what the code does, then a \"How it works\" section that walks through it step by step, then a \"Things to watch\" section with pitfalls, edge cases or improvements.\n- Reference identifiers from the code in backticks and keep the explanation accurate to the code; do not invent behaviour.\n\nCode:\n${text}\n",
+  "faq_prompt.in": "You are a content writer for a website. Write ${count} frequently asked questions with answers about the topic below.\n\nReturn only a JSON array with this exact shape and no markdown fences:\n[{\"question\": \"the question a visitor would ask\", \"answer\": \"a clear, helpful answer of one to three sentences\"}]\n\nRules:\n- Return exactly ${count} items, ordered from the most common to the least common question, without duplicates.\n- Write in a ${tone} tone and keep answers factual to the topic; use placeholders for details that are unknown.\n\nTopic:\n${text}\n",
+  "fix_code_prompt.in": "You are an expert ${language} debugger. Fix the code below so the reported problem no longer happens.\n\nReturn exactly two markdown code blocks and nothing else:\n1. A block containing the complete fixed code.\n2. A block tagged json in this shape: {\"explanation\": \"what was wrong and what changed\", \"changes\": [\"one short line per change\"]}\n\nRules:\n- Keep the original style, names and behaviour except for the fix; do not add unrelated changes.\n\nProblem: ${problem}\n\nCode:\n${text}\n",
+  "form_prompt.in": "You are an expert frontend engineer. Build a ${framework} form based on the request below.\n\nRequirements:\n- Return only the complete source code inside a single markdown code block. No explanation.\n- Include every field described, with proper labels, input types, placeholders and required markers.\n- Add client-side validation with clear inline error messages and an accessible success state.\n- The form must be responsive, keyboard accessible and use semantic HTML.\n- ${submit}\n\nRequest: ${text}\n",
+  "graph_dashboard_prompt.in": "Generate an HTML dashboard using chart.js with ${count} graphs about the ${topic} topic from the provided data. Each graph should showcase the relationships between selected columns, ensuring the graphs are relevant to the topic.\n\nOutput example:\n[{\n  \"html\": \"<!DOCTYPE html><html><head>[Insert required styles and scripts for Chart.js]</head><body>[Include code for all the ${count} graphs]</body></html>\", \n  \"message\": \"the page ready to render\"\n}]\n\nFollow these instructions:\n---\n1. Return a single JSON response in the style shown in the output example.\n2. Use Chart.js for generating the graphs wherever possible.\n3. Use \\\" before any generated double quotation marks to ensure a valid JSON response.\n4. Design elegant, modern dashboard charts based on the provided data.\n5. Make sure the response is a valid JSON containing the complete HTML content.\n6. Ensure the response will not truncate in any circumstance.\n7. Select sample of the data based on the user instructions ensuring it fit in one page.\n8. Reply only with generated code.\n\nUser data: ###${text}###",
+  "html_page_prompt.in": "Generate website, javascript and css in one page based on the user request.\n\nOutput format:\n{\"html\": \"<!DOCTYPE html><html><head>[generated head content]</head><body>[generated body content]</body></html>\", \"message\"\":\"the page ready for render\"}\n\nEnsure the page is compatible with screen sizes and use ready bootstrap component when needed.\n\nIf an image generated, add a clear image description in the alt to use for image generation:\n<img src=\"<image name and format>\" alt=\"<image description>\" width=\"<size or percentage>\" height=\"<size or percentage>\">\n\nuser request: ${text}\n\noutput:",
+  "instruct_update.in": "Update the model output and make sure to maintain the format. Don't use the example content with the user message.\nReturn all the model generated after applying the instructions.\n\nExample:\nthe model generated json html output: ###{\"html\": \"<!DOCTYPE html><html><body><h1>Title1</h1></body></html>\"}###\nthe user update instructions: ###change to Title2###\noutput: {\"html\": \"<!DOCTYPE html><html><body><h1>Title2</h1></body></html>\"}\n----\nthe model generated text output: ###Text1 example bla bla###\nthe user update instructions: ###change to text2###\noutput: Text2 example  bla bla\n===\nUser message:\nthe model generated ${type} output: ###${model_output}###\nthe user update instructions:  ###${user_instruction}###\noutput:",
+  "json_schema_prompt.in": "You are an API design expert. Write a JSON Schema (draft 2020-12) for the data described below.\n\nReturn only the JSON Schema object and no markdown fences.\n\nRules:\n- Set \"$schema\", \"type\": \"object\", \"properties\", \"required\" and \"additionalProperties\".\n- Give every property a \"type\" and a \"description\"; use \"format\" (email, date-time, uri, uuid), \"enum\", \"minimum\", \"maximum\", \"minLength\", \"maxLength\" and \"pattern\" where the description implies them.\n- Nest objects and arrays with their own \"items\" or \"properties\".\n\nData:\n${text}\n",
+  "landing_copy_prompt.in": "You are a conversion copywriter. Write landing page copy for the product or service described below.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"headline\": \"short benefit-driven headline\", \"subheadline\": \"one supporting sentence\", \"features\": [{\"title\": \"feature title\", \"description\": \"one sentence benefit\"}], \"cta\": \"call-to-action button text\", \"socialProof\": \"one sentence trust statement\", \"faq\": [{\"question\": \"\", \"answer\": \"\"}]}\n\nRules:\n- Return exactly ${feature_count} features and 3 FAQ items, in a ${tone} tone.\n- Focus on benefits for the target audience, avoid hype words and keep every field concise.\n\nProduct:\n${text}\n",
+  "mock_data_prompt.in": "You are a test data generator for web applications. Generate ${count} realistic records that match the schema or description below.\n\nRequirements:\n- Return only a JSON array with exactly ${count} objects and no markdown fences or explanation.\n- Every object must have the same keys in the same order, with realistic and varied values (names, emails, ISO 8601 dates, prices as numbers, sequential integer ids or UUIDs as described).\n- Respect any types, formats, enums and constraints given in the schema.\n\nSchema or description:\n${text}\n",
+  "openapi_spec_prompt.in": "You are an API architect. Write an OpenAPI ${openapi_version} document for the API below.\n\nRules:\n- Document only the routes that appear in the input. Never invent endpoints, parameters, fields or status codes.\n- Write path keys in the OpenAPI brace form such as /users/{id}, never the colon form.\n- Infer request bodies from destructuring of the request body, or from a validation schema (zod, joi, yup) when one is present.\n- Infer status codes from the code: 201 for a created response, 204 for an empty response, 200 otherwise, plus every error status the code returns.\n- Declare query parameters with \"in\": \"query\", and path parameters with \"in\": \"path\" and \"required\": true.\n- GET and DELETE operations have no request body.\n- Give every operation a unique lowerCamelCase operationId, a short summary and at least one response.\n- Put a shape used more than once in components.schemas and reference it with $ref; every $ref must point to a schema defined in this document.\n\nReturn only one JSON object and no markdown fences, in this shape:\n{\"openapi\": \"${openapi_version}\", \"info\": {\"title\": \"API title\", \"version\": \"1.0.0\"}, \"paths\": {\"/users/{id}\": {\"get\": {\"operationId\": \"getUserById\", \"summary\": \"Get one user\", \"parameters\": [{\"name\": \"id\", \"in\": \"path\", \"required\": true, \"schema\": {\"type\": \"string\"}}], \"responses\": {\"200\": {\"description\": \"The user\", \"content\": {\"application/json\": {\"schema\": {\"$ref\": \"#/components/schemas/User\"}}}}, \"404\": {\"description\": \"Not found\"}}}}}, \"components\": {\"schemas\": {\"User\": {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"string\"}, \"email\": {\"type\": \"string\", \"format\": \"email\"}}, \"required\": [\"id\", \"email\"]}}}}\n\nAPI:\n${text}\n",
+  "page_section_prompt.in": "You are an expert frontend engineer. Build a ${section_type} section for a website using ${styling}, based on the request below.\n\nRequirements:\n- Return only the HTML for the section inside a single markdown code block. No explanation and no full document (no <html>, <head> or <body> tags).\n- Make it responsive and accessible, with semantic elements, real-looking placeholder text and image placeholders with descriptive alt text.\n- Any needed CSS must be in one <style> tag at the top of the snippet, scoped with a unique class prefix so it can be pasted into an existing page.\n\nRequest: ${text}\n",
+  "prompt_example.in": "Example of good prompt engineering response:\n\nUser: Create a prompt: to {query} from {context}.\n\nAssistant: Given the following context:\n\ncontext:\n---------\n${context}\n\nExtract the specific information denoted by the query: ${query} from the provided context.",
+  "readme_prompt.in": "You are an expert technical writer. Write a README.md in Markdown for the project described below.\n\nRequirements:\n- Return only the Markdown content. No explanation and no surrounding code fence.\n- Start with a level-1 heading with the project name, then a one-paragraph description.\n- Include these level-2 sections: Features, Installation, Usage (with code examples), Configuration, Contributing and License.\n- Keep it concise, accurate to the description and free of invented facts; use placeholders where details are unknown.\n\nProject:\n${text}\n",
+  "regex_prompt.in": "You are a regular expression expert. Write a ${language} regular expression for the request below.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"pattern\": \"the pattern without surrounding slashes\", \"flags\": \"flags such as i or g, or an empty string\", \"explanation\": \"short explanation of each part\", \"matches\": [\"three example strings that must match\"], \"nonMatches\": [\"three example strings that must not match\"]}\n\nRules:\n- Escape backslashes for JSON (write \\\\d for a digit class).\n- Keep the pattern as simple as possible while still correct, and make sure every example in matches really matches and every example in nonMatches really does not.\n\nRequest: ${text}\n",
+  "release_notes_prompt.in": "You are a release manager. Write release notes in Markdown for the changes below.\n\nRequirements:\n- Return only the Markdown content. No explanation and no surrounding code fence.\n- Start with a level-2 heading \"${version}\" followed by a one-sentence summary.\n- Group changes under level-3 headings in this order, omitting empty groups: Highlights, New Features, Improvements, Bug Fixes, Breaking Changes, Other.\n- Write each change as a bullet from the user's point of view and keep the original ticket or PR references.\n\nChanges:\n${text}\n",
+  "sentiment_prompt.in": "Outputs sentiment analysis results in a standardized JSON format with sentiment values 'positive', 'negative', or 'neutral'. The format of the output should follow json and you can add muti sentiments i needed. output format should be always {\"results\": {\"positive\": 0 or 1, \"negative\": 0 or 1, \"neutral\": 0 or 1}}}}",
+  "seo_meta_prompt.in": "You are an SEO specialist. Create the metadata for the web page described below.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"title\": \"page title of at most 60 characters\", \"description\": \"meta description of 120 to 160 characters\", \"keywords\": [\"five to ten keywords\"], \"openGraph\": {\"og:title\": \"\", \"og:description\": \"\", \"og:type\": \"website\", \"og:url\": \"${url}\", \"og:image\": \"https://example.com/og-image.jpg\"}, \"twitter\": {\"twitter:card\": \"summary_large_image\", \"twitter:title\": \"\", \"twitter:description\": \"\"}, \"jsonLd\": {\"@context\": \"https://schema.org\", \"@type\": \"WebPage\", \"name\": \"\", \"description\": \"\"}}\n\nRules:\n- Use the site name \"${site_name}\" where relevant and choose the most specific schema.org @type for the page (for example Product, Article, Organization or FAQPage).\n- Return plain JSON values only: no HTML in any field.\n\nPage:\n${text}\n",
+  "sql_prompt.in": "You are an expert database engineer. Write ${dialect} SQL for the request below.\n\nRequirements:\n- Return only the SQL inside a single markdown code block. No explanation outside SQL comments.\n- Use valid ${dialect} syntax, explicit column lists and parameter placeholders for user-supplied values where appropriate.\n- Add indexes or constraints when they are clearly needed and keep the statements safe to run.\n${schema_section}\nRequest: ${text}\n",
+  "styles_prompt.in": "You are an expert CSS engineer. Write ${format} for the request below.\n\nRequirements:\n- Return only the code inside a single markdown code block. No explanation.\n- Use modern, responsive techniques (flexbox or grid, relative units, media queries) and keep selectors simple.\n- Include short comments only where they help.\n${html_section}\nRequest: ${text}\n",
+  "summary_prompt.in": "Provide a short summary of the following text:\\n\\n${text}\\n\\nSummary:",
+  "svg_icon_prompt.in": "You are an expert icon designer. Create an SVG icon for the request below.\n\nRequirements:\n- Return only the SVG markup, starting with <svg and ending with </svg>. No markdown and no explanation.\n- Use viewBox=\"0 0 24 24\", width=\"${size}\", height=\"${size}\" and a ${style} style.\n- Use currentColor for strokes and fills so the icon inherits the CSS color, and keep the shape simple and recognizable at small sizes.\n- Add role=\"img\" and a <title> element that describes the icon.\n\nRequest: ${text}\n",
+  "translate_strings_prompt.in": "You are a professional software localizer. Translate the user interface strings in the JSON below from ${source_language} to ${target_language}.\n\nRequirements:\n- Return only a JSON object with exactly the same keys and nesting as the input, and no markdown fences.\n- Translate only the string values. Keep placeholders such as {name}, {{count}}, %s, %d and {0}, and any HTML tags, exactly as they are.\n- Use natural, concise wording that fits buttons, labels and messages; keep brand and product names untranslated.\n\nStrings:\n${text}\n",
+  "unit_tests_prompt.in": "You are an expert in automated testing. Write ${framework} unit tests for the code below.\n\nRequirements:\n- Return only the complete test file inside a single markdown code block. No explanation.\n- Cover the normal behaviour, edge cases and error handling of every exported function or component.\n- Import the code under test from \"${module_path}\" and keep each test independent, readable and deterministic (mock network, time and randomness).\n\nCode:\n${text}\n"
+};
+
+},{}],32:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -6183,7 +8411,7 @@ class AudioHelper {
 module.exports = AudioHelper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./FileHelper":32,"buffer":22}],29:[function(require,module,exports){
+},{"./FileHelper":36,"buffer":24}],33:[function(require,module,exports){
 /* Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode */
 const { SemanticSearch } = require('../function/SemanticSearch');
@@ -6267,7 +8495,7 @@ class ChatContext {
 }
 
 module.exports = ChatContext;
-},{"../controller/RemoteEmbedModel":2,"../function/SemanticSearch":9}],30:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../function/SemanticSearch":9}],34:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -6285,10 +8513,27 @@ class ConnHelper {
   }
 
   static getErrorMessage(error) {
+    if (!error || typeof error !== 'object') return String(error);
     if (error.response && error.response.data) {
       return `Unexpected HTTP response: ${error.response.status} Error details: ${JSON.stringify(error.response.data)}`;
     }
     return error.message;
+  }
+
+  /**
+   * The error a wrapper rethrows: same message as before, keeping name (AbortError), code (ETIMEDOUT),
+   * status and body from the HTTP layer, with the original error as cause.
+   */
+  static wrapError(error) {
+    const wrapped = new Error(ConnHelper.getErrorMessage(error));
+    if (error && typeof error === 'object') {
+      if (error.name && error.name !== 'Error') wrapped.name = error.name;
+      for (const key of ['code', 'status', 'body']) {
+        if (error[key] !== undefined) wrapped[key] = error[key];
+      }
+      wrapped.cause = error;
+    }
+    return wrapped;
   }
 
   static readStream(stream) {
@@ -6350,114 +8595,294 @@ class ConnHelper {
 module.exports = ConnHelper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":22}],31:[function(require,module,exports){
+},{"buffer":24}],35:[function(require,module,exports){
+(function (process,Buffer){(function (){
 const fetch = require('cross-fetch');
 const FormData = require('form-data');
 
+// Statuses worth retrying: request timeout, conflict, too early, rate limit and server errors.
+const RETRY_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const MAX_BACKOFF_MS = 30000;
+const MAX_RETRY_AFTER_MS = 60000;
+// true in Node, false in the browser bundle (browserify's process shim has no versions.node)
+const IS_NODE = typeof process !== 'undefined' && Boolean(process.versions && process.versions.node);
+
+function isNativeFormData(data) {
+  return typeof globalThis.FormData !== 'undefined' && data instanceof globalThis.FormData;
+}
+
+function isFormData(data) {
+  return data instanceof FormData || isNativeFormData(data);
+}
+
+// node-fetch does not understand Node's global FormData, so copy it into a form-data instance.
+async function toNodeForm(data) {
+  const form = new FormData();
+  for (const [key, value] of data.entries()) {
+    if (typeof value === 'string') {
+      form.append(key, value);
+    } else {
+      form.append(key, Buffer.from(await value.arrayBuffer()), {
+        filename: value.name || 'blob',
+        ...(value.type && { contentType: value.type }),
+      });
+    }
+  }
+  return form;
+}
+
+function deleteContentType(headers) {
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === 'content-type') delete headers[key];
+  }
+}
+
+// Retry-After can be seconds or an HTTP date.
+function retryAfterMs(response) {
+  const header = response.headers && typeof response.headers.get === 'function' && response.headers.get('retry-after');
+  if (!header) return null;
+  const seconds = Number(header);
+  if (!Number.isNaN(seconds)) return seconds * 1000;
+  const date = Date.parse(header);
+  return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
+}
+
+// Resolves after ms, or rejects with an AbortError as soon as the caller's signal aborts.
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal && signal.aborted) {
+      reject(abortError());
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+// One AbortSignal that fires on the caller's signal or on the timeout.
+function linkSignal(signal, timeout) {
+  const controller = new AbortController();
+  const state = { signal: controller.signal, timedOut: false, timer: null };
+  if (timeout) {
+    state.timer = setTimeout(() => {
+      state.timedOut = true;
+      controller.abort();
+    }, timeout);
+  }
+  state.abort = () => controller.abort();
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', onAbort);
+  }
+  state.clearTimer = () => {
+    if (state.timer) clearTimeout(state.timer);
+    state.timer = null;
+  };
+  state.cleanup = () => {
+    state.clearTimer();
+    if (signal) signal.removeEventListener('abort', onAbort);
+  };
+  return state;
+}
+
+/**
+ * Small fetch wrapper shared by every provider wrapper: JSON or FormData bodies, JSON / stream / arraybuffer
+ * responses, a per-request timeout, retries with exponential backoff (honouring Retry-After) and AbortSignal.
+ *
+ * Defaults come from FetchClient.defaults and can be changed globally with FetchClient.configure({...}),
+ * per client with setRequestOptions({...}), or per call through extraConfig.
+ */
 class FetchClient {
-  constructor({ baseURL = '', headers = {} } = {}) {
+  constructor({ baseURL = '', headers = {}, timeout, retries, retryDelay, signal } = {}) {
     this.baseURL = baseURL;
     this.defaultHeaders = headers;
+    this.requestOptions = {};
+    this.setRequestOptions({ timeout, retries, retryDelay, signal });
+  }
+
+  /** Change the defaults for every FetchClient created afterwards. */
+  static configure(options = {}) {
+    for (const key of ['timeout', 'retries', 'retryDelay']) {
+      if (options[key] !== undefined) FetchClient.defaults[key] = options[key];
+    }
+    return FetchClient.defaults;
+  }
+
+  /** Set timeout (ms), retries, retryDelay (ms) or an AbortSignal for this client; undefined values are ignored. */
+  setRequestOptions(options = {}) {
+    for (const key of ['timeout', 'retries', 'retryDelay', 'signal']) {
+      if (options[key] !== undefined) this.requestOptions[key] = options[key];
+    }
+    return this;
+  }
+
+  resolveOptions(extraConfig) {
+    const pick = (key) => (extraConfig[key] !== undefined ? extraConfig[key]
+      : this.requestOptions[key] !== undefined ? this.requestOptions[key] : FetchClient.defaults[key]);
+    return {
+      timeout: pick('timeout') || 0,
+      retries: Math.max(0, pick('retries') || 0),
+      retryDelay: pick('retryDelay') || 0,
+      signal: extraConfig.signal || this.requestOptions.signal || null,
+    };
   }
 
   /**
-   * Send a POST request using cross-fetch.
-   * 
-   * @param {string} endpoint - URL path or full URL if starts with http.
+   * Send a POST request.
+   *
+   * @param {string} endpoint - URL path or full URL if it starts with http.
    * @param {object|FormData} data - Data to send in the request body.
-   * @param {object} extraConfig - Optional config (e.g. { responseType: 'arraybuffer' | 'stream' }).
-   * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or stream/arrayBuffer if specified.
+   * @param {object} extraConfig - Optional { headers, responseType: 'arraybuffer' | 'stream' | 'text', timeout, retries, retryDelay, signal }.
+   * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or the stream/arrayBuffer if specified.
    */
   async post(endpoint, data, extraConfig = {}) {
-    const url = endpoint.startsWith('http')
-      ? endpoint
-      : this.baseURL + endpoint;
+    return this.request('POST', endpoint, data, extraConfig);
+  }
 
-    // Decide how to handle the request body
+  /**
+   * Send a GET request.
+   *
+   * @param {string} endpoint - URL path or full URL if it starts with http.
+   * @param {object} extraConfig - Optional { headers, responseType: 'arraybuffer' | 'stream' | 'text', timeout, retries, retryDelay, signal }.
+   * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or the stream/arrayBuffer if specified.
+   */
+  async get(endpoint, extraConfig = {}) {
+    return this.request('GET', endpoint, undefined, extraConfig);
+  }
+
+  async request(method, endpoint, data, extraConfig = {}) {
+    const url = endpoint.startsWith('http') ? endpoint : this.baseURL + endpoint;
+    const headers = { ...this.defaultHeaders, ...(extraConfig.headers || {}) };
+
+    if (IS_NODE && isNativeFormData(data) && !(data instanceof FormData)) {
+      data = await toNodeForm(data);
+    }
+
     let body;
-    if (data instanceof FormData) {
-      // Use FormData directly (e.g., file uploads)
+    const formBody = isFormData(data);
+    if (formBody) {
       body = data;
+      // the multipart boundary header comes from the form (Node) or from fetch itself (browser)
+      deleteContentType(headers);
+      if (typeof data.getHeaders === 'function') Object.assign(headers, data.getHeaders());
     } else if (data !== undefined) {
-      // Assume JSON
       body = JSON.stringify(data);
     }
 
-    // Merge default and extra headers
-    const headers = {
-      ...this.defaultHeaders,
-      ...(extraConfig.headers || {})
-    };
+    const options = this.resolveOptions(extraConfig);
+    // a multipart body with file streams cannot be sent twice
+    const retries = formBody ? 0 : options.retries;
 
-    // If using FormData in Node, merge the form's headers
-    if (data instanceof FormData && typeof data.getHeaders === 'function') {
-      Object.assign(headers, data.getHeaders());
-    }
+    for (let attempt = 0; ; attempt++) {
+      if (options.signal && options.signal.aborted) throw abortError();
+      const link = linkSignal(options.signal, options.timeout);
+      let response;
+      try {
+        response = await fetch(url, { method, headers, body, signal: link.signal });
+      } catch (error) {
+        link.cleanup();
+        if (options.signal && options.signal.aborted) throw abortError();
+        const failure = link.timedOut ? timeoutError(options.timeout, url) : error;
+        if (attempt < retries) {
+          await sleep(backoff(attempt, options.retryDelay), options.signal);
+          continue;
+        }
+        throw failure;
+      }
 
-    const config = {
-      method: 'POST',
-      headers,
-      body
-    };
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        link.cleanup();
+        if (options.signal && options.signal.aborted) throw abortError();
+        if (attempt < retries && RETRY_STATUSES.has(response.status)) {
+          const wait = retryAfterMs(response);
+          await sleep(wait !== null && wait <= MAX_RETRY_AFTER_MS ? wait : backoff(attempt, options.retryDelay), options.signal);
+          continue;
+        }
+        const error = new Error(`HTTP error ${response.status}: ${errorText}`);
+        error.status = response.status;
+        error.body = errorText;
+        throw error;
+      }
 
-    // Make the request
-    const response = await fetch(url, config);
-
-    // Check for HTTP error
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error ${response.status}: ${errorText}`);
-    }
-
-    // Handle custom response types
-    if (extraConfig.responseType === 'arraybuffer') {
-      return await response.arrayBuffer();
-    } else if (extraConfig.responseType === 'stream') {
-      // Return raw body stream (ReadableStream in browser / Node 18+)
-      return response.body;
-    } else {
-      // Default: parse JSON
-      return await response.json();
-    }
-  }
-
-  /**
-   * Send a GET request using cross-fetch.
-   * 
-   * @param {string} endpoint - URL path or full URL if starts with http.
-   * @param {object} extraConfig - Optional config (e.g. { responseType: 'arraybuffer' }).
-   * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or stream/arrayBuffer if specified.
-   */
-  async get(endpoint, extraConfig = {}) {
-    const url = endpoint.startsWith('http')
-      ? endpoint
-      : this.baseURL + endpoint;
-
-    const headers = {
-      ...this.defaultHeaders,
-      ...(extraConfig.headers || {})
-    };
-
-    const response = await fetch(url, { method: 'GET', headers });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error ${response.status}: ${errorText}`);
-    }
-
-    if (extraConfig.responseType === 'arraybuffer') {
-      return await response.arrayBuffer();
-    } else if (extraConfig.responseType === 'stream') {
-      return response.body;
-    } else {
-      return await response.json();
+      if (extraConfig.responseType === 'stream') {
+        // the timeout covers the connection only; the caller's signal can still cancel the stream
+        link.clearTimer();
+        return releaseStream(response.body, link);
+      }
+      try {
+        if (extraConfig.responseType === 'arraybuffer') return await response.arrayBuffer();
+        if (extraConfig.responseType === 'text') return await response.text();
+        return await response.json();
+      } catch (error) {
+        // the timeout also covers the body download; a parse error is not retried
+        if (options.signal && options.signal.aborted) throw abortError();
+        if (!link.timedOut) throw error;
+        if (attempt < retries) {
+          link.cleanup();
+          await sleep(backoff(attempt, options.retryDelay), options.signal);
+          continue;
+        }
+        throw timeoutError(options.timeout, url);
+      } finally {
+        link.cleanup();
+      }
     }
   }
 }
 
+FetchClient.defaults = { timeout: 300000, retries: 2, retryDelay: 500 };
+
+function backoff(attempt, retryDelay) {
+  return Math.min(MAX_BACKOFF_MS, retryDelay * (2 ** attempt)) + Math.floor(Math.random() * 250);
+}
+
+// Tie the request to the body: the listener on the caller's signal is removed when the body finishes, and a
+// Node body destroyed before its end (e.g. a for-await loop that breaks) also aborts the request, otherwise the
+// paused socket stays open until the server has sent the whole response.
+function releaseStream(body, link) {
+  if (body && typeof body.once === 'function' && typeof body.on === 'function') {
+    body.once('close', () => {
+      if (!body.readableEnded) {
+        body.on('error', () => {});
+        link.abort();
+      }
+      link.cleanup();
+    });
+    return body;
+  }
+  if (body && typeof body.pipeThrough === 'function' && typeof TransformStream !== 'undefined') {
+    return body.pipeThrough(new TransformStream({
+      flush() { link.cleanup(); },
+      cancel() { link.cleanup(); },
+    }));
+  }
+  return body;
+}
+
+function timeoutError(timeout, url) {
+  return Object.assign(new Error(`Request timed out after ${timeout}ms: ${url}`), { code: 'ETIMEDOUT' });
+}
+
+function abortError() {
+  const error = new Error('The request was aborted.');
+  error.name = 'AbortError';
+  error.code = 'ABORT_ERR';
+  return error;
+}
+
 module.exports = FetchClient;
 
-},{"cross-fetch":23,"form-data":24}],32:[function(require,module,exports){
+}).call(this)}).call(this,require('_process'),require("buffer").Buffer)
+},{"_process":29,"buffer":24,"cross-fetch":25,"form-data":26}],36:[function(require,module,exports){
 const fs = require('fs');
 
 
@@ -6479,7 +8904,7 @@ class FileHelper {
 
 module.exports = FileHelper
 
-},{"fs":21}],33:[function(require,module,exports){
+},{"fs":23}],37:[function(require,module,exports){
 const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/RemoteEmbedModel');
 const LanguageModelInput = require('../model/input/LanguageModelInput');
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
@@ -6488,6 +8913,8 @@ const { ChatGPTInput, LLamaReplicateInput, LLamaSageInput, GeminiInput, CohereIn
 const MatchHelpers = require('../utils/MatchHelpers');
 const EmbedInput = require('../model/input/EmbedInput');
 const { ModelEvaluation } = require('./ModelEvaluation');
+const config = require('../config.json');
+const { isReasoningModel } = require('./ModelHelper');
 
 class LLMEvaluation extends ModelEvaluation {
 
@@ -6523,15 +8950,18 @@ class LLMEvaluation extends ModelEvaluation {
       } else if (SupportedChatModels.SAGEMAKER == provider.toLowerCase()) {
         input = new LLamaSageInput("provide direct answer", { maxTokens: maxTokens });
       } else if (SupportedChatModels.GEMINI == provider.toLowerCase()) {
-        input = new GeminiInput("provide direct answer", { maxTokens: maxTokens });
+        input = new GeminiInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.COHERE == provider.toLowerCase()) {
-        input = new CohereInput("provide direct answer", { maxTokens: maxTokens });
+        input = new CohereInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.MISTRAL == provider.toLowerCase()) {
         input = new MistralInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.ANTHROPIC == provider.toLowerCase()) {
         input = new AnthropicInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else {
-        input = new ChatGPTInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
+        const openaiModel = modelName || config.url.openai.models.chat;
+        // reasoning models (gpt-5+) spend output tokens on thinking, so only cap older models
+        input = new ChatGPTInput("provide direct answer",
+          isReasoningModel(openaiModel) ? { model: openaiModel } : { model: openaiModel, maxTokens: maxTokens });
       }
 
       input.addUserMessage(inputString);
@@ -6636,7 +9066,8 @@ class LLMEvaluation extends ModelEvaluation {
 module.exports = {
   LLMEvaluation
 };
-},{"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/EmbedInput":14,"../model/input/LanguageModelInput":18,"../utils/MatchHelpers":35,"./ModelEvaluation":36}],34:[function(require,module,exports){
+},{"../config.json":1,"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":7,"../model/input/ChatModelInput":14,"../model/input/EmbedInput":15,"../model/input/LanguageModelInput":19,"../utils/MatchHelpers":39,"./ModelEvaluation":40,"./ModelHelper":41}],38:[function(require,module,exports){
+(function (process){(function (){
 /*
 Apache License
 
@@ -6645,142 +9076,676 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 const fetch = require('cross-fetch');
-const connHelper = require('./ConnHelper');
+const rpc = require('../mcp/jsonrpc');
+const packageInfo = require('../package.json');
+
+const {
+  ERROR_CODES, MODERN_ERROR_CODES, MODERN_VERSIONS, LATEST_LEGACY_VERSION, META_KEYS, NAME_HEADER_FIELDS, JsonRpcError,
+} = rpc;
+
+const DEFAULT_TIMEOUT = 60000;
+// how long the server/discover era probe waits before a silent server is treated as legacy
+const DEFAULT_PROBE_TIMEOUT = 5000;
+const SHUTDOWN_GRACE = 2000;
+const MAX_LIST_PAGES = 1000;
+
+// Stop reading a response body and close its connection. node-fetch v2 keeps the socket open until the request is
+// aborted and reports that abort as an 'error' event on the body, so the body gets a no-op error listener first.
+// In the browser the body is a ReadableStream whose reader was already cancelled; the abort closes the request.
+function releaseBody(body, controller) {
+  if (body && typeof body.on === 'function') {
+    body.on('error', () => {});
+    if (typeof body.destroy === 'function' && !body.destroyed) body.destroy();
+  }
+  controller.abort();
+}
+
+class MCPTimeoutError extends Error {
+  constructor(method, timeout) {
+    super(`MCP request '${method}' timed out after ${timeout}ms`);
+    this.name = 'MCPTimeoutError';
+  }
+}
 
 /**
- * MCPClient - Simple Model Context Protocol client for connecting to MCP servers
- * Supports HTTP/SSE transport for tool execution and data retrieval
- * 
+ * MCPClient - Model Context Protocol client for Streamable HTTP and stdio servers.
+ *
+ * Talks the modern protocol (2026-07-28, per-request _meta, no sessions) and falls back to the legacy
+ * initialize handshake (2025-11-25 and earlier, Mcp-Session-Id over HTTP) when the server needs it.
+ *
  * Usage:
- * const mcpClient = new MCPClient('http://localhost:3000');
- * const tools = await mcpClient.getTools();
- * const result = await mcpClient.callTool('tool_name', { param: 'value' });
+ *   const client = new MCPClient('https://host/mcp');                              // Streamable HTTP
+ *   const client = new MCPClient({ url, headers: { Authorization: 'Bearer ..' } }); // with auth headers
+ *   const client = new MCPClient({ command: 'npx', args: ['-y', 'pkg'] });         // stdio subprocess
+ *   await client.connect();                         // handshake, then the tool list is fetched into client.tools
+ *   const tools = client.listTools();                // cached tools (sync); await client.fetchTools() refreshes them
+ *   const { text } = await client.callTool('tool_name', { param: 'value' });
+ *   await client.close();
  */
 class MCPClient {
-  constructor(serverUrl) {
-    this.serverUrl = serverUrl.replace(/\/$/, ''); // remove trailing slash
-    this.requestId = 0;
+  constructor(options = {}) {
+    const config = typeof options === 'string' ? { url: options } : { ...options };
+    if (!config.url && !config.command) {
+      throw new Error('MCPClient needs a url (Streamable HTTP) or a command (stdio subprocess)');
+    }
+    this.url = config.url ? String(config.url).replace(/(.)\/$/, '$1') : null;
+    this.headers = { ...(config.headers || {}) };
+    this.command = config.command || null;
+    this.args = Array.isArray(config.args) ? config.args.slice() : [];
+    this.env = config.env || null;
+    this.cwd = config.cwd || null;
+    this.transport = this.command ? 'stdio' : 'http';
+    this.timeout = config.timeout || DEFAULT_TIMEOUT;
+    this.probeTimeout = config.probeTimeout || DEFAULT_PROBE_TIMEOUT;
+    this.debug = Boolean(config.debug);
+    this.clientInfo = { name: config.name || 'intellinode', version: config.version || packageInfo.version };
+    this.onNotification = typeof config.onNotification === 'function' ? config.onNotification : null;
+
+    this.era = null; // 'modern' | 'legacy', cached per server
+    this.protocolVersion = null;
+    this.serverInfo = null;
+    this.capabilities = null;
+    this.instructions = null;
+    this.sessionId = null; // legacy HTTP only
     this.tools = [];
+    this.toolsFetched = false;
+    this.requestId = 0;
+    this.connecting = null; // the in-flight connect() promise, shared by concurrent first requests
+
+    this.process = null;
+    this.pending = new Map();
+    this.exitError = null;
   }
 
+  /** { name: MCPClient } from a Claude Desktop / Cursor style { mcpServers: { name: { command | url, ... } } }. */
+  static fromConfig(config, defaults = {}) {
+    const servers = config && config.mcpServers ? config.mcpServers : config || {};
+    const clients = {};
+    for (const [name, entry] of Object.entries(servers)) {
+      if (!entry || typeof entry !== 'object' || entry.disabled) continue;
+      clients[name] = new MCPClient({ ...defaults, ...entry });
+    }
+    return clients;
+  }
+
+  // ---------------------------------------------------------------------
+  // Lifecycle
+  // ---------------------------------------------------------------------
+
   /**
-   * Initialize connection to MCP server and fetch available tools
+   * Detect the server era, run the handshake and fetch the tool list into client.tools.
+   * Resolves with { protocolVersion, serverInfo, capabilities, instructions }; concurrent calls share one handshake.
    */
+  async connect() {
+    if (this.connecting) return this.connecting;
+    if (this.era) return this._info();
+    this.connecting = this._connect().finally(() => {
+      this.connecting = null;
+    });
+    return this.connecting;
+  }
+
+  async _connect() {
+    try {
+      if (this.transport === 'stdio') await this._spawn();
+      const probe = await this._probe(MODERN_VERSIONS[0]);
+      if (probe.kind === 'legacy') {
+        this._log(`legacy server detected (${probe.reason}); using the initialize handshake`);
+        await this._initializeLegacy();
+      } else {
+        this._applyDiscover(probe.result, probe.version);
+      }
+      await this._loadTools();
+    } catch (error) {
+      // a failed handshake must not leave a server process (and the parent event loop) or a legacy session behind
+      await this._release();
+      this.era = null;
+      this.protocolVersion = null;
+      this.sessionId = null;
+      this.toolsFetched = false;
+      throw error;
+    }
+    return this._info();
+  }
+
+  /** Connect when needed, fetch every tool and return the list (the intellinode 2.x entry point). */
   async initialize() {
     try {
-      this.tools = await this.getTools();
-      return this.tools;
+      return await this.fetchTools();
     } catch (error) {
       throw new Error(`Failed to initialize MCP client: ${error.message}`);
     }
   }
 
-  /**
-   * Get all available tools from MCP server
-   */
-  async getTools() {
-    try {
-      const response = await fetch(`${this.serverUrl}/mcp/tools`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+  /** End the stdio process or the legacy HTTP session; the client can connect() again afterwards. */
+  async close() {
+    await this._release();
+    this.era = null;
+    this.protocolVersion = null;
+    this.sessionId = null;
+    this.exitError = null;
+    this.toolsFetched = false; // the cached tools stay readable; a new connect() refreshes them
+  }
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  // Stop the stdio process, or DELETE the legacy HTTP session.
+  async _release() {
+    if (this.transport === 'stdio') {
+      await this._stopProcess();
+    } else if (this.era === 'legacy' && this.sessionId) {
+      try {
+        await this._fetch({ method: 'DELETE', headers: this._legacyHeaders() }, SHUTDOWN_GRACE);
+      } catch (error) {
+        this._log(`session DELETE ignored: ${error.message}`);
       }
-
-      const data = await response.json();
-      return data.tools || [];
-    } catch (error) {
-      throw new Error(`Failed to fetch tools from MCP server: ${error.message}`);
     }
   }
 
-  /**
-   * Call a specific tool on the MCP server
-   * @param {string} toolName - Name of the tool to call
-   * @param {object} input - Input parameters for the tool
-   * @returns {Promise<object>} Tool execution result
-   */
-  async callTool(toolName, input = {}) {
-    try {
-      const tool = this.tools.find(t => t.name === toolName);
-      if (!tool) {
-        throw new Error(`Tool '${toolName}' not found on MCP server`);
-      }
-
-      const payload = {
-        jsonrpc: '2.0',
-        id: ++this.requestId,
-        method: 'tools/call',
-        params: {
-          name: toolName,
-          arguments: input
-        }
-      };
-
-      const response = await fetch(`${this.serverUrl}/mcp/call`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(`Tool execution error: ${data.error.message}`);
-      }
-
-      return data.result || data;
-    } catch (error) {
-      throw new Error(`Failed to call tool '${toolName}': ${error.message}`);
-    }
+  _info() {
+    return {
+      protocolVersion: this.protocolVersion,
+      serverInfo: this.serverInfo,
+      capabilities: this.capabilities,
+      instructions: this.instructions,
+    };
   }
 
-  /**
-   * Get tool by name with full details
-   */
-  getTool(toolName) {
-    return this.tools.find(t => t.name === toolName) || null;
-  }
+  // ---------------------------------------------------------------------
+  // Tools
+  // ---------------------------------------------------------------------
 
-  /**
-   * Get all tool names
-   */
-  getToolNames() {
-    return this.tools.map(t => t.name);
-  }
-
-  /**
-   * Check if a tool exists
-   */
-  hasTool(toolName) {
-    return this.tools.some(t => t.name === toolName);
-  }
-
-  /**
-   * List tools with descriptions
-   */
+  /** The cached tool list (sync, as in intellinode 2.x): connect() fills it, fetchTools() refreshes it. */
   listTools() {
-    return this.tools.map(tool => ({
-      name: tool.name,
-      description: tool.description || 'No description available',
-      inputSchema: tool.inputSchema || {}
+    return this.tools;
+  }
+
+  /** Fetch every page of tools/list (connecting first when needed), cache the tools in client.tools and return them. */
+  async fetchTools() {
+    if (this.connecting || !this.era) {
+      await this.connect();
+      // the handshake fetched the list, so one connect() plus fetchTools() is still a single tools/list
+      if (this.toolsFetched) return this.tools;
+    }
+    return this._fetchToolPages();
+  }
+
+  /** Same as fetchTools(); the intellinode 2.x name. */
+  async getTools() {
+    return this.fetchTools();
+  }
+
+  // Part of connect(): a server without tools (method not found, or tools not advertised) leaves the cache empty.
+  async _loadTools() {
+    try {
+      await this._fetchToolPages();
+    } catch (error) {
+      const advertised = !this.capabilities || this.capabilities.tools !== undefined;
+      if (!(error instanceof JsonRpcError) || (error.code !== ERROR_CODES.METHOD_NOT_FOUND && advertised)) throw error;
+      this._log(`tools/list unavailable (${error.message}); the tool cache stays empty`);
+      this.tools = [];
+      this.toolsFetched = true;
+    }
+  }
+
+  async _fetchToolPages() {
+    const tools = [];
+    const seen = new Set();
+    let cursor;
+    for (let page = 0; page < MAX_LIST_PAGES; page++) {
+      const result = await this._request('tools/list', cursor !== undefined ? { cursor } : {});
+      tools.push(...(Array.isArray(result.tools) ? result.tools : []));
+      cursor = result.nextCursor;
+      if (cursor === undefined || cursor === null || cursor === '' || seen.has(cursor)) break;
+      seen.add(cursor);
+    }
+    this.tools = tools;
+    this.toolsFetched = true;
+    return tools;
+  }
+
+  /**
+   * Call a tool. Resolves with { content, structuredContent, isError, text } where text joins the text blocks;
+   * a protocol error (unknown tool, invalid params) rejects with a JsonRpcError.
+   */
+  async callTool(name, args = {}, { timeout } = {}) {
+    if (this.connecting || !this.era) await this.connect();
+    const result = await this._request('tools/call', { name, arguments: args || {} }, { timeout });
+    const content = Array.isArray(result.content) ? result.content : [];
+    return {
+      content,
+      structuredContent: result.structuredContent,
+      isError: Boolean(result.isError),
+      text: content
+        .filter((block) => block && block.type === 'text' && typeof block.text === 'string')
+        .map((block) => block.text)
+        .join('\n'),
+    };
+  }
+
+  /** Cached tools in the chat-completions tool format understood by the IntelliNode chat inputs. */
+  toChatTools() {
+    return this.tools.map((tool) => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description || tool.title || '',
+        parameters: tool.inputSchema || { type: 'object', properties: {} },
+      },
     }));
+  }
+
+  getTool(toolName) {
+    return this.tools.find((tool) => tool.name === toolName) || null;
+  }
+
+  getToolNames() {
+    return this.tools.map((tool) => tool.name);
+  }
+
+  hasTool(toolName) {
+    return this.tools.some((tool) => tool.name === toolName);
+  }
+
+  // ---------------------------------------------------------------------
+  // Era detection
+  // ---------------------------------------------------------------------
+
+  // Send server/discover; { kind: 'modern', result, version } or { kind: 'legacy', reason }.
+  async _probe(version, allowRetry = true) {
+    const message = rpc.request(this._nextId(), 'server/discover', { _meta: this._meta(version) });
+    let outcome;
+    if (this.transport === 'stdio') {
+      let reply;
+      try {
+        reply = await this._sendStdio(message, this.probeTimeout, false);
+      } catch (error) {
+        if (error instanceof MCPTimeoutError) return { kind: 'legacy', reason: 'no answer to server/discover' };
+        throw error;
+      }
+      outcome = this._classify(reply, null);
+    } else {
+      const reply = await this._postHttp(message, this._modernHeaders(message, version), this.timeout);
+      outcome = this._classify(reply.message, reply.status);
+    }
+
+    if (outcome.kind === 'retry') {
+      const supported = Array.isArray(outcome.supported) ? outcome.supported : [];
+      const mutual = MODERN_VERSIONS.find((candidate) => supported.includes(candidate));
+      if (!mutual || !allowRetry) {
+        throw new Error(`No mutually supported MCP protocol version: server supports ${supported.join(', ') || 'none'}, client supports ${MODERN_VERSIONS.join(', ')}`);
+      }
+      return this._probe(mutual, false);
+    }
+    return outcome.kind === 'modern' ? { ...outcome, version } : outcome;
+  }
+
+  // Modern servers answer with a DiscoverResult or a recognised modern error; anything else is legacy.
+  _classify(message, status) {
+    if (!message) return { kind: 'legacy', reason: status ? `HTTP ${status} without a JSON-RPC body` : 'empty reply' };
+    if ('result' in message) return { kind: 'modern', result: message.result };
+    const error = message.error || {};
+    if (error.code === ERROR_CODES.UNSUPPORTED_PROTOCOL_VERSION) {
+      return { kind: 'retry', supported: error.data && error.data.supported };
+    }
+    if (MODERN_ERROR_CODES.has(error.code)) throw rpc.errorFromResponse(message);
+    // a modern server without server/discover (spec violation) still answers 404 + method not found
+    if (status !== null && status >= 400 && status < 500 && error.code === ERROR_CODES.METHOD_NOT_FOUND) {
+      return { kind: 'modern', result: {} };
+    }
+    return { kind: 'legacy', reason: `server/discover answered ${error.code}: ${error.message}` };
+  }
+
+  _applyDiscover(result, version) {
+    const supported = Array.isArray(result.supportedVersions) ? result.supportedVersions : [version];
+    this.era = 'modern';
+    this.protocolVersion = supported.includes(version) ? version : (MODERN_VERSIONS.find((v) => supported.includes(v)) || version);
+    this.capabilities = result.capabilities || {};
+    this.serverInfo = (result._meta && result._meta[META_KEYS.serverInfo]) || null;
+    this.instructions = result.instructions || null;
+  }
+
+  async _initializeLegacy() {
+    this.era = 'legacy';
+    this.protocolVersion = LATEST_LEGACY_VERSION;
+    this.sessionId = null;
+    const params = { protocolVersion: LATEST_LEGACY_VERSION, capabilities: {}, clientInfo: this.clientInfo };
+    let result;
+    try {
+      result = await this._request('initialize', params, { legacyInit: true });
+    } catch (error) {
+      // a modern-only server names its versions when rejecting initialize; take the hint instead of failing
+      const supported = error && error.data && Array.isArray(error.data.supported) ? error.data.supported : [];
+      const mutual = MODERN_VERSIONS.find((candidate) => supported.includes(candidate));
+      if (!mutual) throw error;
+      this.era = null;
+      const probe = await this._probe(mutual, false);
+      if (probe.kind !== 'modern') throw error;
+      this._applyDiscover(probe.result, mutual);
+      return;
+    }
+    if (result.protocolVersion) this.protocolVersion = String(result.protocolVersion);
+    this.capabilities = result.capabilities || {};
+    this.serverInfo = result.serverInfo || null;
+    this.instructions = result.instructions || null;
+    await this._notify('notifications/initialized');
+  }
+
+  // ---------------------------------------------------------------------
+  // Requests
+  // ---------------------------------------------------------------------
+
+  _nextId() {
+    this.requestId += 1;
+    return this.requestId;
+  }
+
+  _meta(version) {
+    return {
+      [META_KEYS.protocolVersion]: version,
+      [META_KEYS.clientInfo]: this.clientInfo,
+      [META_KEYS.clientCapabilities]: {},
+    };
+  }
+
+  _withMeta(params) {
+    const base = params && typeof params === 'object' ? params : {};
+    return { ...base, _meta: { ...(base._meta || {}), ...this._meta(this.protocolVersion) } };
+  }
+
+  async _request(method, params = {}, { timeout, legacyInit = false } = {}) {
+    const wait = timeout || this.timeout;
+    const modern = this.era === 'modern';
+    const message = rpc.request(this._nextId(), method, modern ? this._withMeta(params) : params);
+
+    if (this.transport === 'stdio') {
+      const reply = await this._sendStdio(message, wait, true);
+      if (reply.error) throw rpc.errorFromResponse(reply);
+      return reply.result;
+    }
+
+    const headers = modern ? this._modernHeaders(message, this.protocolVersion) : this._legacyHeaders(legacyInit);
+    let reply = await this._postHttp(message, headers, wait);
+    // a legacy server that dropped the session answers 404: start a new one and retry once
+    if (!modern && !legacyInit && reply.status === 404 && this.sessionId) {
+      this._log('session expired; re-initializing');
+      await this._initializeLegacy();
+      reply = await this._postHttp(message, this._legacyHeaders(), wait);
+    }
+    if (legacyInit) {
+      const sessionId = reply.headers && reply.headers.get && reply.headers.get('mcp-session-id');
+      if (sessionId) this.sessionId = sessionId;
+    }
+    if (reply.message) {
+      if (reply.message.error) throw rpc.errorFromResponse(reply.message);
+      return reply.message.result;
+    }
+    throw new Error(`MCP request '${method}' failed: HTTP ${reply.status}${reply.text ? ` ${reply.text.slice(0, 200)}` : ''}`);
+  }
+
+  async _notify(method, params) {
+    const message = rpc.notification(method, this.era === 'modern' ? this._withMeta(params) : params);
+    if (this.transport === 'stdio') {
+      await this._writeStdio(message);
+      return;
+    }
+    const headers = this.era === 'modern' ? this._modernHeaders(message, this.protocolVersion) : this._legacyHeaders();
+    const reply = await this._postHttp(message, headers, this.timeout);
+    if (reply.status >= 400) {
+      throw new Error(`MCP notification '${method}' rejected: HTTP ${reply.status}`);
+    }
+  }
+
+  _emitNotification(message) {
+    if (this.onNotification) {
+      try {
+        this.onNotification(message);
+      } catch (error) {
+        this._log(`onNotification failed: ${error.message}`);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Streamable HTTP transport
+  // ---------------------------------------------------------------------
+
+  _modernHeaders(message, version) {
+    const headers = {
+      Accept: 'application/json, text/event-stream',
+      'Content-Type': 'application/json',
+      'MCP-Protocol-Version': version,
+      'Mcp-Method': message.method,
+    };
+    const field = NAME_HEADER_FIELDS[message.method];
+    if (field && message.params && message.params[field] !== undefined && message.params[field] !== null) {
+      headers['Mcp-Name'] = rpc.encodeHeaderValue(message.params[field]);
+    }
+    return headers;
+  }
+
+  _legacyHeaders(isInitialize = false) {
+    const headers = {
+      Accept: 'application/json, text/event-stream',
+      'Content-Type': 'application/json',
+    };
+    // the version header is only defined once a version has been negotiated
+    if (!isInitialize && this.protocolVersion) headers['MCP-Protocol-Version'] = this.protocolVersion;
+    if (!isInitialize && this.sessionId) headers['Mcp-Session-Id'] = this.sessionId;
+    return headers;
+  }
+
+  async _fetch(init, timeout) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      return await fetch(this.url, { ...init, headers: { ...this.headers, ...(init.headers || {}) }, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // POST one message; { status, headers, message (the matching JSON-RPC response or null), text }.
+  async _postHttp(message, headers, timeout) {
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeout);
+    try {
+      const response = await fetch(this.url, {
+        method: 'POST',
+        headers: { ...this.headers, ...headers },
+        body: rpc.serialize(message),
+        signal: controller.signal,
+      });
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      const reply = { status: response.status, headers: response.headers, message: null, text: '' };
+      if (response.status === 202 || response.status === 204) return reply;
+
+      if (contentType.includes('text/event-stream')) {
+        try {
+          for await (const item of rpc.readSSEMessages(response.body, (data) => this._log(`ignored SSE data: ${data}`))) {
+            if (rpc.isResponse(item) && rpc.isRequest(message) && String(item.id) === String(message.id)) {
+              reply.message = item;
+              break;
+            }
+            if (rpc.isNotification(item)) this._emitNotification(item);
+          }
+        } finally {
+          // the stream may stay open after the reply (keep-alives, later events): release the connection
+          releaseBody(response.body, controller);
+        }
+        return reply;
+      }
+
+      reply.text = await response.text();
+      if (reply.text) {
+        try {
+          const parsed = JSON.parse(reply.text);
+          const candidates = Array.isArray(parsed) ? parsed : [parsed];
+          reply.message = candidates.find((item) => rpc.isResponse(item)
+            && (!rpc.isRequest(message) || item.id === null || String(item.id) === String(message.id))) || null;
+        } catch (error) {
+          this._log(`non-JSON body (HTTP ${response.status})`);
+        }
+      }
+      return reply;
+    } catch (error) {
+      // only the timer counts as a timeout; releaseBody() also aborts, after the reply has been read
+      if (timedOut) throw new MCPTimeoutError(message.method, timeout);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // stdio transport
+  // ---------------------------------------------------------------------
+
+  async _spawn() {
+    if (this.process) return;
+    // required lazily: the browser bundle maps child_process and readline to empty modules
+    const { spawn } = require('child_process');
+    const readline = require('readline');
+    if (typeof spawn !== 'function' || typeof readline.createInterface !== 'function') {
+      throw new Error('The MCP stdio transport ({ command }) needs Node.js; in the browser use { url } (Streamable HTTP)');
+    }
+
+    this.exitError = null;
+    const child = spawn(this.command, this.args, {
+      cwd: this.cwd || undefined,
+      env: this.env ? { ...process.env, ...this.env } : process.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    this.process = child;
+
+    // a child that was already replaced by close() + connect() must not fail the new one
+    const current = () => !this.process || this.process === child;
+    child.on('error', (error) => {
+      if (!current()) return;
+      this.exitError = new Error(`Failed to start MCP server '${this.command}': ${error.message}`);
+      this._failAll(this.exitError);
+    });
+    child.on('exit', (code, signal) => {
+      if (!current()) return;
+      const reason = signal ? `signal ${signal}` : `code ${code}`;
+      this.exitError = new Error(`MCP server process '${this.command}' exited (${reason})`);
+      this._failAll(this.exitError);
+    });
+    child.stdin.on('error', (error) => this._failAll(new Error(`MCP server stdin closed: ${error.message}`)));
+    child.stderr.on('data', (chunk) => {
+      if (this.debug) process.stderr.write(`[mcp:${this.command}] ${chunk}`);
+    });
+    readline.createInterface({ input: child.stdout, crlfDelay: Infinity, terminal: false })
+      .on('line', (line) => this._onLine(line));
+  }
+
+  _onLine(line) {
+    if (!line.trim()) return;
+    let message;
+    try {
+      message = rpc.parseMessage(line);
+    } catch (error) {
+      this._log(`ignored stdout line: ${line.slice(0, 200)}`);
+      return;
+    }
+    if (rpc.isResponse(message)) {
+      const entry = this.pending.get(String(message.id));
+      if (!entry) return;
+      this.pending.delete(String(message.id));
+      clearTimeout(entry.timer);
+      entry.resolve(message);
+    } else if (rpc.isNotification(message)) {
+      this._emitNotification(message);
+    } else if (rpc.isRequest(message)) {
+      // legacy servers may ask for roots or sampling; this client offers neither
+      this._writeStdio(rpc.errorResponse(message.id, ERROR_CODES.METHOD_NOT_FOUND, `Method not supported by client: ${message.method}`)).catch(() => {});
+    }
+  }
+
+  _writeStdio(message) {
+    return new Promise((resolve, reject) => {
+      if (this.exitError) return reject(this.exitError);
+      if (!this.process || !this.process.stdin.writable) return reject(new Error('MCP server process is not running'));
+      try {
+        this.process.stdin.write(`${rpc.serialize(message)}\n`, (error) => (error ? reject(error) : resolve()));
+      } catch (error) {
+        reject(error);
+      }
+      return undefined;
+    });
+  }
+
+  _sendStdio(message, timeout, cancelOnTimeout) {
+    const key = String(message.id);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(key);
+        if (cancelOnTimeout) {
+          this._notify('notifications/cancelled', { requestId: message.id, reason: 'timeout' }).catch(() => {});
+        }
+        reject(new MCPTimeoutError(message.method, timeout));
+      }, timeout);
+      this.pending.set(key, { resolve, reject, timer });
+      this._writeStdio(message).catch((error) => {
+        if (this.pending.delete(key)) {
+          clearTimeout(timer);
+          reject(error);
+        }
+      });
+    });
+  }
+
+  _failAll(error) {
+    for (const [key, entry] of this.pending) {
+      this.pending.delete(key);
+      clearTimeout(entry.timer);
+      entry.reject(error);
+    }
+  }
+
+  // Close stdin, wait, then escalate to SIGTERM and SIGKILL.
+  async _stopProcess() {
+    const child = this.process;
+    if (!child) return;
+    this.process = null;
+    this._failAll(new Error('MCP client closed'));
+
+    const exited = new Promise((resolve) => {
+      if (child.exitCode !== null || child.signalCode !== null) resolve(true);
+      else child.once('exit', () => resolve(true));
+    });
+    const wait = (ms) => Promise.race([exited, new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), ms);
+      if (timer.unref) timer.unref();
+    })]);
+
+    try {
+      child.stdin.end();
+    } catch (error) {
+      // already closed
+    }
+    if (await wait(SHUTDOWN_GRACE)) return;
+    child.kill('SIGTERM');
+    if (await wait(SHUTDOWN_GRACE)) return;
+    child.kill('SIGKILL');
+    await wait(SHUTDOWN_GRACE);
+  }
+
+  _log(text) {
+    if (this.debug) process.stderr.write(`[MCPClient] ${text}\n`);
   }
 }
 
+MCPClient.MCPTimeoutError = MCPTimeoutError;
+MCPClient.JsonRpcError = JsonRpcError;
+
 module.exports = MCPClient;
 
-},{"./ConnHelper":30,"cross-fetch":23}],35:[function(require,module,exports){
+}).call(this)}).call(this,require('_process'))
+},{"../mcp/jsonrpc":13,"../package.json":30,"_process":29,"child_process":23,"cross-fetch":25,"readline":23}],39:[function(require,module,exports){
 /*
 Apache License
 
@@ -6826,7 +9791,7 @@ class MatchHelpers {
 }
 
 module.exports = MatchHelpers;
-},{}],36:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 class ModelEvaluation {
 
   constructor() {}
@@ -6835,11 +9800,543 @@ class ModelEvaluation {
 module.exports = {
   ModelEvaluation
 };
-},{}],37:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+
+// Trailing tokens that force a gpt-5+ model onto /v1/chat/completions instead of /v1/responses.
+const CHAT_ROUTE_OVERRIDE_SUFFIXES = [':chat', '#chat', '|chat'];
+
+// "<family>-<major>[-<minor>]" inside a Claude id, e.g. claude-opus-4-8 -> (opus, 4, 8).
+// The trailing (?!\d) keeps date suffixes (-20251001) and legacy "claude-3-7-sonnet-..." ids out.
+const CLAUDE_VERSION_RE = /(opus|sonnet|haiku|fable|mythos)-(\d{1,2})(?:-(\d{1,2}))?(?!\d)/;
+
+function hasRouteOverride(model) {
+  if (!model) return false;
+  const lowered = String(model).toLowerCase().trim();
+  return CHAT_ROUTE_OVERRIDE_SUFFIXES.some((suffix) => lowered.endsWith(suffix));
+}
+
+/** Remove a trailing :chat / #chat / |chat token so the API receives a clean model id. */
+function stripRouteOverride(model) {
+  if (!hasRouteOverride(model)) return model;
+  const trimmed = String(model).trim();
+  const suffix = CHAT_ROUTE_OVERRIDE_SUFFIXES.find((s) => trimmed.toLowerCase().endsWith(s));
+  return trimmed.slice(0, -suffix.length);
+}
+
+// Matches "gpt-<major>" anywhere in the name, as earlier releases routed any name containing
+// "gpt-5" (e.g. Azure deployments like "prod-gpt-5") to the Responses API.
+function gptMajorVersion(model) {
+  const match = /gpt-(\d+)/.exec(String(model || '').toLowerCase().trim());
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * True for OpenAI gpt-5 and newer models, which use the /v1/responses endpoint.
+ * A ":chat" suffix keeps a gpt-5+ model or deployment on chat completions.
+ */
+function isReasoningModel(model) {
+  if (!model || hasRouteOverride(model)) return false;
+  const major = gptMajorVersion(model);
+  return major !== null && major >= 5;
+}
+
+/** True for chat-completions models that need max_completion_tokens and reject custom temperature (o-series, gpt-5+). */
+function isReasoningChatModel(model) {
+  const cleaned = String(stripRouteOverride(model) || '').toLowerCase().trim();
+  if (/^o\d+(?:-|$)/.test(cleaned)) return true;
+  const major = gptMajorVersion(cleaned);
+  return major !== null && major >= 5;
+}
+
+/** The *-pro reasoning models only accept medium/high/xhigh effort. */
+function defaultReasoningEffort(model) {
+  return String(model || '').toLowerCase().includes('-pro') ? 'medium' : 'low';
+}
+
+/**
+ * True for Claude models that reject temperature/top_p/top_k (Opus 4.7+ and the Claude 5 family).
+ * Sonnet 4.x, Opus <= 4.6 and Haiku 4.5 still accept them.
+ */
+function claudeRejectsSamplingParams(model) {
+  if (!model) return false;
+  const lowered = String(model).toLowerCase();
+  if (lowered.includes('mythos-preview')) return true;
+
+  const match = CLAUDE_VERSION_RE.exec(lowered);
+  if (!match) return false;
+  const family = match[1];
+  const major = parseInt(match[2], 10);
+  const minor = match[3] !== undefined ? parseInt(match[3], 10) : null;
+  if (major >= 5) return true;
+  return family === 'opus' && major === 4 && minor !== null && minor >= 7;
+}
+
+// Tools can be written in chat-completions format ({type:'function', function:{...}}) or the flat
+// Responses format ({type:'function', name, parameters}); these helpers convert to what each API expects.
+// Accepts chat-completions tools ({ type, function }), Responses tools ({ type, name, parameters }) and plain
+// definitions ({ name, description, parameters | input_schema }); returns the chat-completions shape.
+function toChatTools(tools) {
+  if (!Array.isArray(tools)) return tools;
+  return tools.map((tool) => {
+    if (!tool || typeof tool !== 'object' || tool.function) return tool;
+    const plain = !tool.type && tool.name && (tool.parameters || tool.input_schema || tool.description);
+    if ((tool.type === 'function' || plain) && tool.name) {
+      const { name, description, strict } = tool;
+      const parameters = tool.parameters !== undefined ? tool.parameters : tool.input_schema;
+      return {
+        type: 'function',
+        function: {
+          name,
+          ...(description !== undefined && { description }),
+          ...(parameters !== undefined && { parameters }),
+          ...(strict !== undefined && { strict }),
+        },
+      };
+    }
+    return tool;
+  });
+}
+
+function toResponsesTools(tools) {
+  if (!Array.isArray(tools)) return tools;
+  return toChatTools(tools).map((tool) => (tool && tool.type === 'function' && tool.function ? { type: 'function', ...tool.function } : tool));
+}
+
+// Function tools (chat-completions, Responses or plain { name, description, parameters }) become Anthropic tools,
+// keeping extra fields such as strict or cache_control; Anthropic-native tools pass through unchanged.
+function toAnthropicTools(tools) {
+  if (!Array.isArray(tools)) return tools;
+  return tools.map((tool) => {
+    if (!tool || typeof tool !== 'object' || tool.input_schema || (tool.type && tool.type !== 'function')) return tool;
+    if (tool.type !== 'function' && !tool.function && tool.parameters === undefined) return tool;
+    const source = tool.function ? { ...tool.function } : { ...tool };
+    const { type, handler, name, description, parameters, ...extra } = source;
+    return {
+      name,
+      ...(description !== undefined && { description }),
+      input_schema: parameters || { type: 'object', properties: {} },
+      ...extra,
+    };
+  });
+}
+
+function toChatToolChoice(choice) {
+  if (choice && typeof choice === 'object' && choice.type === 'function' && !choice.function && choice.name) {
+    return { type: 'function', function: { name: choice.name } };
+  }
+  return choice;
+}
+
+function toResponsesToolChoice(choice) {
+  if (choice && typeof choice === 'object' && choice.type === 'function' && choice.function) {
+    return { type: 'function', name: choice.function.name };
+  }
+  return choice;
+}
+
+function toAnthropicToolChoice(choice) {
+  if (typeof choice === 'string') {
+    const mapped = { auto: { type: 'auto' }, any: { type: 'any' }, required: { type: 'any' }, none: { type: 'none' } };
+    return mapped[choice] || choice;
+  }
+  if (choice && typeof choice === 'object' && choice.type === 'function') {
+    return { type: 'tool', name: choice.function ? choice.function.name : choice.name };
+  }
+  return choice;
+}
+
+/** Convert legacy chat-completions `functions` / `function_call` into tools / tool_choice. */
+function functionsToTools(functions) {
+  if (!Array.isArray(functions)) return functions;
+  return functions.map((fn) => ({ type: 'function', function: fn }));
+}
+
+function functionCallToToolChoice(functionCall) {
+  if (functionCall && typeof functionCall === 'object' && functionCall.name) {
+    return { type: 'function', function: { name: functionCall.name } };
+  }
+  return functionCall;
+}
+
+module.exports = {
+  stripRouteOverride,
+  isReasoningModel,
+  isReasoningChatModel,
+  defaultReasoningEffort,
+  claudeRejectsSamplingParams,
+  toChatTools,
+  toResponsesTools,
+  toAnthropicTools,
+  toChatToolChoice,
+  toResponsesToolChoice,
+  toAnthropicToolChoice,
+  functionsToTools,
+  functionCallToToolChoice,
+};
+
+},{}],42:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+
+/**
+ * Remove inline reasoning that some models (DeepSeek on NVIDIA, vLLM) put before the answer.
+ * Only a leading <think>...</think> block, or a closing tag when the chat template opened the block itself,
+ * is removed; tags mentioned later in the answer are kept. A reasoning block that never closes (the output
+ * budget ran out while thinking) leaves no answer, so an empty string is returned.
+ * Use it only for providers that return reasoning inline.
+ */
+function stripThinking(text) {
+  const trimmed = String(text || '').trim();
+  if (trimmed.startsWith('<think>')) {
+    const close = trimmed.indexOf('</think>');
+    return close === -1 ? '' : trimmed.slice(close + '</think>'.length).trim();
+  }
+  const close = trimmed.indexOf('</think>');
+  if (close !== -1 && !trimmed.slice(0, close).includes('<think>')) {
+    return trimmed.slice(close + '</think>'.length).trim();
+  }
+  return trimmed;
+}
+
+// A fence line: at most three spaces of indentation, three or more backticks or tildes, then an optional info string.
+function parseFence(line) {
+  const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  if (!match) return null;
+  const info = match[2].trim();
+  if (match[1][0] === '`' && info.includes('`')) return null;
+  return {
+    char: match[1][0],
+    length: match[1].length,
+    info,
+    lang: (info.split(/\s+/)[0] || '').toLowerCase(),
+  };
+}
+
+function closesFence(fence, opener) {
+  return Boolean(fence) && !fence.info && fence.char === opener.char && fence.length >= opener.length;
+}
+
+// Split text into fenced blocks. A fence with an info string never closes a block, and a closing fence
+// must use the same character and at least as many of them as the opening fence (CommonMark rules).
+function scanBlocks(text) {
+  const blocks = [];
+  let current = null;
+  for (const line of String(text || '').replace(/\r\n/g, '\n').split('\n')) {
+    const fence = parseFence(line);
+    if (!current) {
+      if (fence) current = { opener: fence, lines: [], closed: false };
+      continue;
+    }
+    if (closesFence(fence, current.opener)) {
+      current.closed = true;
+      blocks.push(current);
+      current = null;
+    } else {
+      current.lines.push(line);
+    }
+  }
+  if (current) blocks.push(current);
+  return blocks.map((block) => ({
+    lang: block.opener.lang,
+    code: block.lines.join('\n').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, ''),
+    closed: block.closed,
+  }));
+}
+
+// A block whose content starts with another fence is a wrapper (e.g. ```markdown around ```javascript): use the inner blocks.
+function expandWrappers(blocks) {
+  const result = [];
+  for (const block of blocks) {
+    const firstLine = block.code.split('\n').find((line) => line.trim());
+    if (firstLine && parseFence(firstLine)) {
+      const inner = scanBlocks(block.code).map((innerBlock) => ({ ...innerBlock, closed: innerBlock.closed || block.closed }));
+      result.push(...expandWrappers(inner));
+    } else {
+      result.push(block);
+    }
+  }
+  return result;
+}
+
+/**
+ * All markdown code blocks in the text as [{ lang, code }].
+ * A block cut off at the end of the text (truncated output) is kept when no block was closed, or when it is
+ * language-tagged and longer than every closed block (the main code after a short setup snippet).
+ */
+function extractBlocks(text) {
+  const blocks = expandWrappers(scanBlocks(text)).filter((block) => block.code.trim());
+  const closed = blocks.filter((block) => block.closed);
+  const longestClosed = closed.reduce((max, block) => Math.max(max, block.code.length), 0);
+  return blocks
+    .filter((block) => block.closed || closed.length === 0 || (block.lang && block.code.length > longestClosed))
+    .map(({ lang, code }) => ({ lang, code }));
+}
+
+/**
+ * Return the code from the block tagged `language`, otherwise the longest block
+ * (models sometimes add a short block, e.g. a usage example, next to the real one).
+ * Text without fences is returned trimmed.
+ */
+function extractCode(text, language = null) {
+  const blocks = extractBlocks(text);
+  if (language) {
+    const wanted = blocks.find((block) => block.lang === String(language).toLowerCase());
+    if (wanted) return wanted.code;
+  }
+  if (blocks.length > 0) {
+    return blocks.reduce((best, block) => (block.code.length > best.code.length ? block : best)).code;
+  }
+  return String(text || '').trim();
+}
+
+const WRAPPER_LANGS = new Set(['', 'markdown', 'md', 'mdx']);
+
+function isShortRemark(lines) {
+  const remarks = lines.filter((line) => line.trim());
+  return remarks.length === 0 || (remarks.length === 1 && remarks[0].length <= 200 && !/^\s*#/.test(remarks[0]));
+}
+
+// The inner fences of a real wrapper pair up: every opening fence has its closing fence.
+function hasBalancedFences(lines) {
+  let open = null;
+  for (const line of lines) {
+    const fence = parseFence(line);
+    if (!fence) continue;
+    if (!open) open = fence;
+    else if (closesFence(fence, open)) open = null;
+  }
+  return open === null;
+}
+
+/**
+ * Markdown answers are sometimes wrapped in a ```markdown (or ````markdown) fence, even with code blocks inside;
+ * unwrap it. The wrapper may only follow a short lead-in ("Here is the README:"), must close on the last fence
+ * line with at most one short sign-off after it, and must contain balanced inner fences. Anything else, such as
+ * a ```markdown example inside an explanation, is returned unchanged.
+ */
+function extractMarkdown(text) {
+  const cleaned = String(text || '').trim();
+  const lines = cleaned.split('\n');
+  const openIndex = lines.findIndex((line) => parseFence(line));
+  if (openIndex === -1) return cleaned;
+  const opener = parseFence(lines[openIndex]);
+  if (!WRAPPER_LANGS.has(opener.lang) || !isShortRemark(lines.slice(0, openIndex))) return cleaned;
+
+  let closeIndex = -1;
+  for (let i = lines.length - 1; i > openIndex; i--) {
+    if (closesFence(parseFence(lines[i]), opener)) {
+      closeIndex = i;
+      break;
+    }
+  }
+  if (closeIndex === -1) {
+    // an unterminated ```markdown wrapper at the start is a truncated document
+    const truncated = openIndex === 0 && opener.lang && hasBalancedFences(lines.slice(1));
+    return truncated ? lines.slice(1).join('\n').trim() : cleaned;
+  }
+  const body = lines.slice(openIndex + 1, closeIndex);
+  if (!isShortRemark(lines.slice(closeIndex + 1)) || !hasBalancedFences(body)) return cleaned;
+  return body.join('\n').trim();
+}
+
+function dropTrailingComma(out) {
+  let i = out.length - 1;
+  while (i >= 0 && /\s/.test(out[i])) i--;
+  return out[i] === ',' ? out.slice(0, i) + out.slice(i + 1) : out;
+}
+
+/**
+ * Fix the JSON mistakes models make most: raw newlines/tabs inside strings, trailing commas, and single
+ * backslashes from regexes or file paths (\d, \b, \u without four hex digits), which are kept as literal
+ * backslashes. Structure outside strings is only touched to drop trailing commas.
+ */
+function repairJson(text) {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === '\\') {
+        const next = text[i + 1];
+        if (next === undefined) {
+          out += '\\\\';
+          continue;
+        }
+        const unicode = next === 'u' && /^[0-9a-fA-F]{4}$/.test(text.slice(i + 2, i + 6));
+        out += '"\\/nrt'.includes(next) || unicode ? ch + next : `\\\\${next}`;
+        i++;
+      } else if (ch === '"') {
+        inString = false;
+        out += ch;
+      } else if (ch === '\n') {
+        out += '\\n';
+      } else if (ch === '\r') {
+        out += '\\r';
+      } else if (ch === '\t') {
+        out += '\\t';
+      } else {
+        out += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === '}' || ch === ']') {
+      out = dropTrailingComma(out);
+    }
+    out += ch;
+  }
+  return out;
+}
+
+function matchesKind(value, kind) {
+  if (kind === 'array') return Array.isArray(value);
+  if (kind === 'object') return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return true;
+}
+
+function tryParse(candidate, kind) {
+  for (const attempt of [candidate, repairJson(candidate)]) {
+    try {
+      const value = JSON.parse(attempt);
+      return matchesKind(value, kind) ? { value } : null;
+    } catch (error) {
+      // try the repaired text next
+    }
+  }
+  return null;
+}
+
+// Find the first balanced JSON object or array (respecting strings and escapes) that parses and has the wanted kind.
+// A balanced candidate that is rejected is skipped as a whole, so a nested value is never returned in its place;
+// an opening bracket that never closes (stray prose) is skipped by itself.
+function findBalancedJson(text, kind) {
+  let start = 0;
+  while (start < text.length) {
+    const open = text[start];
+    if (open !== '{' && open !== '[') {
+      start++;
+      continue;
+    }
+    // a balanced value of the other kind is still skipped as a whole, so nothing nested inside it is returned
+    const wanted = (open === '{' && kind !== 'array') || (open === '[' && kind !== 'object');
+    const close = open === '{' ? '}' : ']';
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let end = -1;
+    for (let i = start; i < text.length; i++) {
+      const ch = text[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === open) depth++;
+      else if (ch === close) {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    if (end === -1) {
+      start++;
+      continue;
+    }
+    const parsed = wanted ? tryParse(text.slice(start, end + 1), kind) : null;
+    if (parsed) return parsed.value;
+    start = end + 1;
+  }
+  return undefined;
+}
+
+/**
+ * Parse JSON from model output that may include prose, markdown fences or small syntax slips.
+ * @param {string} text - the model output.
+ * @param {string|null} kind - 'object' or 'array' to only accept that kind of value.
+ */
+function parseJson(text, kind = null) {
+  const cleaned = String(text || '').trim();
+  const jsonBlocks = extractBlocks(cleaned).filter((block) => block.lang === 'json').map((block) => block.code);
+  for (const candidate of [cleaned, ...jsonBlocks, extractCode(cleaned)]) {
+    const parsed = tryParse(candidate, kind);
+    if (parsed) return parsed.value;
+  }
+  const found = findBalancedJson(cleaned, kind);
+  if (found !== undefined) return found;
+  const expected = kind ? `a JSON ${kind}` : 'valid JSON';
+  throw new Error(`The model response is not ${expected}: ${cleaned.slice(0, 200)}`);
+}
+
+// Every <svg>...</svg> element in the source, as { openTag, svg }.
+function svgElements(source) {
+  const elements = [];
+  const lower = source.toLowerCase();
+  const opener = /<svg\b[^>]*>/gi;
+  let match;
+  while ((match = opener.exec(source)) !== null) {
+    const end = lower.indexOf('</svg>', opener.lastIndex);
+    if (end === -1) break;
+    elements.push({ openTag: match[0], svg: source.slice(match.index, end + '</svg>'.length) });
+  }
+  return elements;
+}
+
+/**
+ * Return an SVG element from model output. Blocks tagged svg, xml or html (or untagged) are searched first,
+ * then the other blocks and the raw text. A real SVG (viewBox or xmlns, no JSX expressions) is preferred.
+ */
+function extractSvg(text) {
+  const source = String(text || '');
+  const blocks = extractBlocks(source);
+  const markupLangs = ['svg', 'xml', 'html', ''];
+  const candidates = [
+    ...blocks.filter((block) => markupLangs.includes(block.lang)).map((block) => block.code),
+    ...blocks.filter((block) => !markupLangs.includes(block.lang)).map((block) => block.code),
+    source,
+  ];
+  let plain = null;
+  let jsx = null;
+  for (const candidate of candidates) {
+    for (const element of svgElements(candidate)) {
+      if (element.openTag.includes('{')) {
+        jsx = jsx || element.svg;
+      } else if (/\b(viewBox|xmlns)\s*=/i.test(element.openTag)) {
+        return element.svg;
+      } else {
+        plain = plain || element.svg;
+      }
+    }
+  }
+  if (plain || jsx) return plain || jsx;
+  throw new Error(`The model response does not contain an <svg> element: ${source.trim().slice(0, 200)}`);
+}
+
+module.exports = { stripThinking, extractBlocks, extractCode, extractMarkdown, repairJson, parseJson, extractSvg };
+
+},{}],43:[function(require,module,exports){
 const FileHelper = require('./FileHelper')
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
 const SystemHelper = require("../utils/SystemHelper");
+const config = require('../config.json');
+const { isReasoningModel } = require('./ModelHelper');
 
 class Prompt {
   constructor(template) {
@@ -6851,18 +10348,11 @@ class Prompt {
   }
 
   format(data) {
-    const regex = /\$\{([^}]+)\}/g;
-    let result = this.template;
-    let match;
-
-    while ((match = regex.exec(this.template)) !== null) {
-      const key = match[1];
-      const value = data.hasOwnProperty(key) ? data[key] : '';
-
-      result = result.replace(match[0], value);
-    }
-
-    return result;
+    // single pass with a replacer function: inserted values (user code, diffs) are never
+    // re-scanned for placeholders and replacement patterns such as "$1" inside them are kept as-is
+    return this.template.replace(/\$\{([^}]+)\}/g, (match, key) => (
+      Object.prototype.hasOwnProperty.call(data, key) ? String(data[key]) : ''
+    ));
   }
 
   static fromText(template) {
@@ -6874,17 +10364,18 @@ class Prompt {
     return new Prompt(template);
   }
 
-  static async fromChatGPT(promptTopic, apiKey, customProxyHelper=null, model='gpt-4') {
+  static async fromChatGPT(promptTopic, apiKey, customProxyHelper=null, model=config.url.openai.models.chat) {
 
     const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
 
     const promptExample = new SystemHelper().loadPrompt("prompt_example");
 
-    const input = new ChatGPTInput("generate a prompt text, following prompt engineering best practices", 
-                              { maxTokens: 800, model: model, temperature: 0.7 });
+    // reasoning models (gpt-5+) spend output tokens on thinking, so only cap older models
+    const options = isReasoningModel(model) ? { model: model } : { maxTokens: 800, model: model, temperature: 0.7 };
+    const input = new ChatGPTInput("generate a prompt text, following prompt engineering best practices", options);
     input.addUserMessage(promptExample);
     input.addUserMessage(`Create a prompt: ${promptTopic}`);
-    
+
     const responses = await chatbot.chat(input);
 
     return new Prompt(responses[0].trim());
@@ -6892,7 +10383,8 @@ class Prompt {
 }
 
 module.exports = Prompt;
-},{"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../utils/SystemHelper":40,"./FileHelper":32}],38:[function(require,module,exports){
+
+},{"../config.json":1,"../function/Chatbot":7,"../model/input/ChatModelInput":14,"../utils/SystemHelper":46,"./FileHelper":36,"./ModelHelper":41}],44:[function(require,module,exports){
 const config = require('../config.json');
 
 
@@ -7100,7 +10592,8 @@ ProxyHelper.API_VERSION = '2023-12-01-preview'
 
 module.exports = ProxyHelper;
 
-},{"../config.json":1}],39:[function(require,module,exports){
+},{"../config.json":1}],45:[function(require,module,exports){
+(function (Buffer){(function (){
 /*
 Apache License
 
@@ -7108,7 +10601,155 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+
+/**
+ * Iterate a fetch response body as decoded text.
+ * Handles Node streams (Buffer chunks) and browser ReadableStreams (Uint8Array chunks),
+ * including browsers without async iteration on ReadableStream (Safari).
+ */
+async function* readStreamChunks(stream) {
+    const decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null;
+    const decode = (chunk) => {
+        if (typeof chunk === 'string') return chunk;
+        if (decoder) return decoder.decode(chunk, { stream: true });
+        return Buffer.from(chunk).toString('utf8');
+    };
+
+    if (stream && typeof stream.getReader === 'function') {
+        const reader = stream.getReader();
+        let finished = false;
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    finished = true;
+                    break;
+                }
+                yield decode(value);
+            }
+        } finally {
+            if (!finished) {
+                try { await reader.cancel(); } catch (error) { /* stream already closed */ }
+            }
+            reader.releaseLock();
+        }
+    } else {
+        for await (const chunk of stream) {
+            yield decode(chunk);
+        }
+    }
+
+    if (decoder) {
+        const tail = decoder.decode();
+        if (tail) yield tail;
+    }
+}
+
+// Split complete server-sent events from the buffer; returns [events, remainingBuffer].
+function splitEvents(buffer) {
+    const parts = buffer.replace(/\r\n/g, '\n').split('\n\n');
+    const rest = parts.pop();
+    return [parts, rest];
+}
+
+// Joined `data:` payload of one server-sent event, or null when the event has no data.
+function eventData(rawEvent) {
+    const lines = rawEvent.split('\n').filter((line) => line.startsWith('data:'));
+    if (lines.length === 0) return null;
+    return lines.map((line) => line.slice(5).replace(/^ /, '')).join('\n');
+}
+
+/** Parses OpenAI-compatible streams: chat completions and the Responses API (gpt-5+). */
 class GPTStreamParser {
+    constructor(isLog = false) {
+        this.buffer = '';
+        this.isLog = isLog;
+        this.done = false;
+    }
+
+    async * feed(data) {
+        if (this.done) return;
+        this.buffer += data;
+        const [events, rest] = splitEvents(this.buffer);
+        this.buffer = rest;
+
+        for (const rawEvent of events) {
+            const payload = eventData(rawEvent.trim());
+            if (payload === null) continue;
+
+            // look for the stop signal
+            if (payload.trim() === '[DONE]') {
+                this.done = true;
+                if (this.isLog) {
+                    console.log("Parsing finished.");
+                }
+                return;
+            }
+
+            let jsonData;
+            try {
+                jsonData = JSON.parse(payload);
+            } catch (error) {
+                console.error("Error parsing JSON in stream:", error);
+                continue;
+            }
+
+            // chat completions format
+            const contentText = jsonData.choices?.[0]?.delta?.content;
+            if (contentText) {
+                yield contentText;
+                continue;
+            }
+
+            // Responses API format
+            if ((jsonData.type === 'response.output_text.delta' || jsonData.type === 'response.refusal.delta') && jsonData.delta) {
+                yield jsonData.delta;
+            } else if (jsonData.type === 'error') {
+                throw new Error(`OpenAI stream error: ${jsonData.message || JSON.stringify(jsonData)}`);
+            } else if (jsonData.type === 'response.failed') {
+                throw new Error(`OpenAI response failed: ${jsonData.response?.error?.message || 'unknown error'}`);
+            }
+        }
+    }
+}
+
+/** Parses Anthropic Messages API streams, yielding answer text and skipping thinking deltas. */
+class AnthropicStreamParser {
+    constructor(isLog = false) {
+        this.buffer = '';
+        this.isLog = isLog;
+    }
+
+    async * feed(data) {
+        this.buffer += data;
+        const [events, rest] = splitEvents(this.buffer);
+        this.buffer = rest;
+
+        for (const rawEvent of events) {
+            const payload = eventData(rawEvent.trim());
+            if (payload === null) continue;
+
+            let jsonData;
+            try {
+                jsonData = JSON.parse(payload);
+            } catch (error) {
+                console.error("Error parsing JSON in stream:", error);
+                continue;
+            }
+
+            if (jsonData.type === 'content_block_delta' && jsonData.delta?.type === 'text_delta' && jsonData.delta.text) {
+                yield jsonData.delta.text;
+            } else if (jsonData.type === 'error') {
+                throw new Error(`Anthropic stream error: ${jsonData.error?.message || JSON.stringify(jsonData)}`);
+            } else if (jsonData.type === 'message_stop' && this.isLog) {
+                console.log("Parsing finished.");
+            }
+        }
+    }
+}
+
+/** Parses Cohere chat streams (newline-delimited JSON). */
+class CohereStreamParser {
     constructor(isLog = false) {
         this.buffer = '';
         this.isLog = isLog;
@@ -7117,62 +10758,26 @@ class GPTStreamParser {
     async * feed(data) {
         this.buffer += data;
 
-        // check if the buffer contains events
-        while (this.buffer.includes('\n\n')) {
-            // find the end of the first complete event
-            const eventEndIndex = this.buffer.indexOf('\n\n');
-            let rawData = this.buffer.slice(0, eventEndIndex).trim();
+        // a single chunk can carry several events, so drain every complete line
+        let eventEndIndex;
+        while ((eventEndIndex = this.buffer.indexOf('\n')) !== -1) {
+            const rawData = this.buffer.slice(0, eventEndIndex).trim();
+            this.buffer = this.buffer.slice(eventEndIndex + 1);
+            if (!rawData) continue;
 
-            // remove the processed event
-            this.buffer = this.buffer.slice(eventEndIndex + 2);
-
-            // look for the stop signal
-            if (rawData === "data: [DONE]") {
-                if (this.isLog) {
-                    console.log("Parsing finished.");
-                }
-                // stop processing if the stream is done
-                return;
-            }
-
-            // skip lines without "data: "
-            if (!rawData.startsWith("data: ")) {
+            let jsonData;
+            try {
+                jsonData = JSON.parse(rawData);
+            } catch (error) {
+                console.error("Error parsing JSON in stream:", error);
                 continue;
             }
 
-            try {
-                // parse the JSON
-                const jsonData = JSON.parse(rawData.substring(6));
-                const contentText = jsonData.choices?.[0]?.delta?.content;
-                if (contentText) {
-                    yield contentText;
-                }
-            } catch (error) {
-                console.error("Error parsing JSON in stream:", error);
+            // stream-end repeats the full text inside `response`; only text-generation carries new text
+            if (jsonData.event_type && jsonData.event_type !== 'text-generation') continue;
+            if (jsonData.text) {
+                yield jsonData.text;
             }
-        }
-    }
-}
-class CohereStreamParser {
-    constructor(isLog = false) {
-        this.buffer = '';
-        this.isLog = false;
-    }
-
-    async * feed(data) {
-        this.buffer += data;
-
-        if (this.buffer.includes('\n')) {
-            const eventEndIndex = this.buffer.indexOf('\n');
-            const rawData = this.buffer.slice(0, eventEndIndex + 1).trim();
-
-            // Convert the rawData into JSON format
-            const jsonData = JSON.parse(rawData);
-            const contentText = jsonData.text;
-            if (contentText) {
-                yield contentText;
-            }
-            this.buffer = this.buffer.slice(eventEndIndex + 1);
         }
     }
 }
@@ -7236,47 +10841,49 @@ class VLLMStreamParser {
 module.exports = {
     GPTStreamParser,
     CohereStreamParser,
-    VLLMStreamParser
+    VLLMStreamParser,
+    AnthropicStreamParser,
+    readStreamChunks
 };
-},{}],40:[function(require,module,exports){
+
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"buffer":24}],46:[function(require,module,exports){
 (function (__dirname){(function (){
 const FileHelper = require('./FileHelper')
 const path = require("path");
+
+// Template files that do not follow the "<name>_prompt.in" naming.
+const TEMPLATE_FILES = {
+  instruct_update: "instruct_update.in",
+  prompt_example: "prompt_example.in",
+  augmented_chatbot: "augmented_chatbot.in",
+};
 
 class SystemHelper {
   constructor() {
     this.systemsPath = path.join(__dirname, "..", "resource", "templates");
   }
 
-  getPromptPath(fileType) {
-    let promptPath = '';
-    if (fileType === "sentiment") {
-      promptPath = path.join(this.systemsPath, "sentiment_prompt.in");
-    } else if (fileType === "summary") {
-      promptPath = path.join(this.systemsPath, "summary_prompt.in");
-    } else if (fileType === "html_page") {
-      promptPath = path.join(this.systemsPath, "html_page_prompt.in");
-    } else if (fileType === "graph_dashboard") {
-      promptPath = path.join(this.systemsPath, "graph_dashboard_prompt.in");
-    } else if (fileType === "instruct_update") {
-      promptPath = path.join(this.systemsPath, "instruct_update.in");
-    } else if (fileType === "prompt_example") {
-      promptPath = path.join(this.systemsPath, "prompt_example.in");
-    } else if (fileType === "augmented_chatbot") {
-      promptPath = path.join(this.systemsPath, "augmented_chatbot.in");
-    } else {
-      throw new Error(`File type '${file_type}' not supported`);
-    }
+  static getTemplateFileName(fileType) {
+    return TEMPLATE_FILES[fileType] || `${fileType}_prompt.in`;
+  }
 
-    return promptPath;
+  getPromptPath(fileType) {
+    return path.join(this.systemsPath, SystemHelper.getTemplateFileName(fileType));
   }
 
   loadPrompt(fileType) {
-    let promptPath = this.getPromptPath(fileType)
-    const promptTemplate = FileHelper.readData(promptPath, 'utf-8');
-
-    return promptTemplate;
-
+    const fileName = SystemHelper.getTemplateFileName(fileType);
+    // the browser bundle has no file system, so fall back to the templates embedded at build time
+    const embedded = require('../resource/templates/templates');
+    try {
+      return FileHelper.readData(this.getPromptPath(fileType), 'utf-8');
+    } catch (error) {
+      if (embedded[fileName] !== undefined) {
+        return embedded[fileName];
+      }
+      throw new Error(`File type '${fileType}' not supported`);
+    }
   }
 
   loadStaticPrompt(fileType) { 
@@ -7296,8 +10903,9 @@ class SystemHelper {
 }
 
 module.exports = SystemHelper;
+
 }).call(this)}).call(this,"/utils")
-},{"./FileHelper":32,"path":26}],41:[function(require,module,exports){
+},{"../resource/templates/templates":31,"./FileHelper":36,"path":28}],47:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 
 class AWSEndpointWrapper {
@@ -7330,7 +10938,7 @@ class AWSEndpointWrapper {
 
 module.exports = AWSEndpointWrapper;
 
-},{"../utils/FetchClient":31}],42:[function(require,module,exports){
+},{"../utils/FetchClient":35}],48:[function(require,module,exports){
 /*
 Apache License
 
@@ -7342,38 +10950,63 @@ const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
 
+// Anthropic rejects browser (CORS) requests unless this opt-in header is present.
+const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
 class AnthropicWrapper {
   constructor(apiKey) {
     this.API_BASE_URL = config.url.anthropic.base;
     this.API_VERSION = config.url.anthropic.version;
 
-    // Create our FetchClient instance
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': this.API_VERSION,
+    };
+    if (isBrowser) {
+      headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    }
+
     this.client = new FetchClient({
       baseURL: this.API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': this.API_VERSION,
-      },
+      headers,
     });
   }
 
-  async generateText(params) {
+  /**
+   * Call the Messages API.
+   * @param {object} params - Messages API request body.
+   * @param {object} [extraHeaders] - Optional per-request headers, e.g. { 'anthropic-beta': '<feature>' }.
+   */
+  async generateText(params, extraHeaders = null) {
     const endpoint = config.url.anthropic.messages;
 
     try {
-      // Use the client’s post method
-      return await this.client.post(endpoint, params);
+      return await this.client.post(endpoint, params, extraHeaders ? { headers: extraHeaders } : {});
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
+    }
+  }
+
+  /** Stream the Messages API; returns the raw server-sent events body. */
+  async streamText(params, extraHeaders = null) {
+    const endpoint = config.url.anthropic.messages;
+
+    try {
+      return await this.client.post(endpoint, { ...params, stream: true }, {
+        responseType: 'stream',
+        headers: { Accept: 'text/event-stream', ...(extraHeaders || {}) },
+      });
+    } catch (error) {
+      throw connHelper.wrapError(error);
     }
   }
 }
 
 module.exports = AnthropicWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],43:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],49:[function(require,module,exports){
 /*
 Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
@@ -7402,18 +11035,18 @@ class CohereAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
   async generateChatText(params) {
-    const endpoint = '/chat';
+    const endpoint = config.url.cohere.chat;
     try {
       // If stream is true, set responseType='stream'
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7422,7 +11055,7 @@ class CohereAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -7430,7 +11063,7 @@ class CohereAIWrapper {
 module.exports = CohereAIWrapper;
 
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],44:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],50:[function(require,module,exports){
 const config = require('../config.json');
 const { readFileSync } = require('fs');
 const connHelper = require('../utils/ConnHelper');
@@ -7444,26 +11077,36 @@ class GeminiAIWrapper {
     this.client = new FetchClient({
       baseURL: this.API_BASE_URL,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
       }
     });
   }
 
-  async generateContent(params, vision = false) {
-    const endpoint = vision
-      ? config.url.gemini.visionEndpoint
-      : config.url.gemini.contentEndpoint;
+  // Accepts both 'gemini-3.6-flash' and 'models/gemini-3.6-flash'.
+  static getModelId(model) {
+    return String(model).replace(/^models\//, '');
+  }
+
+  /**
+   * @param {object} params - generateContent body; an optional `model` key selects the model and is not sent.
+   * @param {boolean} vision - use the configured vision model when no model is given.
+   * @param {string} modelOverride - model id that takes precedence over params.model.
+   */
+  async generateContent(params, vision = false, modelOverride = null) {
+    const { model: paramsModel, ...body } = params || {};
+    const defaultModel = vision ? config.url.gemini.models.vision : config.url.gemini.models.chat;
+    const model = GeminiAIWrapper.getModelId(modelOverride || paramsModel || defaultModel);
+    const endpoint = `${model}${config.url.gemini.generateContent}`;
 
     try {
-      return await this.client.post(endpoint, params, {
-        // If needed, you can specify { responseType: 'stream' } or 'arraybuffer'
-      });
+      return await this.client.post(endpoint, body);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
-  async imageToText(userInput, filePath, extension) {
+  async imageToText(userInput, filePath, extension, modelOverride = null) {
     const imageData = readFileSync(filePath, { encoding: 'base64' });
     const params = {
       contents: [
@@ -7480,33 +11123,40 @@ class GeminiAIWrapper {
         }
       ]
     };
-    return this.generateContent(params, true);
+    return this.generateContent(params, true, modelOverride);
   }
 
   async getEmbeddings(params) {
-    const endpoint = config.url.gemini.embeddingEndpoint;
+    const model = GeminiAIWrapper.getModelId(params.model || config.url.gemini.models.embed);
+    const endpoint = `${model}${config.url.gemini.embedContent}`;
     try {
-      const response = await this.client.post(endpoint, params);
+      const response = await this.client.post(endpoint, { ...params, model: `models/${model}` });
       return response.embedding;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
   async getBatchEmbeddings(params) {
-    const endpoint = config.url.gemini.batchEmbeddingEndpoint;
+    const requests = params.requests || [];
+    const requestedModel = requests.length > 0 ? requests[0].model : null;
+    const model = GeminiAIWrapper.getModelId(requestedModel || config.url.gemini.models.embed);
+    const endpoint = `${model}${config.url.gemini.batchEmbedContents}`;
     try {
-      const response = await this.client.post(endpoint, params);
+      const response = await this.client.post(endpoint, {
+        ...params,
+        requests: requests.map((request) => ({ ...request, model: `models/${model}` }))
+      });
       return response.embeddings;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
 
 module.exports = GeminiAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"fs":21}],45:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"fs":23}],51:[function(require,module,exports){
 /*
 Apache License
 */
@@ -7541,7 +11191,7 @@ class GoogleAIWrapper {
     try {
       return await this.client.post(url, JSON.parse(json));
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7571,7 +11221,7 @@ class GoogleAIWrapper {
 
 module.exports = GoogleAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],46:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],52:[function(require,module,exports){
 (function (Buffer){(function (){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
@@ -7596,7 +11246,7 @@ class HuggingWrapper {
     try {
       return await this.client.post(endpoint, data);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7606,7 +11256,7 @@ class HuggingWrapper {
       // We need arraybuffer to get raw image data
       return await this.client.post(endpoint, data, { responseType: 'arraybuffer' });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7616,7 +11266,7 @@ class HuggingWrapper {
       const arrayBuf = await this.client.post(endpoint, data, { responseType: 'arraybuffer' });
       return JSON.parse(Buffer.from(arrayBuf).toString());
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
@@ -7624,7 +11274,7 @@ class HuggingWrapper {
 module.exports = HuggingWrapper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"buffer":22}],47:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"buffer":24}],53:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const FormData = require('form-data');
@@ -7667,14 +11317,14 @@ class IntellicloudWrapper {
       const response = await this.client.post(endpoint, form);
       return response.data; // The API returns { data: ... }
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
 
 module.exports = IntellicloudWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24}],48:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"form-data":26}],54:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -7698,9 +11348,10 @@ class MistralAIWrapper {
   async generateText(params) {
     const endpoint = config.url.mistral.completions;
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7709,14 +11360,14 @@ class MistralAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
 
 module.exports = MistralAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],49:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],55:[function(require,module,exports){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
@@ -7756,7 +11407,7 @@ class NvidiaWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(this.ENDPOINT_CHAT, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7767,37 +11418,150 @@ class NvidiaWrapper {
         responseType: 'stream'
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
   /**
-   * Generates embeddings using NVIDIA's embedding endpoint.
-   * Expects the user to pass a `model` field inside params so that the endpoint
-   * is constructed as:
-   *   {config.nvidia.embedding}/{model}/embeddings
+   * Generates embeddings using NVIDIA's OpenAI-compatible /v1/embeddings endpoint
+   * (the older /v1/retrieval/{model}/embeddings route no longer exists).
    *
-   * @param {object} params - Must include `model` and other required fields.
+   * @param {object} params - Must include `model`, e.g. nvidia/llama-3.2-nv-embedqa-1b-v1.
    */
   async generateRetrieval(params) {
     if (!params.model) {
       throw new Error("Missing 'model' parameter for embeddings");
     }
-    // use the embedding base endpoint from config and append the user-specified model name.
-    const baseEmbedding = config.nvidia.retrieval;
-    // model name example snowflake/arctic-embed
-    const embeddingEndpoint = `${baseEmbedding}/${params.model}/embeddings`;
     try {
-      return await this.client.post(embeddingEndpoint, params);
+      return await this.client.post(config.nvidia.embeddings, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
+  }
+
+  async getEmbeddings(params) {
+    return this.generateRetrieval(params);
   }
 }
 
 module.exports = NvidiaWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],50:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],56:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const config = require('../config.json');
+const connHelper = require('../utils/ConnHelper');
+const FetchClient = require('../utils/FetchClient');
+
+const compatible = config.url.openai_compatible;
+
+/**
+ * One wrapper for every service that speaks the OpenAI chat-completions API: OpenRouter, Groq, DeepSeek, xAI,
+ * Together, Ollama, LM Studio, vLLM servers and any other base URL.
+ *
+ * new OpenAICompatibleWrapper(apiKey, { preset: 'openrouter' })
+ * new OpenAICompatibleWrapper(apiKey, { baseUrl: 'https://host/v1', headers: { 'X-Title': 'My app' } })
+ */
+class OpenAICompatibleWrapper {
+  constructor(apiKey, options = {}) {
+    const preset = options.preset ? OpenAICompatibleWrapper.getPreset(options.preset) : null;
+    const baseUrl = options.baseUrl || (preset && preset.base);
+    if (!baseUrl) {
+      throw new Error(`OpenAICompatibleWrapper needs a baseUrl or one of the presets: ${Object.keys(compatible.presets).join(', ')}`);
+    }
+    this.preset = options.preset || null;
+    this.API_BASE_URL = String(baseUrl).replace(/\/+$/, '');
+    this.API_KEY = apiKey;
+    this.defaultModel = options.model || (preset && preset.chat_model) || null;
+    this.defaultEmbedModel = (preset && preset.embed_model) || null;
+    // 'json_object' for services that reject json_schema response formats
+    this.structuredOutput = options.structuredOutput || (preset && preset.structured_output) || 'json_schema';
+
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json', ...(options.headers || {}) };
+    // local runtimes ignore the key; a placeholder keeps proxies that require the header happy
+    const key = apiKey || (preset && preset.local ? 'not-needed' : null);
+    if (key) headers.Authorization = `Bearer ${key}`;
+
+    this.client = new FetchClient({ baseURL: this.API_BASE_URL, headers });
+  }
+
+  static getPreset(name) {
+    const preset = compatible.presets[name];
+    if (!preset) {
+      throw new Error(`Unknown OpenAI-compatible preset '${name}'. Use one of: ${Object.keys(compatible.presets).join(', ')}`);
+    }
+    return preset;
+  }
+
+  static presets() {
+    return Object.keys(compatible.presets);
+  }
+
+  // Fill in the preset's default model; a preset without one needs the model in the request.
+  withModel(params) {
+    if (params.model) return params;
+    if (!this.defaultModel) {
+      const hint = this.preset ? `Call listModels() to see the models available on ${this.preset}.` : 'Call listModels() to see the available models.';
+      throw new Error(`No model set for the OpenAI-compatible request. Pass a model name. ${hint}`);
+    }
+    return { ...params, model: this.defaultModel };
+  }
+
+  // Services without json_schema support get json_object, with the schema added to the system message.
+  adaptResponseFormat(params) {
+    const format = params.response_format;
+    if (!format || format.type !== 'json_schema' || this.structuredOutput !== 'json_object') return params;
+    const schema = format.json_schema ? format.json_schema.schema : format.schema;
+    const instruction = `Respond with JSON only, matching this JSON Schema: ${JSON.stringify(schema)}`;
+    const messages = Array.isArray(params.messages) ? params.messages.slice() : [];
+    const systemIndex = messages.findIndex((message) => message.role === 'system' && typeof message.content === 'string');
+    if (systemIndex >= 0) {
+      messages[systemIndex] = { ...messages[systemIndex], content: `${messages[systemIndex].content}\n${instruction}` };
+    } else {
+      messages.unshift({ role: 'system', content: instruction });
+    }
+    return { ...params, messages, response_format: { type: 'json_object' } };
+  }
+
+  async generateChatText(params) {
+    try {
+      const payload = this.adaptResponseFormat(this.withModel(params));
+      const extraConfig = payload.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(compatible.chat, payload, extraConfig);
+    } catch (error) {
+      throw connHelper.wrapError(error);
+    }
+  }
+
+  async getEmbeddings(params) {
+    try {
+      const payload = params.model || !this.defaultEmbedModel ? params : { ...params, model: this.defaultEmbedModel };
+      if (!payload.model) throw new Error('No embedding model set. Pass a model name in the request.');
+      return await this.client.post(compatible.embeddings, payload);
+    } catch (error) {
+      throw connHelper.wrapError(error);
+    }
+  }
+
+  /** The model ids served by the endpoint (GET /models). */
+  async listModels() {
+    try {
+      const response = await this.client.get(compatible.models);
+      return (response.data || []).map((model) => model.id);
+    } catch (error) {
+      throw connHelper.wrapError(error);
+    }
+  }
+}
+
+module.exports = OpenAICompatibleWrapper;
+
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],57:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const ProxyHelper = require('../utils/ProxyHelper');
@@ -7846,7 +11610,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7860,7 +11624,7 @@ class OpenAIWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, payload, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7869,7 +11633,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7881,7 +11645,7 @@ class OpenAIWrapper {
         headers: params.getHeaders ? params.getHeaders() : {}
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7890,7 +11654,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7907,7 +11671,7 @@ class OpenAIWrapper {
         }
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7916,7 +11680,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7925,7 +11689,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params, { headers });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7938,16 +11702,16 @@ class OpenAIWrapper {
       }
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
   async imageToText(params, headers) {
-    const endpoint = this.proxyHelper.getOpenaiChat();
+    const endpoint = this.proxyHelper.getOpenaiChat(params.model);
     try {
       return await this.client.post(endpoint, params, { headers });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -7959,24 +11723,30 @@ class OpenAIWrapper {
       // "params" should include { model, modalities, audio, messages, etc. }
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
   async generateGPT5Response(params) {
     const endpoint = this.proxyHelper.getOpenaiResponses(params.model);
-    
+
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
+  }
+
+  // Responses API (/v1/responses) used by gpt-5 and newer models.
+  async generateResponse(params) {
+    return this.generateGPT5Response(params);
   }
 }
 
 module.exports = OpenAIWrapper;
 
-},{"../utils/ConnHelper":30,"../utils/FetchClient":31,"../utils/ProxyHelper":38}],51:[function(require,module,exports){
+},{"../utils/ConnHelper":34,"../utils/FetchClient":35,"../utils/ProxyHelper":44}],58:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -8002,7 +11772,7 @@ class ReplicateWrapper {
     try {
       return await this.client.post(endpoint, inputData);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -8012,14 +11782,14 @@ class ReplicateWrapper {
       // GET request
       return await this.client.get(endpoint);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
 
 module.exports = ReplicateWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],52:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],59:[function(require,module,exports){
 // wrappers/StabilityAIWrapper.js
 
 const FormData = require('form-data');
@@ -8062,8 +11832,9 @@ class StabilityAIWrapper {
             ]
           };
         } else {
-          // old v1 approach
-          return await this.generateTextToImage(inputs);
+          // v1 text-to-image: engine selects the endpoint and is not a request body field
+          const { engine, model, ...body } = inputs;
+          return await this.generateTextToImage(body, engine || undefined);
         }
       }
 
@@ -8088,7 +11859,7 @@ class StabilityAIWrapper {
                 }
             });
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -8106,7 +11877,7 @@ class StabilityAIWrapper {
                 responseType: 'arraybuffer'
             });
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -8138,7 +11909,7 @@ class StabilityAIWrapper {
         try {
             return await this.client.post(endpoint, formData);
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -8176,7 +11947,7 @@ class StabilityAIWrapper {
             });
             return resp;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
     async inpaintImage({
@@ -8203,7 +11974,7 @@ class StabilityAIWrapper {
             });
             return response; // if accept=application/json => { image, seed, finish_reason }
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -8237,7 +12008,7 @@ class StabilityAIWrapper {
             });
             return response;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -8266,7 +12037,7 @@ class StabilityAIWrapper {
 
             return startResp;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -8286,7 +12057,7 @@ class StabilityAIWrapper {
             // If it's 202 => you need to re-check. 
             return response;
         } catch (error) {
-            throw new Error(connHelper.getErrorMessage(error));
+            throw connHelper.wrapError(error);
         }
     }
 
@@ -8337,7 +12108,7 @@ class StabilityAIWrapper {
       });
       return response;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -8386,7 +12157,7 @@ class StabilityAIWrapper {
       });
       return response;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -8437,13 +12208,13 @@ class StabilityAIWrapper {
       });
       return response;
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
 
 module.exports = StabilityAIWrapper;
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24,"fs":21}],53:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"form-data":26,"fs":23}],60:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 const connHelper = require('../utils/ConnHelper');
 
@@ -8463,7 +12234,7 @@ class VLLMWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -8473,7 +12244,7 @@ class VLLMWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -8482,11 +12253,11 @@ class VLLMWrapper {
     try {
       return await this.client.post(endpoint, { texts });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
 
 module.exports = VLLMWrapper;
-},{"../utils/ConnHelper":30,"../utils/FetchClient":31}]},{},[12])(12)
+},{"../utils/ConnHelper":34,"../utils/FetchClient":35}]},{},[12])(12)
 });

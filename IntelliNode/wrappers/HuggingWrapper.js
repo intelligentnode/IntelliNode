@@ -21,7 +21,7 @@ class HuggingWrapper {
     try {
       return await this.client.post(endpoint, data);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -31,7 +31,7 @@ class HuggingWrapper {
       // We need arraybuffer to get raw image data
       return await this.client.post(endpoint, data, { responseType: 'arraybuffer' });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -41,7 +41,7 @@ class HuggingWrapper {
       const arrayBuf = await this.client.post(endpoint, data, { responseType: 'arraybuffer' });
       return JSON.parse(Buffer.from(arrayBuf).toString());
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }

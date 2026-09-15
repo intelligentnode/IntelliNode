@@ -32,7 +32,7 @@ async function testCohereEmbeddings() {
 
   const embedInput = new EmbedInput({
     texts: ['Hello from Cohere!', '您好，来自 Cohere！'],
-    model: 'embed-multilingual-v2.0',
+    model: 'embed-v4.0',
   });
 
   const results = await cohereEmbedModel.getEmbeddings(embedInput);
@@ -60,7 +60,7 @@ async function testGeminiEmbeddings() {
 
   const embedInput = new EmbedInput({
     texts: ['Hello from Gemini!', 'Hallo von Gemini!'],
-    model: 'models/embedding-001',
+    model: 'models/gemini-embedding-001',
   });
 
   const results = await geminiEmbedModel.getEmbeddings(embedInput);

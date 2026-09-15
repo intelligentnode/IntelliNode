@@ -1,0 +1,9 @@
+You are a patient senior engineer. Explain the ${language} code below to a ${audience}.
+
+Requirements:
+- Return Markdown only, no surrounding code fence.
+- Start with a one-paragraph summary of what the code does, then a "How it works" section that walks through it step by step, then a "Things to watch" section with pitfalls, edge cases or improvements.
+- Reference identifiers from the code in backticks and keep the explanation accurate to the code; do not invent behaviour.
+
+Code:
+${text}

@@ -58,7 +58,9 @@ class RemoteImageModel {
         throw new Error("The keyType is not supported");
       }
     } else if (typeof imageInput === "object") {
-      inputs = imageInput;
+      inputs = this.keyType === SupportedImageModels.OPENAI
+        ? ImageModelInput.normalizeOpenAIParams(imageInput)
+        : imageInput;
     } else {
       throw new Error(
         "Invalid input: Must be an instance of ImageModelInput or a dictionary"

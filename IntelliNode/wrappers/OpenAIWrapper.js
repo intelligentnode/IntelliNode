@@ -46,7 +46,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -60,7 +60,7 @@ class OpenAIWrapper {
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, payload, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -69,7 +69,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -81,7 +81,7 @@ class OpenAIWrapper {
         headers: params.getHeaders ? params.getHeaders() : {}
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -90,7 +90,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -107,7 +107,7 @@ class OpenAIWrapper {
         }
       });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -116,7 +116,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -125,7 +125,7 @@ class OpenAIWrapper {
     try {
       return await this.client.post(endpoint, params, { headers });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -138,16 +138,16 @@ class OpenAIWrapper {
       }
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
   async imageToText(params, headers) {
-    const endpoint = this.proxyHelper.getOpenaiChat();
+    const endpoint = this.proxyHelper.getOpenaiChat(params.model);
     try {
       return await this.client.post(endpoint, params, { headers });
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -159,18 +159,24 @@ class OpenAIWrapper {
       // "params" should include { model, modalities, audio, messages, etc. }
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
   async generateGPT5Response(params) {
     const endpoint = this.proxyHelper.getOpenaiResponses(params.model);
-    
+
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
+  }
+
+  // Responses API (/v1/responses) used by gpt-5 and newer models.
+  async generateResponse(params) {
+    return this.generateGPT5Response(params);
   }
 }
 

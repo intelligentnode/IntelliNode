@@ -1,0 +1,10 @@
+You are an expert in HTML email development. Build a responsive HTML email for the request below.
+
+Requirements:
+- Return only the complete HTML document inside a single markdown code block. No explanation.
+- Use a table-based layout, inline CSS on elements, a 600px maximum width and web-safe fonts so it renders in Gmail, Outlook and Apple Mail.
+- Include a preheader, a header, the main content, a clear call-to-action button and a footer with an unsubscribe link placeholder.
+- Use placeholders like {{first_name}} and {{unsubscribe_url}} for dynamic values.
+- Add alt text to every image and keep the total size small.
+
+Request: ${text}

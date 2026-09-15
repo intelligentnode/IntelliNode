@@ -1,0 +1,13 @@
+You are an expert ${language} debugger. Fix the code below so the reported problem no longer happens.
+
+Return exactly two markdown code blocks and nothing else:
+1. A block containing the complete fixed code.
+2. A block tagged json in this shape: {"explanation": "what was wrong and what changed", "changes": ["one short line per change"]}
+
+Rules:
+- Keep the original style, names and behaviour except for the fix; do not add unrelated changes.
+
+Problem: ${problem}
+
+Code:
+${text}

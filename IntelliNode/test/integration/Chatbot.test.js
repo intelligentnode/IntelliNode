@@ -297,7 +297,7 @@ async function testAnthropicChatCase() {
   console.log('\nAnthropic chat test case: \n');
   const bot = new Chatbot(process.env.ANTHROPIC_API_KEY, SupportedChatModels.ANTHROPIC);
 
-  const input = new AnthropicInput("You are helpful asssitant.", {model: "claude-3-sonnet-20240229"});
+  const input = new AnthropicInput("You are helpful asssitant.", {model: "claude-sonnet-5"});
   input.addUserMessage("Tell me about the history of artificial intelligence.")
   const responses = await bot.chat(input);
 

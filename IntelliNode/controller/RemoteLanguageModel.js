@@ -8,6 +8,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const LanguageModelInput = require('../model/input/LanguageModelInput');
+const config = require('../config.json');
 
 const SupportedLangModels = {
   OPENAI: 'openai',
@@ -68,8 +69,20 @@ class RemoteLanguageModel {
       const results = await this.openaiWrapper.generateText(inputs);
       return results.choices.map((choice) => choice.text);
     } else if (this.keyType === SupportedLangModels.COHERE) {
-      const results = await this.cohereWrapper.generateText(inputs);
-      return results.generations.map((generation) => generation.text);
+      // Cohere removed the Generate API, so completions are served through the Chat API.
+      const chatParams = {
+        model: inputs.model || config.url.cohere.models.chat,
+        message: inputs.prompt,
+        ...(inputs.temperature != null && { temperature: inputs.temperature }),
+        ...(inputs.max_tokens != null && { max_tokens: inputs.max_tokens }),
+      };
+      const results = [];
+      const generations = Math.max(1, inputs.num_generations || 1);
+      for (let i = 0; i < generations; i++) {
+        const response = await this.cohereWrapper.generateChatText(chatParams);
+        results.push(response.text);
+      }
+      return results;
     } else {
       throw new Error('The keyType is not supported');
     }

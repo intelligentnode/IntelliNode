@@ -5,6 +5,8 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+const config = require('../../config.json');
+
 class LanguageModelInput {
   constructor({
     prompt,
@@ -62,9 +64,11 @@ class LanguageModelInput {
 
   setDefaultModels(provider) {
     if (provider === "openai") {
-      this.model = "gpt-3.5-turbo-instruct";
+      // the completions endpoint only serves instruct models
+      this.model = config.url.openai.models.completion;
     } else if (provider === "cohere") {
-      this.model = "command";
+      // Cohere text generation now runs on the Chat API
+      this.model = config.url.cohere.models.chat;
     } else {
       throw new Error("Invalid provider name");
     }

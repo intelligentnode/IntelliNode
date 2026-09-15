@@ -1,8 +1,18 @@
 {
   "name": "intellinode",
-  "version": "2.3.0",
-  "description": "Create AI agents using the latest models, including ChatGPT, Llama, Diffusion, Cohere, Gemini, and Hugging Face.",
+  "version": "3.0.0",
+  "description": "Unified AI toolkit: one API for OpenAI, Anthropic, Gemini, Mistral, Cohere, NVIDIA and OpenAI-compatible services, with a tool loop, structured output, generators for web developers and an MCP server.",
   "main": "index.js",
+  "types": "index.d.ts",
+  "bin": {
+    "intellinode": "bin/intellinode.js"
+  },
+  "mcpName": "io.github.intelligentnode/intellinode",
+  "browser": {
+    "./mcp/server.js": false,
+    "./function/CodingAgent.js": false,
+    "./utils/WorkspaceToolkit.js": false
+  },
   "keywords": [
     "ai",
     "ChatGPT",
@@ -18,7 +28,18 @@
     "gemini",
     "deepseek",
     "framework",
-    "mcp"
+    "mcp",
+    "anthropic",
+    "claude",
+    "ollama",
+    "openrouter",
+    "groq",
+    "openai-compatible",
+    "tool-calling",
+    "structured-output",
+    "model-context-protocol",
+    "coding-agent",
+    "agent"
   ],
   "author": "IntelliNode",
   "license": "Apache",
@@ -27,17 +48,17 @@
     "url": "https://github.com/intelligentnode/IntelliNode.git"
   },
   "scripts": {
-    "build": "browserify index.js --standalone IntelliNode -o front/intellinode.js && uglifyjs front/intellinode.js -o front/intellinode.min.js",
+    "build": "node scripts/build-templates.js && browserify index.js --standalone IntelliNode -o front/intellinode.js && uglifyjs front/intellinode.js -o front/intellinode.min.js",
     "test": "node test/unit/testRunner"
   },
   "homepage": "https://docs.intellinode.ai",
   "devDependencies": {
-    "browserify": "^17.0.0",
-    "uglify-js": "^3.17.0"
+    "browserify": "^17.0.1",
+    "uglify-js": "^3.19.3"
   },
   "dependencies": {
     "cross-fetch": "^4.1.0",
-    "dotenv": "^16.4.7",
-    "form-data": "^4.0.1"
+    "dotenv": "^17.4.2",
+    "form-data": "^4.0.6"
   }
 }

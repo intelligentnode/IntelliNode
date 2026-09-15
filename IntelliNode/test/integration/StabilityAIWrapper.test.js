@@ -35,7 +35,9 @@ async function testV2BetaCore() {
       accept: "application/json"
     });
     console.log("v2beta (Core) JSON response:", response);
-    fs.writeFileSync('test_v2beta_core.webp', response.image, { encoding: 'base64' });
+    // keep generated files out of the package root
+    fs.mkdirSync('temp', { recursive: true });
+    fs.writeFileSync('temp/test_v2beta_core.webp', response.image, { encoding: 'base64' });
   } catch (error) {
     console.error("testV2BetaCore Error:", error);
   }

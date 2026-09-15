@@ -38,14 +38,17 @@ async function testChatGPT() {
 
 async function testImageModel() {
     try {
+        // gpt-image models return base64 images and need a supported size
         const params = {
+            model: 'gpt-image-2',
             prompt: 'teddy writing a blog in times square',
             n: 1,
-            size: '256x256'
+            size: '1024x1024',
+            quality: 'low'
         };
 
         const result = await openAI.generateImages(params);
-        const responseUrl = result['data'][0]['url'].trim();
+        const responseUrl = result['data'][0]['b64_json'].trim();
         console.log('Image Model Result:\n', responseUrl, '\n');
         assert(responseUrl.length > 0, 'testImageModel response length should be greater than 0');
     } catch (error) {
@@ -132,7 +135,7 @@ async function testVisionImageToText() {
         const data = readFileSync(filePath, { encoding: 'base64' });
         // Convert data to base64
         const params = {
-            "model": "gpt-4-vision-preview",
+            "model": "gpt-4.1",
             "messages": [
                 {
                     "role": "user",
@@ -223,7 +226,7 @@ async function testGenerateChatAudio() {
     try {
       // 1) Build parameters for OpenAI's audio generation
       const audioParams = {
-        model: 'gpt-4o-audio-preview',
+        model: 'gpt-audio',
         modalities: ['text', 'audio'],
         audio: {
           voice: 'alloy',

@@ -32,7 +32,9 @@ Unified prompt, evaluation, and production integration to any large model
 
 # Intelligent Node
 
-IntelliNode is a javascript module that integrates cutting-edge AI into your project. With its intuitive functions, you can easily feed data to models like **ChatGPT**, **LLaMA**, **WaveNet**, **Gemini** and **Stable diffusion** and receive generated text, speech, or images. It also offers high-level functions such as semantic search, multi-model evaluation, and chatbot capabilities.
+IntelliNode is a javascript module that integrates cutting-edge AI into your project. With its intuitive functions, you can easily feed data to models like **GPT-5.5**, **Claude**, **Gemini**, **LLaMA**, **WaveNet** and **Stable diffusion** and receive generated text, speech, or images. It also offers high-level functions such as semantic search, multi-model evaluation, and chatbot capabilities.
+
+New in 3.0: a tool-calling loop and schema-matched JSON on every provider, a coding agent that fixes a repository until its tests pass, OpenAI-compatible services (OpenRouter, Groq, DeepSeek, Ollama), an MCP server for coding assistants (`npx intellinode mcp`) and TypeScript typings.
 
 # Access the module
 ## Install
@@ -45,14 +47,29 @@ For detailed usage instructions, refer to the [documentation](https://docs.intel
 
 ## Examples
 ### Gen
-The `Gen` function quickly generates tailored content in one line.<br><br>
+The `Gen` functions do a complete web-dev task in one line, with any provider.<br><br>
 import:
 ```js
 const { Gen } = require('intellinode');
 ```
 call:
 ```js
-// one line to generate html page code (openai gpt4 is default)
+// React + Tailwind component source from a prompt (openai gpt-5.5 is default)
+const code = await Gen.generate_component('a pricing card with a CTA button', openaiKey, 'openai', { styling: 'tailwind' });
+```
+```js
+// same call with Claude
+const form = await Gen.generate_form('a contact form with name, email and message', anthropicKey, 'anthropic');
+```
+```js
+// API endpoint, SQL, mock data, regex, unit tests, code review, SEO meta, UI translation, ...
+const endpoint = await Gen.generate_api_endpoint('POST /api/todos that creates a todo', openaiKey);
+const regex = await Gen.generate_regex('a US phone number', openaiKey);   // { pattern, flags, regex, matches, nonMatches }
+const meta = await Gen.generate_seo_meta('a product page for wireless headphones', openaiKey);
+const spanish = await Gen.translate_ui_strings({ save: 'Save' }, openaiKey, 'openai', { targetLanguage: 'Spanish' });
+```
+```js
+// one line to generate html page code
 text = 'a registration page with flat modern theme.'
 await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
@@ -60,13 +77,14 @@ await Gen.save_html_page(text, folder, file_name, openaiKey);
 // or generate blog post (using cohere)
 const blogPost = await Gen.get_blog_post(prompt, apiKey, provider='cohere');
 ```
+The full list of Gen functions is in the [package README](IntelliNode/README.md#gen).
 
 ### Chatbot
 import:
 ```js
 const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
-call GPT-5 (default):
+call GPT-5.5 (default):
 ```js
 // set chatGPT system mode and the user message.
 const input = new ChatGPTInput('You are a helpful assistant.');
@@ -75,6 +93,29 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 // get chatGPT responses.
 const chatbot = new Chatbot(OPENAI_API_KEY, 'openai');
 const responses = await chatbot.chat(input);
+```
+stream the response (OpenAI, Anthropic, Mistral, Cohere, NVIDIA, vLLM and the OpenAI-compatible providers):
+```js
+for await (const chunk of chatbot.stream(input)) {
+  process.stdout.write(chunk);
+}
+```
+run your tools until the model answers (any provider), or get schema-matched JSON with `chatbot.chatJson(input)`:
+```js
+const { text } = await chatbot.runTools(input, [{ name: 'get_weather', description: 'Weather for a city', parameters: { type: 'object', properties: { city: { type: 'string' } } }, handler: async ({ city }) => ({ city, tempC: 22 }) }]);
+```
+### Anthropic Claude Chatbot
+1. imports:
+```js
+const { Chatbot, AnthropicInput, SupportedChatModels } = require('intellinode');
+```
+2. call (Claude Sonnet 5 is default; use `claude-fable-5-1` for Fable or `claude-opus-5` for Opus):
+```js
+const input = new AnthropicInput('You are a helpful assistant.');
+input.addUserMessage('Who painted the Mona Lisa?');
+
+const claudeBot = new Chatbot(anthropicKey, SupportedChatModels.ANTHROPIC);
+const responses = await claudeBot.chat(input);
 ```
 ### Gemini Chatbot
 IntelliNode enable effortless swapping between AI models.
@@ -91,6 +132,13 @@ const geminiBot = new Chatbot(apiKey, SupportedChatModels.GEMINI);
 const responses = await geminiBot.chat(input);
 ```
 
+### OpenAI-compatible providers
+OpenRouter, Groq, DeepSeek, xAI, Together and a local Ollama / LM Studio work with the same code:
+```js
+const bot = new Chatbot(OPENROUTER_API_KEY, 'openrouter');   // or new Chatbot(null, 'ollama', null, { model: 'qwen3' })
+const input = new OpenAICompatibleInput('You are a helpful assistant.', { model: 'anthropic/claude-sonnet-5' });
+```
+
 ### Nvidia DeepSeek
 
 1. Import:
@@ -100,7 +148,7 @@ const { Chatbot, NvidiaInput, SupportedChatModels } = require("intellinode");
 
 2. Call:
 ```js
-const input = new NvidiaInput("You are an insightful assistant.", {model: 'deepseek-ai/deepseek-r1'});
+const input = new NvidiaInput("You are an insightful assistant.", {model: 'deepseek-ai/deepseek-v4-flash-0731'});
 input.addUserMessage("What's the summary of the Inception movie?");
 
 // visit build.nvidia.com to get your key.
@@ -139,7 +187,7 @@ const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
 call openai model:
 ```js
 const langModel = new RemoteLanguageModel('openai-key', 'openai');
-model_name = 'gpt-4o'
+model_name = 'gpt-3.5-turbo-instruct'
 
 const results = await langModel.generateText(new LanguageModelInput({
   prompt: 'Write a product description for smart plug that works with voice assistant.',
@@ -153,7 +201,7 @@ change to call cohere models:
 
 ```js
 const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
-model_name = 'command-xlarge-20221108'
+model_name = 'command-a-03-2025'
 // ... same code
 ```
 
@@ -164,7 +212,7 @@ import:
 const { RemoteImageModel, SupportedImageModels, ImageModelInput } = require('intellinode');
 ```
 
-call DALL·E:
+call OpenAI (gpt-image-2 is default):
 ```js
 provider=SupportedImageModels.OPENAI;
 
@@ -194,6 +242,20 @@ ProxyHelper.getInstance().setOpenaiProxyValues(openaiProxyJson);
 
 
 For more details and in-depth code, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
+
+# Coding agent
+Give the agent a repository and a task; it edits, searches and runs commands inside the workspace until the test command passes, with any chat provider:
+```js
+const agent = new CodingAgent({ apiKey: ANTHROPIC_API_KEY, provider: 'anthropic', workspace: './my_repo' });
+const result = await agent.run('Fix the failing tests in calc.js', { testCommand: 'npm test' });
+```
+
+# MCP server for coding assistants
+Give Claude Code, Cursor or VS Code the tools of every provider (ask a model, consensus, code review, fixes, tests, components, SQL, OpenAPI, mock data, images):
+```
+claude mcp add intellinode -e OPENAI_API_KEY=sk-... -e ANTHROPIC_API_KEY=sk-ant-... -- npx -y intellinode mcp
+```
+The library also ships an MCP client: pass `new MCPClient({ command, args })` or `new MCPClient({ url })` to `chatbot.runTools`. Details in [MCP_IMPLEMENTATION.md](IntelliNode/MCP_IMPLEMENTATION.md).
 
 # Frontend
 Include the following CDN script in your HTML:
@@ -239,6 +301,18 @@ HUGGING_API_KEY=<key_value>
 5. run the chatBot test cases:
 `node test/integration/Chatbot.test.js`
 
+6. run the latest provider features (GPT-5.5, Claude, Mistral, Cohere):
+`node test/integration/ChatbotOpenAILatest.test.js`
+`node test/integration/ChatbotAnthropic.test.js`
+`node test/integration/ChatbotMistral.test.js`
+`node test/integration/CohereLatest.test.js`
+
+7. build and check the frontend bundle:
+`npm run build && node test/integration/FrontBundle.test.js`
+
+8. run the offline unit tests:
+`npm test`
+
 # :closed_book: Documentation
 - [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki): Check the wiki page for indepeth instructions and practical use cases.
 - [Showcase](https://show.intellinode.ai/): Experience the potential of Intellinode in action, and use your keys to generate content and html pages.
@@ -261,7 +335,9 @@ Call for contributors:
 - [x] Add support for Nvidia Nim for local and remote models
 - [x] Evaluate multiple models using a few lines.
 - [x] Add Gen function to do complex business cases with one command.
-- [ ] Audd auto agent capabilities.
+- [x] Add the tool-calling agent loop, structured output and OpenAI-compatible providers.
+- [x] Add the IntelliNode MCP server and a spec-current MCP client.
+- [ ] Add multi-agent flows.
 
 
 # License

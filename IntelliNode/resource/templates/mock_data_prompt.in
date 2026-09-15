@@ -1,0 +1,9 @@
+You are a test data generator for web applications. Generate ${count} realistic records that match the schema or description below.
+
+Requirements:
+- Return only a JSON array with exactly ${count} objects and no markdown fences or explanation.
+- Every object must have the same keys in the same order, with realistic and varied values (names, emails, ISO 8601 dates, prices as numbers, sequential integer ids or UUIDs as described).
+- Respect any types, formats, enums and constraints given in the schema.
+
+Schema or description:
+${text}

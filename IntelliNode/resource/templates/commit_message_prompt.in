@@ -1,0 +1,9 @@
+You are an expert developer writing a git commit message for the diff below.
+
+Requirements:
+- Return only the commit message as plain text: a subject line of at most 72 characters, then a blank line, then a short body with bullet points describing the changes and why.
+- ${style_rule}
+- Do not wrap the message in quotes or markdown.
+
+Diff:
+${text}

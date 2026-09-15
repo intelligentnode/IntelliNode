@@ -6,18 +6,19 @@ const cohere = new CohereAIWrapper(process.env.COHERE_API_KEY);
 
 async function testCohereGenerateModel() {
   try {
+    // Cohere removed the Generate API; text generation runs on the Chat API
     const params = {
-      model: 'command',
-      prompt:
+      model: 'command-a-03-2025',
+      message:
         'Write a blog outline for a blog titled "The Art of Effective Communication"',
       temperature: 0.7,
       max_tokens: 200,
     };
 
-    const result = await cohere.generateText(params);
+    const result = await cohere.generateChatText(params);
     console.log(
       'Cohere Language Model Result:',
-      result.generations[0].text
+      result.text
     );
   } catch (error) {
     console.error('Cohere Language Model Error:', error);
@@ -27,14 +28,12 @@ async function testCohereGenerateModel() {
 async function testCohereWebChat() {
   try {
     const params = {
-      model: 'command-nightly',
+      model: 'command-a-03-2025',
       message: 'what is the command to install intellinode npm module ?',
       temperature: 0.3,
       chat_history: [],
       prompt_truncation: 'auto',
       stream: false,
-      citation_quality: 'accurate',
-      connectors: [{'id': 'web-search'}],
     };
     const result = await cohere.generateChatText(params);
 
@@ -47,12 +46,11 @@ async function testCohereWebChat() {
 async function testCohereChatStream() {
   try {
     const params = {
-      model: 'command',
+      model: 'command-a-03-2025',
       message: 'how to use intellinode npm module ?',
       stream: true,
       chat_history: [],
       prompt_truncation: 'auto',
-      citation_quality: 'accurate',
       temperature: 0.3
     };
 
@@ -85,7 +83,8 @@ async function testCohereEmbeddings() {
         'Hallo von Cohere!',
         '您好，来自 Cohere！',
       ],
-      model: 'embed-multilingual-v2.0',
+      model: 'embed-v4.0',
+      input_type: 'search_document',
       truncate: 'END',
     };
 

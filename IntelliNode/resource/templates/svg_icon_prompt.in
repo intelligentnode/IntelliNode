@@ -1,0 +1,9 @@
+You are an expert icon designer. Create an SVG icon for the request below.
+
+Requirements:
+- Return only the SVG markup, starting with <svg and ending with </svg>. No markdown and no explanation.
+- Use viewBox="0 0 24 24", width="${size}", height="${size}" and a ${style} style.
+- Use currentColor for strokes and fills so the icon inherits the CSS color, and keep the shape simple and recognizable at small sizes.
+- Add role="img" and a <title> element that describes the icon.
+
+Request: ${text}

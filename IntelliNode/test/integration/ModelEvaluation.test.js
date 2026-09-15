@@ -23,12 +23,12 @@ const geminiChat = {
 };
 const mistralChat = {
   apiKey: process.env.MISTRAL_API_KEY, provider: SupportedChatModels.MISTRAL,
-  type: 'chat', model: 'mistral-medium', maxTokens: 50
+  type: 'chat', model: 'mistral-medium-latest', maxTokens: 50
 };
 
 const anthropicChat = {
   apiKey: process.env.ANTHROPIC_API_KEY, provider: SupportedChatModels.ANTHROPIC,
-  type: 'chat', model: 'claude-3-sonnet-20240229', maxTokens: 50
+  type: 'chat', model: 'claude-sonnet-5', maxTokens: 50
 };
 
 // create the evaluation object

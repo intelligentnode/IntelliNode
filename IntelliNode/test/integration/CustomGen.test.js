@@ -1,4 +1,4 @@
-const { Gen } = require("../function/Gen");
+const { Gen } = require("../../function/Gen");
 require("dotenv").config();
 const assert = require("assert");
 const fs = require('fs');
@@ -44,8 +44,9 @@ async function testGenerateImageFromDesc(custom_provider) {
   if (custom_provider == 'stability') {
     image = await Gen.generate_image_from_desc(prompt, openaiApiKey, stabilityApiKey, true);
   } else if (custom_provider == 'openai'){
+    // width and height come before provider in the positional arguments
     image = await Gen.generate_image_from_desc(prompt, openaiApiKey,
-                                    openaiApiKey, true, provider='openai');
+                                    openaiApiKey, true, 1024, 1024, 'openai');
   }
   // console.log("Generated Image (Base64):", image);
   assert(image.length > 10, "Test passed");
@@ -74,9 +75,9 @@ async function testGenerateImageFromDesc(custom_provider) {
   console.log('\n')
 
   console.log('stability image')
-  testGenerateImageFromDesc('stability')
+  await testGenerateImageFromDesc('stability')
 
-  console.log('DALL·E 2 image')
-  testGenerateImageFromDesc('openai')
+  console.log('openai image')
+  await testGenerateImageFromDesc('openai')
 
 })();

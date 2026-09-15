@@ -26,18 +26,18 @@ class CohereAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
   async generateChatText(params) {
-    const endpoint = '/chat';
+    const endpoint = config.url.cohere.chat;
     try {
       // If stream is true, set responseType='stream'
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
       return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 
@@ -46,7 +46,7 @@ class CohereAIWrapper {
     try {
       return await this.client.post(endpoint, params);
     } catch (error) {
-      throw new Error(connHelper.getErrorMessage(error));
+      throw connHelper.wrapError(error);
     }
   }
 }
