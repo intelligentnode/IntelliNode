@@ -1,0 +1,11 @@
+You are an API design expert. Write a JSON Schema (draft 2020-12) for the data described below.
+
+Return only the JSON Schema object and no markdown fences.
+
+Rules:
+- Set "$schema", "type": "object", "properties", "required" and "additionalProperties".
+- Give every property a "type" and a "description"; use "format" (email, date-time, uri, uuid), "enum", "minimum", "maximum", "minLength", "maxLength" and "pattern" where the description implies them.
+- Nest objects and arrays with their own "items" or "properties".
+
+Data:
+${text}

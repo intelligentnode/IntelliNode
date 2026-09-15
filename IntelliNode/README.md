@@ -18,6 +18,7 @@
 Integrate your data with the latest language models and deep learning frameworks using intellinode **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
+- Gen: 25+ new one-call functions for web developers (components, forms, API endpoints, SQL, mock data, regex, tests, code review, SEO meta, UI translation and more) that work the same with every provider. 🧰
 - Update the default models: GPT-5.5, Claude Sonnet 5, Gemini 3.6 Flash, Mistral Medium, Command A and gpt-image-2. 🚀
 - Add streaming for GPT-5+, Anthropic and Mistral, plus tool calling for OpenAI, Anthropic and Mistral.
 - Fix the frontend bundle: Anthropic browser access, streaming in browsers and Gen templates.
@@ -128,27 +129,70 @@ const results = await search.getTopMatches(pivotItem, searchArray, numberOfMatch
 const filteredArray = search.filterTopMatches(results, searchArray)
 ```
 ### Gen
+One-call functions for the tasks web developers hand to AI every day. Every function takes the same
+arguments `(input, apiKey, provider, options)` and works with `openai`, `anthropic`, `gemini`,
+`mistral`, `cohere` and `nvidia`: change the provider name and the key, keep the code.
+
 1. imports:
 ```js
 const { Gen } = require('intellinode');
 ```
-2. call:
+2. build UI:
 ```js
-// one line to generate blog post
-const blogPost = await Gen.get_blog_post(prompt, openaiApiKey);
-```
-```js
-// or generate html page code
-text = 'a registration page with flat modern theme.'
-await Gen.save_html_page(text, folder, file_name, openaiKey);
-```
-```js
-// or convert csv data to charts
-const csv_str_data = '<your csv as string>'
-const topic = "<the csv topic>";
+// React + TypeScript + Tailwind component source (framework: react | vue | svelte | angular | html)
+const code = await Gen.generate_component('a pricing card with a plan name, price and a CTA button', openaiKey, 'openai',
+  { framework: 'react', language: 'typescript', styling: 'tailwind' });
 
-const htmlCode = await Gen.generate_dashboard(csv_str_data, topic, openaiKey, num_graphs=2);
+// an accessible form with client-side validation
+const form = await Gen.generate_form('a contact form with name, email and message', anthropicKey, 'anthropic');
+
+// a page section, a stylesheet, a responsive HTML email, an SVG icon or a color palette
+const hero = await Gen.generate_page_section('a hero for a note-taking app', openaiKey, 'openai', { sectionType: 'hero' });
+const css = await Gen.generate_css('a responsive three column card grid', openaiKey);
+const email = await Gen.generate_email_template('a welcome email with a "Get started" button', openaiKey);
+const icon = await Gen.generate_svg_icon('a shopping cart', openaiKey);
+const palette = await Gen.generate_color_palette('a calm fintech dashboard', openaiKey, 'openai', { count: 5 });
+
+// design tokens: 11-step color scales, light/dark roles, WCAG contrast, CSS variables and a Tailwind theme
+const tokens = await Gen.generate_design_tokens('a calm fintech dashboard', openaiKey, 'openai', { brandColor: '#4F46E5' });
+// tokens.css -> ':root { --color-primary-500: #4f46e5; ... }', tokens.tailwind.theme.extend.colors
+
+// fix accessibility problems: { html, issues: [{ issue, fix, wcag }] }
+const fixed = await Gen.improve_accessibility('<img src="hero.jpg"><a href="/x">click here</a>', openaiKey);
+
+// full page or data dashboard as { html, message }
+const page = await Gen.generate_html_page('a registration page with a flat modern theme', openaiKey);
+const dashboard = await Gen.generate_dashboard(csvString, 'website growth', openaiKey, undefined, 2);
 ```
+3. backend and developer workflow:
+```js
+const endpoint = await Gen.generate_api_endpoint('POST /api/todos that creates a todo', openaiKey, 'openai', { framework: 'express' });
+const sql = await Gen.generate_sql('top 10 customers by order total', openaiKey, 'openai', { dialect: 'postgresql', schema });
+const schema = await Gen.generate_json_schema('a blog post with title, slug, tags and author', openaiKey);
+const openapi = await Gen.generate_openapi_spec(expressRouterCode, openaiKey, 'openai', { title: 'Users API' }); // OpenAPI 3.1 object
+const rows = await Gen.generate_mock_data('a user with id, fullName, email and role', openaiKey, 'openai', { count: 20 });
+const regex = await Gen.generate_regex('a US phone number', openaiKey);      // { pattern, flags, regex, matches, nonMatches }
+const tests = await Gen.generate_unit_tests(code, openaiKey, 'openai', { framework: 'jest', modulePath: './math' });
+const review = await Gen.review_code(code, openaiKey);                        // { summary, score, issues }
+const fix = await Gen.fix_code(code, openaiKey, 'openai', { problem: 'average([1,2,3]) returns NaN' });
+const explained = await Gen.explain_code(code, openaiKey, 'openai', { audience: 'junior developer' });
+const ts = await Gen.convert_code(code, openaiKey, 'openai', { from: 'JavaScript', to: 'TypeScript' });
+const commit = await Gen.generate_commit_message(gitDiff, openaiKey);        // conventional commit
+const readme = await Gen.generate_readme('intellinode-cli: generates web components from a prompt', openaiKey);
+const notes = await Gen.generate_release_notes(changes, openaiKey, 'openai', { version: '2.4.0' });
+```
+4. content and metadata:
+```js
+const meta = await Gen.generate_seo_meta('a product page for wireless headphones', openaiKey, 'openai', { url, siteName });
+const spanish = await Gen.translate_ui_strings({ save: 'Save', greeting: 'Hello, {name}!' }, openaiKey, 'openai', { targetLanguage: 'Spanish' });
+const faq = await Gen.generate_faq('a specialty coffee subscription', openaiKey, 'openai', { count: 5 });
+const copy = await Gen.generate_landing_copy('an AI meeting assistant', openaiKey);
+const blogPost = await Gen.get_blog_post(prompt, openaiKey);
+const description = await Gen.get_marketing_desc('an ergonomic gaming chair', openaiKey);
+const text = await Gen.generate_text('any prompt', anthropicKey, 'anthropic', { system: 'You are terse.' });
+```
+Code functions return the code as a string (no markdown fences); structured functions return parsed
+objects. Pass `options.model` to pick a model and `options.maxTokens` or `options.temperature` to tune it.
 
 ## Models Access
 ### Image models

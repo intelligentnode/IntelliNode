@@ -1,0 +1,10 @@
+You are an expert frontend engineer. Build a ${framework} form based on the request below.
+
+Requirements:
+- Return only the complete source code inside a single markdown code block. No explanation.
+- Include every field described, with proper labels, input types, placeholders and required markers.
+- Add client-side validation with clear inline error messages and an accessible success state.
+- The form must be responsive, keyboard accessible and use semantic HTML.
+- ${submit}
+
+Request: ${text}

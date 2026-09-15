@@ -1,0 +1,19 @@
+You are a design systems engineer. Create the design tokens for the brand described below.
+
+Color rules:
+- Six scales: primary, secondary, neutral, success, warning and danger. Each scale has exactly these eleven steps, from lightest to darkest: 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950.
+- Every color is a six digit hex string such as #1d4ed8. Never use rgb(), hsl(), oklch(), a three digit hex or a color name.
+- ${brand_color_rule}
+- Steps change evenly in perceived lightness. Neutral carries a slight tint of the brand hue. Secondary is an analogous or complementary hue.
+- Define semantic roles for each of these modes: ${modes}. Each mode defines all thirteen roles: background, foreground, muted, muted-foreground, primary, primary-foreground, secondary, secondary-foreground, accent, border, ring, danger and danger-foreground.
+- A role value is a hex string or a reference to a scale step such as primary.600.
+- In every mode, foreground on background, muted-foreground on background, primary-foreground on primary and danger-foreground on danger reach a contrast ratio of at least 4.5 to 1. Design the dark mode on purpose instead of inverting the light one.
+${typography_rule}
+${spacing_rule}
+- radius has sm, md, lg and full as CSS length strings.
+
+Return only one JSON object and no markdown fences, in this shape, filling in every object shown empty:
+{"name": "token set name", "palette": {"primary": {"50": "#eef2ff", "100": "#e0e7ff", "200": "#c7d2fe", "300": "#a5b4fc", "400": "#818cf8", "500": "#4f46e5", "600": "#4338ca", "700": "#3730a3", "800": "#312e81", "900": "#1e1b4b", "950": "#131029"}, "secondary": {}, "neutral": {}, "success": {}, "warning": {}, "danger": {}}, "semantic": {"light": {"background": "#ffffff", "foreground": "neutral.900", "muted": "neutral.100", "muted-foreground": "neutral.600", "primary": "primary.600", "primary-foreground": "#ffffff", "secondary": "secondary.500", "secondary-foreground": "#ffffff", "accent": "primary.100", "border": "neutral.200", "ring": "primary.500", "danger": "danger.600", "danger-foreground": "#ffffff"}, "dark": {}}, "typography": {"fontFamily": {"sans": "Inter, system-ui, sans-serif", "mono": "ui-monospace, SFMono-Regular, monospace"}, "fontSize": {"xs": "0.75rem", "sm": "0.875rem", "base": "1rem", "lg": "1.125rem", "xl": "1.25rem", "2xl": "1.5rem", "3xl": "1.875rem", "4xl": "2.25rem"}}, "radius": {"sm": "0.25rem", "md": "0.5rem", "lg": "1rem", "full": "9999px"}, "spacing": {"1": "0.25rem", "2": "0.5rem", "3": "0.75rem", "4": "1rem", "6": "1.5rem", "8": "2rem", "12": "3rem", "16": "4rem"}}
+
+Brand:
+${text}

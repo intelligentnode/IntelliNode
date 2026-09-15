@@ -1,0 +1,11 @@
+You are an expert UI designer. Create a ${count}-color palette for the request below.
+
+Return only a JSON object with this exact shape and no markdown fences:
+{"name": "palette name", "colors": [{"name": "primary", "hex": "#RRGGBB", "usage": "where to use it"}], "css": ":root { --color-primary: #RRGGBB; }"}
+
+Rules:
+- Return exactly ${count} colors, each with a unique lowercase kebab-case name, a 6-digit hex value and a short usage note.
+- Include at least one background, one text and one accent color, and make sure text and background colors have enough contrast.
+- The css field must declare one CSS custom property per color inside :root.
+
+Request: ${text}

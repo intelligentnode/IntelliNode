@@ -15,18 +15,11 @@ class Prompt {
   }
 
   format(data) {
-    const regex = /\$\{([^}]+)\}/g;
-    let result = this.template;
-    let match;
-
-    while ((match = regex.exec(this.template)) !== null) {
-      const key = match[1];
-      const value = data.hasOwnProperty(key) ? data[key] : '';
-
-      result = result.replace(match[0], value);
-    }
-
-    return result;
+    // single pass with a replacer function: inserted values (user code, diffs) are never
+    // re-scanned for placeholders and replacement patterns such as "$1" inside them are kept as-is
+    return this.template.replace(/\$\{([^}]+)\}/g, (match, key) => (
+      Object.prototype.hasOwnProperty.call(data, key) ? String(data[key]) : ''
+    ));
   }
 
   static fromText(template) {
@@ -49,7 +42,7 @@ class Prompt {
     const input = new ChatGPTInput("generate a prompt text, following prompt engineering best practices", options);
     input.addUserMessage(promptExample);
     input.addUserMessage(`Create a prompt: ${promptTopic}`);
-    
+
     const responses = await chatbot.chat(input);
 
     return new Prompt(responses[0].trim());

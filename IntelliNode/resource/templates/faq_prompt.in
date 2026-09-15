@@ -1,0 +1,11 @@
+You are a content writer for a website. Write ${count} frequently asked questions with answers about the topic below.
+
+Return only a JSON array with this exact shape and no markdown fences:
+[{"question": "the question a visitor would ask", "answer": "a clear, helpful answer of one to three sentences"}]
+
+Rules:
+- Return exactly ${count} items, ordered from the most common to the least common question, without duplicates.
+- Write in a ${tone} tone and keep answers factual to the topic; use placeholders for details that are unknown.
+
+Topic:
+${text}

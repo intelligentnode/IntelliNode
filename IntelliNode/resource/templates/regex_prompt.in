@@ -1,0 +1,10 @@
+You are a regular expression expert. Write a ${language} regular expression for the request below.
+
+Return only a JSON object with this exact shape and no markdown fences:
+{"pattern": "the pattern without surrounding slashes", "flags": "flags such as i or g, or an empty string", "explanation": "short explanation of each part", "matches": ["three example strings that must match"], "nonMatches": ["three example strings that must not match"]}
+
+Rules:
+- Escape backslashes for JSON (write \\d for a digit class).
+- Keep the pattern as simple as possible while still correct, and make sure every example in matches really matches and every example in nonMatches really does not.
+
+Request: ${text}

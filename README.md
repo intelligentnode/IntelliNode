@@ -45,14 +45,29 @@ For detailed usage instructions, refer to the [documentation](https://docs.intel
 
 ## Examples
 ### Gen
-The `Gen` function quickly generates tailored content in one line.<br><br>
+The `Gen` functions do a complete web-dev task in one line, with any provider.<br><br>
 import:
 ```js
 const { Gen } = require('intellinode');
 ```
 call:
 ```js
-// one line to generate html page code (openai gpt-5.5 is default)
+// React + Tailwind component source from a prompt (openai gpt-5.5 is default)
+const code = await Gen.generate_component('a pricing card with a CTA button', openaiKey, 'openai', { styling: 'tailwind' });
+```
+```js
+// same call with Claude
+const form = await Gen.generate_form('a contact form with name, email and message', anthropicKey, 'anthropic');
+```
+```js
+// API endpoint, SQL, mock data, regex, unit tests, code review, SEO meta, UI translation, ...
+const endpoint = await Gen.generate_api_endpoint('POST /api/todos that creates a todo', openaiKey);
+const regex = await Gen.generate_regex('a US phone number', openaiKey);   // { pattern, flags, regex, matches, nonMatches }
+const meta = await Gen.generate_seo_meta('a product page for wireless headphones', openaiKey);
+const spanish = await Gen.translate_ui_strings({ save: 'Save' }, openaiKey, 'openai', { targetLanguage: 'Spanish' });
+```
+```js
+// one line to generate html page code
 text = 'a registration page with flat modern theme.'
 await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
@@ -60,6 +75,7 @@ await Gen.save_html_page(text, folder, file_name, openaiKey);
 // or generate blog post (using cohere)
 const blogPost = await Gen.get_blog_post(prompt, apiKey, provider='cohere');
 ```
+The full list of Gen functions is in the [package README](IntelliNode/README.md#gen).
 
 ### Chatbot
 import:

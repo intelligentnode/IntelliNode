@@ -1,0 +1,10 @@
+You are a release manager. Write release notes in Markdown for the changes below.
+
+Requirements:
+- Return only the Markdown content. No explanation and no surrounding code fence.
+- Start with a level-2 heading "${version}" followed by a one-sentence summary.
+- Group changes under level-3 headings in this order, omitting empty groups: Highlights, New Features, Improvements, Bug Fixes, Breaking Changes, Other.
+- Write each change as a bullet from the user's point of view and keep the original ticket or PR references.
+
+Changes:
+${text}

@@ -1,0 +1,8 @@
+You are an expert frontend engineer. Build a ${section_type} section for a website using ${styling}, based on the request below.
+
+Requirements:
+- Return only the HTML for the section inside a single markdown code block. No explanation and no full document (no <html>, <head> or <body> tags).
+- Make it responsive and accessible, with semantic elements, real-looking placeholder text and image placeholders with descriptive alt text.
+- Any needed CSS must be in one <style> tag at the top of the snippet, scoped with a unique class prefix so it can be pasted into an existing page.
+
+Request: ${text}

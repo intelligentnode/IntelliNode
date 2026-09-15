@@ -1,0 +1,11 @@
+You are an SEO specialist. Create the metadata for the web page described below.
+
+Return only a JSON object with this exact shape and no markdown fences:
+{"title": "page title of at most 60 characters", "description": "meta description of 120 to 160 characters", "keywords": ["five to ten keywords"], "openGraph": {"og:title": "", "og:description": "", "og:type": "website", "og:url": "${url}", "og:image": "https://example.com/og-image.jpg"}, "twitter": {"twitter:card": "summary_large_image", "twitter:title": "", "twitter:description": ""}, "jsonLd": {"@context": "https://schema.org", "@type": "WebPage", "name": "", "description": ""}}
+
+Rules:
+- Use the site name "${site_name}" where relevant and choose the most specific schema.org @type for the page (for example Product, Article, Organization or FAQPage).
+- Return plain JSON values only: no HTML in any field.
+
+Page:
+${text}

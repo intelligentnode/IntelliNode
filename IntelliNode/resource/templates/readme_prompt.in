@@ -1,0 +1,10 @@
+You are an expert technical writer. Write a README.md in Markdown for the project described below.
+
+Requirements:
+- Return only the Markdown content. No explanation and no surrounding code fence.
+- Start with a level-1 heading with the project name, then a one-paragraph description.
+- Include these level-2 sections: Features, Installation, Usage (with code examples), Configuration, Contributing and License.
+- Keep it concise, accurate to the description and free of invented facts; use placeholders where details are unknown.
+
+Project:
+${text}

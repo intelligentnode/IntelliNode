@@ -293,7 +293,7 @@ module.exports = {
   RemoteEmbedModel,
   SupportedEmbedModels,
 };
-},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":45,"../wrappers/GeminiAIWrapper":46,"../wrappers/NvidiaWrapper":51,"../wrappers/OpenAIWrapper":52,"../wrappers/ReplicateWrapper":53,"../wrappers/VLLMWrapper":55}],3:[function(require,module,exports){
+},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":46,"../wrappers/GeminiAIWrapper":47,"../wrappers/NvidiaWrapper":52,"../wrappers/OpenAIWrapper":53,"../wrappers/ReplicateWrapper":54,"../wrappers/VLLMWrapper":56}],3:[function(require,module,exports){
 /*
 Apache License
 
@@ -379,7 +379,7 @@ module.exports = {
     SupportedFineTuneModels,
 };
 
-},{"../model/input/FineTuneInput":15,"../wrappers/OpenAIWrapper":52}],4:[function(require,module,exports){
+},{"../model/input/FineTuneInput":15,"../wrappers/OpenAIWrapper":53}],4:[function(require,module,exports){
 /*
 Apache License
 
@@ -480,7 +480,7 @@ module.exports = {
   RemoteImageModel,
   SupportedImageModels,
 };
-},{"../model/input/ImageModelInput":17,"../wrappers/OpenAIWrapper":52,"../wrappers/StabilityAIWrapper":54}],5:[function(require,module,exports){
+},{"../model/input/ImageModelInput":17,"../wrappers/OpenAIWrapper":53,"../wrappers/StabilityAIWrapper":55}],5:[function(require,module,exports){
 /*
 Apache License
 
@@ -576,7 +576,7 @@ module.exports = {
   RemoteLanguageModel,
   SupportedLangModels,
 };
-},{"../config.json":1,"../model/input/LanguageModelInput":18,"../wrappers/CohereAIWrapper":45,"../wrappers/OpenAIWrapper":52}],6:[function(require,module,exports){
+},{"../config.json":1,"../model/input/LanguageModelInput":18,"../wrappers/CohereAIWrapper":46,"../wrappers/OpenAIWrapper":53}],6:[function(require,module,exports){
 /*
 Apache License
 
@@ -663,7 +663,7 @@ module.exports = {
   SupportedSpeechModels,
 };
 
-},{"../model/input/Text2SpeechInput":19,"../wrappers/GoogleAIWrapper":47,"../wrappers/OpenAIWrapper":52}],7:[function(require,module,exports){
+},{"../model/input/Text2SpeechInput":19,"../wrappers/GoogleAIWrapper":48,"../wrappers/OpenAIWrapper":53}],7:[function(require,module,exports){
 /*
 Apache License
 
@@ -1341,105 +1341,521 @@ module.exports = {
     SupportedChatModels,
 };
 
-},{"../model/input/ChatModelInput":13,"../utils/ModelHelper":38,"../utils/StreamParser":41,"../utils/SystemHelper":42,"../wrappers/AWSEndpointWrapper":43,"../wrappers/AnthropicWrapper":44,"../wrappers/CohereAIWrapper":45,"../wrappers/GeminiAIWrapper":46,"../wrappers/IntellicloudWrapper":49,"../wrappers/MistralAIWrapper":50,"../wrappers/NvidiaWrapper":51,"../wrappers/OpenAIWrapper":52,"../wrappers/ReplicateWrapper":53,"../wrappers/VLLMWrapper":55}],8:[function(require,module,exports){
+},{"../model/input/ChatModelInput":13,"../utils/ModelHelper":38,"../utils/StreamParser":42,"../utils/SystemHelper":43,"../wrappers/AWSEndpointWrapper":44,"../wrappers/AnthropicWrapper":45,"../wrappers/CohereAIWrapper":46,"../wrappers/GeminiAIWrapper":47,"../wrappers/IntellicloudWrapper":50,"../wrappers/MistralAIWrapper":51,"../wrappers/NvidiaWrapper":52,"../wrappers/OpenAIWrapper":53,"../wrappers/ReplicateWrapper":54,"../wrappers/VLLMWrapper":56}],8:[function(require,module,exports){
 (function (Buffer){(function (){
-// Gen.js
-const { RemoteLanguageModel } = require("../controller/RemoteLanguageModel");
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
 const { RemoteImageModel, SupportedImageModels } = require("../controller/RemoteImageModel");
 const { RemoteSpeechModel } = require("../controller/RemoteSpeechModel");
-const LanguageModelInput = require("../model/input/LanguageModelInput");
+const { SupportedLangModels } = require('../controller/RemoteLanguageModel');
 const ImageModelInput = require("../model/input/ImageModelInput");
 const Text2SpeechInput = require("../model/input/Text2SpeechInput");
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
-const { ChatGPTInput, ChatGPTMessage, NvidiaInput } = require("../model/input/ChatModelInput");
-const { SupportedLangModels } = require('../controller/RemoteLanguageModel');
+const {
+  ChatGPTInput,
+  AnthropicInput,
+  GeminiInput,
+  MistralInput,
+  CohereInput,
+  NvidiaInput,
+  VLLMInput
+} = require("../model/input/ChatModelInput");
 const SystemHelper = require("../utils/SystemHelper");
 const Prompt = require("../utils/Prompt");
 const FileHelper = require("../utils/FileHelper");
 const path = require('path');
 const config = require('../config.json');
 const { isReasoningModel } = require('../utils/ModelHelper');
+const { stripThinking, extractBlocks, extractCode, extractMarkdown, parseJson, extractSvg } = require('../utils/OutputParser');
 
 const DEFAULT_OPENAI_MODEL = config.url.openai.models.chat;
+const DEFAULT_SYSTEM = 'You are a helpful assistant.';
 
-// Reasoning models (gpt-5+) spend output tokens on thinking, so only cap older chat models.
-function openaiInputOptions(model, maxTokens, temperature = null) {
-  if (isReasoningModel(model)) {
-    return { model };
+// The chat input class of every provider Gen can talk to through the Chatbot.
+const CHAT_INPUTS = {
+  [SupportedChatModels.OPENAI]: ChatGPTInput,
+  [SupportedChatModels.ANTHROPIC]: AnthropicInput,
+  [SupportedChatModels.GEMINI]: GeminiInput,
+  [SupportedChatModels.MISTRAL]: MistralInput,
+  [SupportedChatModels.COHERE]: CohereInput,
+  [SupportedChatModels.NVIDIA]: NvidiaInput,
+  [SupportedChatModels.VLLM]: VLLMInput,
+};
+
+// Output token budgets for the generation use cases (ignored for OpenAI reasoning models).
+const TOKENS = { short: 1200, medium: 4000, long: 8000, page: 12000 };
+
+// Output floors for providers whose input class default cap is too small once adaptive thinking counts toward it.
+const MAX_TOKEN_FLOORS = {
+  [SupportedChatModels.ANTHROPIC]: 16000,
+};
+
+function buildChatInput(provider, system, options) {
+  const InputClass = CHAT_INPUTS[provider];
+  if (!InputClass) {
+    throw new Error(`Unsupported provider '${provider}'. Use one of: ${Object.keys(CHAT_INPUTS).join(', ')}`);
   }
-  return { model, maxTokens, ...(temperature !== null && { temperature }) };
+  const inputOptions = { ...(options.model && { model: options.model }) };
+  // reasoning models (gpt-5+) spend output tokens on thinking, so only cap and tune the other models
+  const reasoning = provider === SupportedChatModels.OPENAI && isReasoningModel(options.model || DEFAULT_OPENAI_MODEL);
+  if (!reasoning) {
+    const maxTokens = options.maxTokens || MAX_TOKEN_FLOORS[provider];
+    if (maxTokens) inputOptions.maxTokens = maxTokens;
+    if (options.temperature != null) inputOptions.temperature = options.temperature;
+  }
+  return new InputClass(system, inputOptions);
 }
 
-function stripThinking(text) {
-  /** emove any <think>...</think> block from NVIDIA responses. */
-  return text.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+// The legacy functions take an OpenAI model name positionally; other providers only use it when it is theirs.
+function resolveLegacyModel(provider, modelName) {
+  if (!modelName || modelName === DEFAULT_OPENAI_MODEL) {
+    return provider === SupportedChatModels.OPENAI ? modelName : null;
+  }
+  if (provider === SupportedChatModels.NVIDIA && !modelName.includes('/')) {
+    return null;
+  }
+  return modelName;
+}
+
+function legacyTokenSize(modelName, base) {
+  const name = modelName || '';
+  if (name.includes('-16k')) return 8000;
+  if (name.includes('gpt-4o')) return 12000;
+  if (name.includes('gpt-4')) return base;
+  if (name.includes('deepseek')) return 15000;
+  return 8000;
+}
+
+function quoteBlock(title, content, language = '') {
+  return content ? `${title}\n\`\`\`${language}\n${content}\n\`\`\`\n` : '';
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Render <title>, <meta> and JSON-LD tags from the parsed SEO fields (safer than asking the model for HTML inside JSON).
+function renderSeoHtml(meta) {
+  const lines = [`<title>${escapeHtml(meta.title)}</title>`];
+  if (meta.description) lines.push(`<meta name="description" content="${escapeHtml(meta.description)}">`);
+  if (Array.isArray(meta.keywords) && meta.keywords.length) {
+    lines.push(`<meta name="keywords" content="${escapeHtml(meta.keywords.join(', '))}">`);
+  }
+  for (const [property, content] of Object.entries(meta.openGraph || {})) {
+    lines.push(`<meta property="${escapeHtml(property)}" content="${escapeHtml(content)}">`);
+  }
+  for (const [name, content] of Object.entries(meta.twitter || {})) {
+    lines.push(`<meta name="${escapeHtml(name)}" content="${escapeHtml(content)}">`);
+  }
+  if (meta.jsonLd) {
+    lines.push(`<script type="application/ld+json">${JSON.stringify(meta.jsonLd).replace(/</g, '\\u003c')}</script>`);
+  }
+  return lines.join('\n');
+}
+
+// "code block + json block" answers: the main block is the longest non-json block, the json block carries the details.
+function parseCodeWithDetails(text, codeKey, language = null) {
+  const blocks = extractBlocks(text);
+  const jsonBlock = blocks.find((block) => block.lang === 'json');
+  const codeBlocks = blocks.filter((block) => block !== jsonBlock && block.code.trim());
+  const preferred = language ? codeBlocks.find((block) => block.lang === String(language).toLowerCase()) : null;
+  const codeBlock = preferred || codeBlocks.reduce((best, block) => (!best || block.code.length > best.code.length ? block : best), null);
+  let details = {};
+  if (jsonBlock) {
+    try {
+      details = parseJson(jsonBlock.code);
+    } catch (error) {
+      details = {};
+    }
+  }
+  return { [codeKey]: codeBlock ? codeBlock.code : extractCode(text, language), details };
+}
+
+const FRAMEWORK_LABELS = {
+  html: 'plain HTML, CSS and JavaScript (one self-contained .html file)',
+  react: 'React (function component with hooks)',
+  vue: 'Vue 3 (single-file component with <script setup>)',
+  svelte: 'Svelte (single-file component)',
+  angular: 'Angular (standalone component)',
+};
+
+const STYLE_FORMATS = {
+  css: 'plain CSS',
+  scss: 'SCSS',
+  tailwind: 'HTML markup styled with Tailwind CSS utility classes (return the markup with the classes applied)',
+};
+
+// ---------------------------------------------------------------------
+// OpenAPI normalisation
+// ---------------------------------------------------------------------
+
+const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
+
+function operationIdFor(method, pathKey) {
+  const words = `${method} ${pathKey}`.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  return words.map((word, index) => (index === 0 ? word.toLowerCase() : word[0].toUpperCase() + word.slice(1))).join('');
+}
+
+function resolveRef(doc, ref) {
+  return ref.slice(2).split('/').reduce(
+    (node, part) => (node == null ? undefined : node[part.replace(/~1/g, '/').replace(/~0/g, '~')]), doc);
+}
+
+function collectRefs(node, refs = new Set()) {
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectRefs(item, refs));
+  } else if (node && typeof node === 'object') {
+    for (const [key, value] of Object.entries(node)) {
+      if (key === '$ref' && typeof value === 'string') refs.add(value);
+      else collectRefs(value, refs);
+    }
+  }
+  return refs;
+}
+
+// Make a model-written OpenAPI document internally consistent so Swagger UI and code generators accept it.
+function normalizeOpenApi(doc, options = {}) {
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc) || !doc.paths || typeof doc.paths !== 'object') {
+    throw new Error('Gen: the model did not return an OpenAPI document with paths.');
+  }
+  const basePath = options.basePath ? `/${String(options.basePath).replace(/^\/+|\/+$/g, '')}` : '';
+  const info = doc.info || {};
+  const result = {
+    ...doc,
+    openapi: options.openapiVersion || '3.1.0',
+    info: { ...info, title: options.title || info.title || 'Generated API', version: options.version || info.version || '1.0.0' },
+    paths: {},
+  };
+  if (options.serverUrl) result.servers = [{ url: options.serverUrl }];
+
+  const usedIds = new Set();
+  for (const [rawPath, rawItem] of Object.entries(doc.paths)) {
+    let pathKey = `/${String(rawPath).trim().replace(/^\/+/, '')}`.replace(/:([A-Za-z_][A-Za-z0-9_]*)/g, '{$1}');
+    if (basePath && pathKey !== basePath && !pathKey.startsWith(`${basePath}/`)) {
+      pathKey = pathKey === '/' ? basePath : `${basePath}${pathKey}`;
+    }
+    const item = { ...(result.paths[pathKey] || {}) };
+    const pathLevelParams = Array.isArray(rawItem && rawItem.parameters) ? rawItem.parameters : [];
+    for (const [key, value] of Object.entries(rawItem || {})) {
+      if (!HTTP_METHODS.includes(key.toLowerCase())) item[key] = value;
+    }
+    const templateParams = [...pathKey.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]);
+
+    for (const [key, value] of Object.entries(rawItem || {})) {
+      const method = key.toLowerCase();
+      if (!HTTP_METHODS.includes(method) || !value || typeof value !== 'object') continue;
+      const operation = { ...value };
+      if (method === 'get' || method === 'delete') delete operation.requestBody;
+      if (!operation.responses || typeof operation.responses !== 'object' || Object.keys(operation.responses).length === 0) {
+        operation.responses = { 200: { description: 'Successful response' } };
+      }
+      const parameters = (Array.isArray(operation.parameters) ? operation.parameters : [])
+        .map((param) => (param && param.in === 'path' ? { ...param, required: true } : param));
+      const declared = new Set([...pathLevelParams, ...parameters]
+        .filter((param) => param && param.in === 'path')
+        .map((param) => param.name));
+      for (const name of templateParams.filter((param) => !declared.has(param))) {
+        parameters.push({ name, in: 'path', required: true, schema: { type: 'string' } });
+      }
+      if (parameters.length) operation.parameters = parameters;
+
+      const base = operation.operationId || operationIdFor(method, pathKey);
+      let id = base;
+      for (let n = 2; usedIds.has(id); n++) id = `${base}${n}`;
+      operation.operationId = id;
+      usedIds.add(id);
+      item[method] = operation;
+    }
+    result.paths[pathKey] = item;
+  }
+
+  // a dangling component reference breaks Swagger UI and code generators, so give it a placeholder schema
+  for (const ref of collectRefs(result)) {
+    if (!ref.startsWith('#/') || resolveRef(result, ref) !== undefined) continue;
+    const match = /^#\/components\/schemas\/([^/]+)$/.exec(ref);
+    if (!match) {
+      throw new Error(`Gen: the OpenAPI document references ${ref}, which it does not define.`);
+    }
+    const name = match[1].replace(/~1/g, '/').replace(/~0/g, '~');
+    result.components = { ...(result.components || {}) };
+    result.components.schemas = {
+      ...(result.components.schemas || {}),
+      [name]: { type: 'object', description: 'Referenced by the API; the model did not define this schema.' },
+    };
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------
+// Design token normalisation
+// ---------------------------------------------------------------------
+
+const TOKEN_SCALES = ['primary', 'secondary', 'neutral', 'success', 'warning', 'danger'];
+const TOKEN_STEPS = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
+const TOKEN_ROLES = [
+  'background', 'foreground', 'muted', 'muted-foreground', 'primary', 'primary-foreground', 'secondary',
+  'secondary-foreground', 'accent', 'border', 'ring', 'danger', 'danger-foreground',
+];
+const CONTRAST_PAIRS = [
+  ['foreground', 'background'], ['muted-foreground', 'background'], ['primary-foreground', 'primary'], ['danger-foreground', 'danger'],
+];
+const NAMED_COLORS = {
+  white: '#ffffff', black: '#000000', red: '#ff0000', green: '#008000', blue: '#0000ff', gray: '#808080', grey: '#808080',
+  silver: '#c0c0c0', navy: '#000080', teal: '#008080', purple: '#800080', orange: '#ffa500', yellow: '#ffff00',
+};
+
+function toHex(red, green, blue) {
+  return `#${[red, green, blue].map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function hslToRgb(hue, saturation, lightness) {
+  const h = (((hue % 360) + 360) % 360) / 360;
+  const s = saturation / 100;
+  const l = lightness / 100;
+  if (s === 0) return [l * 255, l * 255, l * 255];
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const channel = (t) => {
+    let x = t;
+    if (x < 0) x += 1;
+    if (x > 1) x -= 1;
+    if (x < 1 / 6) return p + (q - p) * 6 * x;
+    if (x < 1 / 2) return q;
+    if (x < 2 / 3) return p + (q - p) * (2 / 3 - x) * 6;
+    return p;
+  };
+  return [channel(h + 1 / 3) * 255, channel(h) * 255, channel(h - 1 / 3) * 255];
+}
+
+// Normalise a color to a lowercase six digit hex; anything that cannot be converted exactly throws.
+function normalizeColor(value, key) {
+  const text = String(value).trim().toLowerCase();
+  let match = /^#([0-9a-f]{3,4})$/.exec(text);
+  if (match) return `#${match[1].slice(0, 3).split('').map((digit) => digit + digit).join('')}`;
+  match = /^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/.exec(text);
+  if (match) return `#${match[1]}`;
+  match = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(text);
+  if (match) return toHex(Number(match[1]), Number(match[2]), Number(match[3]));
+  match = /^hsla?\(\s*([\d.]+)(?:deg)?[\s,]+([\d.]+)%[\s,]+([\d.]+)%/.exec(text);
+  if (match) return toHex(...hslToRgb(Number(match[1]), Number(match[2]), Number(match[3])));
+  if (NAMED_COLORS[text]) return NAMED_COLORS[text];
+  throw new Error(`Gen: unsupported color "${value}" at ${key}; expected a hex, rgb() or hsl() color.`);
+}
+
+function relativeLuminance(hex) {
+  const [red, green, blue] = [1, 3, 5]
+    .map((index) => parseInt(hex.slice(index, index + 2), 16) / 255)
+    .map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function contrastRatio(first, second) {
+  const [lighter, darker] = [relativeLuminance(first), relativeLuminance(second)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function buildTokenCss(palette, semantic, radius, modes, prefix) {
+  const declarations = (entries, indent = '  ') => entries.map(([name, value]) => `${indent}--${name}: ${value};`).join('\n');
+  const rootEntries = [];
+  for (const [scaleName, scaleSteps] of Object.entries(palette)) {
+    for (const [step, value] of Object.entries(scaleSteps)) rootEntries.push([`${prefix}-${scaleName}-${step}`, value]);
+  }
+  for (const [size, value] of Object.entries(radius)) rootEntries.push([`radius-${size}`, value]);
+  rootEntries.push(...Object.entries(semantic[modes[0]]));
+
+  const blocks = [`:root {\n${declarations(rootEntries)}\n}`];
+  for (const mode of modes.slice(1)) {
+    const entries = Object.entries(semantic[mode]);
+    blocks.push(`[data-theme="${mode}"] {\n${declarations(entries)}\n}`);
+    if (mode === 'dark') {
+      blocks.push(`@media (prefers-color-scheme: dark) {\n  :root:not([data-theme="light"]) {\n${declarations(entries, '    ')}\n  }\n}`);
+    }
+  }
+  return blocks.join('\n\n');
+}
+
+function buildTailwindTheme(palette, semantic, typography, radius, spacing, modes) {
+  const colors = {};
+  for (const [scaleName, scaleSteps] of Object.entries(palette)) colors[scaleName] = { ...scaleSteps };
+  const roles = Object.keys(semantic[modes[0]]);
+  for (const role of roles.filter((name) => !name.endsWith('-foreground'))) {
+    colors[role] = { ...(colors[role] || {}), DEFAULT: `var(--${role})` };
+  }
+  for (const role of roles.filter((name) => name.endsWith('-foreground'))) {
+    const base = role.slice(0, -'-foreground'.length);
+    colors[base] = { ...(colors[base] || {}), foreground: `var(--${role})` };
+  }
+  const extend = { colors, borderRadius: { ...radius } };
+  if (typography && typography.fontFamily) extend.fontFamily = { ...typography.fontFamily };
+  if (typography && typography.fontSize) extend.fontSize = { ...typography.fontSize };
+  if (spacing) extend.spacing = { ...spacing };
+  return { theme: { extend } };
+}
+
+// Validate and complete model-written design tokens; syntax (hex, CSS, Tailwind) is produced by the library.
+function normalizeDesignTokens(raw, options) {
+  if (!raw || typeof raw !== 'object' || !raw.palette || typeof raw.palette !== 'object') {
+    throw new Error('Gen: the model did not return design tokens with a palette.');
+  }
+  const modes = options.modes;
+  const warnings = [];
+
+  const palette = {};
+  const missingSteps = [];
+  for (const scaleName of TOKEN_SCALES) {
+    palette[scaleName] = {};
+    for (const step of TOKEN_STEPS) {
+      const value = raw.palette[scaleName] && raw.palette[scaleName][step];
+      if (value == null || value === '') {
+        missingSteps.push(`${scaleName}.${step}`);
+      } else {
+        palette[scaleName][step] = normalizeColor(value, `palette.${scaleName}.${step}`);
+      }
+    }
+  }
+  if (missingSteps.length) {
+    throw new Error(`Gen: the design tokens are missing palette steps: ${missingSteps.join(', ')}`);
+  }
+  if (options.brandColor) {
+    const brand = normalizeColor(options.brandColor, 'options.brandColor');
+    if (palette.primary['500'] !== brand) {
+      warnings.push(`primary.500 was ${palette.primary['500']} and was set to the brand color ${brand}.`);
+      palette.primary['500'] = brand;
+    }
+  }
+
+  const resolve = (value, key) => {
+    const reference = /^\s*([a-z]+)[.-](\d{2,3})\s*$/i.exec(String(value));
+    if (reference) {
+      const scaleSteps = palette[reference[1].toLowerCase()];
+      if (scaleSteps && scaleSteps[reference[2]]) return scaleSteps[reference[2]];
+    }
+    return normalizeColor(value, key);
+  };
+
+  const semantic = {};
+  const missingRoles = [];
+  for (const mode of modes) {
+    const source = (raw.semantic && raw.semantic[mode]) || {};
+    semantic[mode] = {};
+    for (const role of TOKEN_ROLES) {
+      if (source[role] == null || source[role] === '') {
+        missingRoles.push(`${mode}.${role}`);
+      } else {
+        semantic[mode][role] = resolve(source[role], `semantic.${mode}.${role}`);
+      }
+    }
+  }
+  if (missingRoles.length) {
+    throw new Error(`Gen: the design tokens are missing semantic roles: ${missingRoles.join(', ')}`);
+  }
+
+  const contrast = [];
+  for (const mode of modes) {
+    for (const [foreground, background] of CONTRAST_PAIRS) {
+      const ratio = Math.round(contrastRatio(semantic[mode][foreground], semantic[mode][background]) * 100) / 100;
+      contrast.push({ mode, pair: `${foreground}/${background}`, ratio, aa: ratio >= 4.5 });
+      if (ratio < 4.5) {
+        warnings.push(`${mode}: ${foreground} on ${background} has a contrast of ${ratio}:1, below WCAG AA (4.5:1).`);
+      }
+    }
+  }
+
+  const typography = options.includeTypography === false ? null : (raw.typography || null);
+  const spacing = options.includeSpacing === false ? null : (raw.spacing || null);
+  const radius = { sm: '0.25rem', md: '0.5rem', lg: '1rem', full: '9999px', ...(raw.radius || {}) };
+  return {
+    name: raw.name || 'Design tokens',
+    palette,
+    semantic,
+    typography,
+    radius,
+    spacing,
+    contrast,
+    css: buildTokenCss(palette, semantic, radius, modes, options.cssPrefix || 'color'),
+    tailwind: buildTailwindTheme(palette, semantic, typography, radius, spacing, modes),
+    warnings,
+  };
 }
 
 class Gen {
+  /**
+   * One call to any chat provider. Returns the model text with reasoning blocks removed.
+   *
+   * @param {string} prompt - the user message.
+   * @param {string} apiKey - the provider key.
+   * @param {string} provider - openai, anthropic, gemini, mistral, cohere, nvidia or vllm.
+   * @param {object} options - { system, model, maxTokens, temperature, customProxyHelper, baseUrl }.
+   */
+  static async generate_text(prompt, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const input = buildChatInput(provider, options.system || DEFAULT_SYSTEM, options);
+    input.addUserMessage(prompt);
+
+    const chatbotOptions = options.baseUrl ? { baseUrl: options.baseUrl } : {};
+    const chatbot = new Chatbot(apiKey, provider, options.customProxyHelper || null, chatbotOptions);
+    const responses = await chatbot.chat(input);
+
+    const first = responses[0];
+    const text = typeof first === 'string' ? first : (first && first.content) || '';
+    return stripThinking(text);
+  }
+
+  // Fill a prompt template, call the provider and parse the output as text, markdown, code, json or svg.
+  static async _generate(templateName, variables, apiKey, provider, options = {}, settings = {}) {
+    const template = new SystemHelper().loadPrompt(templateName);
+    const prompt = new Prompt(template).format(variables);
+    const text = await Gen.generate_text(prompt, apiKey, provider, {
+      ...settings.defaults,
+      ...options,
+      system: options.system || settings.system || DEFAULT_SYSTEM,
+    });
+
+    if (!text && !settings.legacy) {
+      const model = options.model ? ` (${options.model})` : '';
+      throw new Error(`Gen: empty response from ${provider}${model}. The output budget may have been spent before any text was produced; raise options.maxTokens.`);
+    }
+
+    if (typeof settings.parse === 'function') {
+      return settings.parse(text);
+    }
+    switch (settings.parse) {
+      case 'json': return parseJson(text);
+      case 'code': return extractCode(text, settings.language || null);
+      case 'markdown': return extractMarkdown(text);
+      case 'svg': return extractSvg(text);
+      default: return text;
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Content
+  // ---------------------------------------------------------------------
+
   // Marketing description generation
   static async get_marketing_desc(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    if (provider === SupportedLangModels.OPENAI) {
-      const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      const input = new ChatGPTInput("generate marketing description", openaiInputOptions(DEFAULT_OPENAI_MODEL, 800));
-      input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
-      const responses = await chatbot.chat(input);
-      return responses[0].trim();
-    } else if (provider === SupportedLangModels.COHERE) {
-      const langInput = new LanguageModelInput({ prompt: `Create a marketing description for the following: ${promptString}` });
-      langInput.setDefaultValues(SupportedLangModels.COHERE, 400);
-      const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
-      const responses = await cohereLanguageModel.generateText(langInput);
-      return responses[0].trim();
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      const input = new NvidiaInput("generate marketing description", { maxTokens: 800, temperature: 0.6 });
-      input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
-      const responses = await chatbot.chat(input);
-      let text = responses[0].trim();
-      return stripThinking(text);
-    } else {
-      const supported = RemoteLanguageModel.getSupportedModels().join(' - ');
-      throw new Error(`Unsupported provider. Use one of: ${supported}, ${SupportedChatModels.NVIDIA}`);
-    }
+    return Gen.generate_text(`Create a marketing description for the following: ${promptString}`, apiKey, provider,
+      { system: 'generate marketing description', maxTokens: 800, customProxyHelper });
   }
 
   // Blog post generation
   static async get_blog_post(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    if (provider === SupportedLangModels.OPENAI) {
-      const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      const input = new ChatGPTInput("generate blog post", openaiInputOptions(DEFAULT_OPENAI_MODEL, 1200));
-      input.addUserMessage(`Write a blog post about ${promptString}`);
-      const responses = await chatbot.chat(input);
-      return responses[0].trim();
-    } else if (provider === SupportedLangModels.COHERE) {
-      const langInput = new LanguageModelInput({ prompt: `Write a blog post with section titles about ${promptString}` });
-      langInput.setDefaultValues(SupportedLangModels.COHERE, 1200);
-      const cohereLanguageModel = new RemoteLanguageModel(apiKey, provider);
-      const responses = await cohereLanguageModel.generateText(langInput);
-      return responses[0].trim();
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      const input = new NvidiaInput("generate blog post", { maxTokens: 1200, temperature: 0.6 });
-      input.addUserMessage(`Write a blog post about ${promptString}`);
-      const responses = await chatbot.chat(input);
-      let text = responses[0].trim();
-      return stripThinking(text);
-    } else {
-      const supported = RemoteLanguageModel.getSupportedModels().join(' - ');
-      throw new Error(`Unsupported provider. Use one of: ${supported}, ${SupportedChatModels.NVIDIA}`);
-    }
+    return Gen.generate_text(`Write a blog post with section titles about ${promptString}`, apiKey, provider,
+      { system: 'generate blog post', maxTokens: 1200, customProxyHelper });
   }
 
-  // Image description (unchanged)
-  static async getImageDescription(promptString, apiKey, customProxyHelper = null) {
-    const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-    const input = new ChatGPTInput("Generate image description", {});
-    input.addUserMessage(`Generate image description from the following text: ${promptString}`);
-    const responses = await chatbot.chat(input);
-    return responses[0].trim();
+  // Image description
+  static async getImageDescription(promptString, apiKey, customProxyHelper = null, provider = SupportedChatModels.OPENAI) {
+    return Gen.generate_text(`Generate image description from the following text: ${promptString}`, apiKey, provider,
+      { system: 'Generate image description', customProxyHelper });
   }
 
-  // Generate image from description (unchanged)
+  // Generate image from description
   static async generate_image_from_desc(promptString, openaiKey, imageApiKey, is_base64 = true, width = 1024,
                                           height = 1024, provider = SupportedImageModels.STABILITY, customProxyHelper = null) {
     const imageDescription = await Gen.getImageDescription(promptString, openaiKey, customProxyHelper);
@@ -1456,49 +1872,86 @@ class Gen {
     return is_base64 ? images[0] : Buffer.from(images[0], "base64");
   }
 
-  // Speech synthesis (unchanged)
+  // Speech synthesis
   static async generate_speech_synthesis(text, googleKey) {
     const speechModel = new RemoteSpeechModel(googleKey, "google");
     const input = new Text2SpeechInput({ text: text, language: "en-gb" });
     return await speechModel.generateSpeech(input);
   }
 
+  /** Landing page copy: { headline, subheadline, features, cta, socialProof, faq }. options: { featureCount, tone }. */
+  static async generate_landing_copy(product, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('landing_copy', {
+      text: product,
+      feature_count: options.featureCount || 3,
+      tone: options.tone || 'professional',
+    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.medium } });
+  }
+
+  /** FAQ list: [{ question, answer }]. options: { count, tone }. */
+  static async generate_faq(topic, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('faq', {
+      text: topic,
+      count: options.count || 5,
+      tone: options.tone || 'friendly and professional',
+    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.medium } });
+  }
+
+  /** SEO metadata: { title, description, keywords, openGraph, twitter, jsonLd, html }. options: { url, siteName }. */
+  static async generate_seo_meta(pageDescription, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const meta = await Gen._generate('seo_meta', {
+      text: pageDescription,
+      url: options.url || 'https://example.com/',
+      site_name: options.siteName || 'the website',
+    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.medium } });
+    return { ...meta, html: renderSeoHtml(meta) };
+  }
+
+  /**
+   * Translate a UI strings object (or JSON string) keeping keys and placeholders.
+   * options: { targetLanguage (required), sourceLanguage }.
+   */
+  static async translate_ui_strings(strings, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    if (!options.targetLanguage) {
+      throw new Error("translate_ui_strings requires options.targetLanguage, e.g. { targetLanguage: 'es' }");
+    }
+    const text = typeof strings === 'string' ? strings : JSON.stringify(strings, null, 2);
+    return Gen._generate('translate_strings', {
+      text,
+      source_language: options.sourceLanguage || 'the source language',
+      target_language: options.targetLanguage,
+    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
+  }
+
+  /** Release notes in Markdown. options: { version }. */
+  static async generate_release_notes(changes, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('release_notes', {
+      text: changes,
+      version: options.version || 'Unreleased',
+    }, apiKey, provider, options, { parse: 'markdown', defaults: { maxTokens: TOKENS.medium } });
+  }
+
+  /** README.md content in Markdown for a project description. */
+  static async generate_readme(projectDescription, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('readme', { text: projectDescription }, apiKey, provider, options,
+      { parse: 'markdown', defaults: { maxTokens: TOKENS.long } });
+  }
+
+  // ---------------------------------------------------------------------
+  // Frontend
+  // ---------------------------------------------------------------------
+
   // Generate HTML page
   static async generate_html_page(text, apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    const template = new SystemHelper().loadPrompt("html_page");
-    const promptTemp = new Prompt(template);
-    let tokenSize = 8000;
-    if (model_name.includes('-16k')) {
-      tokenSize = 8000;
-    } else if (model_name.includes('gpt-4o')) {
-      tokenSize = 12000;
-    } else if (model_name.includes('gpt-4')) {
-      tokenSize = 4000;
-    } else if (model_name.includes('deepseek')) {
-      tokenSize = 15000;
-    }
-    let chatbot, input;
-    if (provider === SupportedLangModels.OPENAI) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      input = new ChatGPTInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
-        openaiInputOptions(model_name, tokenSize, 0.8));
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      input = new NvidiaInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
-        { maxTokens: tokenSize, temperature: 0.8 });
-    } else {
-      throw new Error("Unsupported provider for generate_html_page.");
-    }
-    input.addUserMessage(promptTemp.format({ 'text': text }));
-    const responses = await chatbot.chat(input);
-    let cleaned = responses[0]
-      .trim()
-      .replace(/```json/g, '')
-      .replace(/```/g, '');
-    if (provider === SupportedChatModels.NVIDIA) {
-      cleaned = stripThinking(cleaned);
-    }
-    return JSON.parse(cleaned);
+    return Gen._generate('html_page', { text }, apiKey, provider, {
+      model: resolveLegacyModel(provider, model_name),
+      maxTokens: legacyTokenSize(model_name, 4000),
+      temperature: 0.8,
+      customProxyHelper,
+    }, {
+      parse: 'json',
+      system: 'generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
+    });
   }
 
   // Save HTML page (calls generate_html_page)
@@ -1514,76 +1967,264 @@ class Gen {
     if (num_graphs < 1 || num_graphs > 4) {
       throw new Error('num_graphs must be between 1 and 4.');
     }
-    const template = new SystemHelper().loadPrompt("graph_dashboard");
-    const promptTemp = new Prompt(template);
-    let tokenSize = 2100;
-    if (model_name.includes('-16k')) {
-      tokenSize = 8000;
-    } else if (model_name.includes('gpt-4o')) {
-      tokenSize = 12000;
-    } else if (model_name.includes('gpt-4')) {
-      tokenSize = 3900;
-    } else if (model_name.includes('deepseek')) {
-      tokenSize = 15000;
+    const result = await Gen._generate('graph_dashboard', { count: num_graphs, topic, text: csvStrData }, apiKey, provider, {
+      model: resolveLegacyModel(provider, model_name),
+      maxTokens: legacyTokenSize(model_name, 3900),
+      temperature: 0.3,
+      customProxyHelper,
+    }, {
+      parse: 'json',
+      system: 'Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
+    });
+    return Array.isArray(result) ? result[0] : result;
+  }
+
+  /**
+   * UI component source code. options: { framework: react|vue|svelte|angular|html, language: javascript|typescript,
+   * styling: css|tailwind|css-modules|styled-components }.
+   */
+  static async generate_component(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const framework = options.framework || 'react';
+    return Gen._generate('component', {
+      text: description,
+      framework: FRAMEWORK_LABELS[framework] || framework,
+      language: options.language || 'javascript',
+      styling: options.styling || 'css',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
+  }
+
+  /** Form with client-side validation. options: { framework: html|react|vue|svelte, action (URL to POST the values to) }. */
+  static async generate_form(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const framework = options.framework || 'html';
+    return Gen._generate('form', {
+      text: description,
+      framework: FRAMEWORK_LABELS[framework] || framework,
+      submit: options.action
+        ? `On submit, POST the values as JSON to ${options.action} and show the result to the user.`
+        : 'On submit, prevent the default action and log the collected values as JSON.',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
+  }
+
+  /** A page section (hero, pricing, features, testimonials, footer, ...). options: { sectionType, styling }. */
+  static async generate_page_section(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('page_section', {
+      text: description,
+      section_type: options.sectionType || 'hero',
+      styling: options.styling === 'tailwind' ? 'Tailwind CSS utility classes' : 'plain CSS',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.3 } });
+  }
+
+  /** Stylesheet or Tailwind markup. options: { format: css|scss|tailwind, html (markup to style) }. */
+  static async generate_css(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const format = options.format || 'css';
+    return Gen._generate('styles', {
+      text: description,
+      format: STYLE_FORMATS[format] || format,
+      html_section: quoteBlock('Target this HTML markup:', options.html, 'html'),
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.medium, temperature: 0.2 } });
+  }
+
+  /** Accessibility fixes: { html, issues: [{ issue, fix, wcag }] }. */
+  static async improve_accessibility(html, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('accessibility', { text: html }, apiKey, provider, options, {
+      defaults: { maxTokens: TOKENS.long, temperature: 0.1 },
+      parse: (text) => {
+        const { html: fixed, details } = parseCodeWithDetails(text, 'html', 'html');
+        return { html: fixed, issues: Array.isArray(details) ? details : (details.issues || []) };
+      },
+    });
+  }
+
+  /** Responsive, email-client-safe HTML email. */
+  static async generate_email_template(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('email_template', { text: description }, apiKey, provider, options,
+      { parse: 'code', language: 'html', defaults: { maxTokens: TOKENS.long, temperature: 0.3 } });
+  }
+
+  /** SVG icon markup. options: { size, style: outline|filled }. */
+  static async generate_svg_icon(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('svg_icon', {
+      text: description,
+      size: options.size || 24,
+      style: options.style === 'filled' ? 'filled (solid shapes)' : 'outline (stroke based, stroke-width 2, round line caps)',
+    }, apiKey, provider, options, { parse: 'svg', defaults: { maxTokens: TOKENS.short, temperature: 0.2 } });
+  }
+
+  /** Color palette: { name, colors: [{ name, hex, usage }], css }. options: { count }. */
+  static async generate_color_palette(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('color_palette', { text: description, count: options.count || 6 }, apiKey, provider, options,
+      { parse: 'json', defaults: { maxTokens: TOKENS.short } });
+  }
+
+  // ---------------------------------------------------------------------
+  // Backend and developer workflow
+  // ---------------------------------------------------------------------
+
+  /** API endpoint source. options: { framework: express|fastify|nextjs|koa|hono|flask|fastapi, language }. */
+  static async generate_api_endpoint(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('api_endpoint', {
+      text: description,
+      framework: options.framework || 'Express',
+      language: options.language || 'javascript',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.medium, temperature: 0.2 } });
+  }
+
+  /** SQL statements. options: { dialect: postgresql|mysql|sqlite|sqlserver, schema (existing tables) }. */
+  static async generate_sql(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('sql', {
+      text: description,
+      dialect: options.dialect || 'PostgreSQL',
+      schema_section: quoteBlock('Existing schema:', options.schema, 'sql'),
+    }, apiKey, provider, options, { parse: 'code', language: 'sql', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
+  }
+
+  /** JSON Schema (draft 2020-12) object for a data description. */
+  static async generate_json_schema(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('json_schema', { text: description }, apiKey, provider, options,
+      { parse: 'json', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
+  }
+
+  /** Realistic mock records as an array. options: { count }. */
+  static async generate_mock_data(schema, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const text = typeof schema === 'string' ? schema : JSON.stringify(schema, null, 2);
+    const result = await Gen._generate('mock_data', { text, count: options.count || 5 }, apiKey, provider, options,
+      { parse: 'json', defaults: { maxTokens: TOKENS.long, temperature: 0.7 } });
+    return Array.isArray(result) ? result : [result];
+  }
+
+  /**
+   * Regular expression: { pattern, flags, explanation, matches, nonMatches, regex (RegExp), verified }.
+   * verified is true when the pattern compiles and behaves as the model's own examples claim. options: { language }.
+   */
+  static async generate_regex(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const result = await Gen._generate('regex', { text: description, language: options.language || 'JavaScript' },
+      apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.short, temperature: 0.1 } });
+    result.matches = Array.isArray(result.matches) ? result.matches : [];
+    result.nonMatches = Array.isArray(result.nonMatches) ? result.nonMatches : [];
+    try {
+      result.regex = new RegExp(result.pattern, (result.flags || '').replace('g', ''));
+      result.verified = result.matches.every((sample) => result.regex.test(sample))
+        && result.nonMatches.every((sample) => !result.regex.test(sample));
+    } catch (error) {
+      result.regex = null;
+      result.verified = false;
     }
-    let chatbot, input;
-    if (provider === SupportedLangModels.OPENAI) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      input = new ChatGPTInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
-        openaiInputOptions(model_name, tokenSize, 0.3));
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      input = new NvidiaInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
-        { maxTokens: tokenSize, temperature: 0.3 });
-    } else {
-      throw new Error("Unsupported provider for generate_dashboard.");
-    }
-    input.addUserMessage(promptTemp.format({ 'count': num_graphs, 'topic': topic, 'text': csvStrData }));
-    const responses = await chatbot.chat(input);
-    let cleaned = responses[0]
-      .trim()
-      .replace(/```json/g, '')
-      .replace(/```/g, '');
-    if (provider === SupportedChatModels.NVIDIA) {
-      cleaned = stripThinking(cleaned);
-    }
-    return JSON.parse(cleaned)[0];
+    return result;
+  }
+
+  /** Unit test file source. options: { framework: jest|vitest|mocha|pytest, modulePath }. */
+  static async generate_unit_tests(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('unit_tests', {
+      text: code,
+      framework: options.framework || 'Jest',
+      module_path: options.modulePath || './module',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
+  }
+
+  /** Code review: { summary, score, issues: [{ severity, title, description, suggestion }] }. options: { language }. */
+  static async review_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('code_review', { text: code, language: options.language || '' }, apiKey, provider, options,
+      { parse: 'json', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
+  }
+
+  /** Explain code in Markdown. options: { language, audience }. */
+  static async explain_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('explain_code', {
+      text: code,
+      language: options.language || '',
+      audience: options.audience || 'junior developer',
+    }, apiKey, provider, options, { parse: 'markdown', defaults: { maxTokens: TOKENS.medium } });
+  }
+
+  /** Fix a bug: { code, explanation, changes }. options: { problem (error message or description), language }. */
+  static async fix_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('fix_code', {
+      text: code,
+      problem: options.problem || 'the code does not work as intended',
+      language: options.language || '',
+    }, apiKey, provider, options, {
+      defaults: { maxTokens: TOKENS.long, temperature: 0.1 },
+      parse: (text) => {
+        const { code: fixed, details } = parseCodeWithDetails(text, 'code');
+        return { code: fixed, explanation: details.explanation || '', changes: Array.isArray(details.changes) ? details.changes : [] };
+      },
+    });
+  }
+
+  /** Convert code between languages or frameworks. options: { from, to }. */
+  static async convert_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('convert_code', {
+      text: code,
+      from: options.from || 'JavaScript',
+      to: options.to || 'TypeScript',
+    }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.1 } });
+  }
+
+  /** Commit message for a diff. options: { style: conventional|plain }. */
+  static async generate_commit_message(diff, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    return Gen._generate('commit_message', {
+      text: diff,
+      style_rule: options.style === 'plain'
+        ? 'Use an imperative, capitalized subject line without a trailing period.'
+        : 'Use the Conventional Commits format for the subject: type(scope): summary, where type is one of feat, fix, docs, style, refactor, perf, test, chore, build or ci, and the summary is imperative and lowercase.',
+    }, apiKey, provider, options, { parse: 'text', defaults: { maxTokens: TOKENS.short, temperature: 0.2 } });
+  }
+
+  /**
+   * OpenAPI document (plain object) from route code or an API description. The library normalises it so paths use
+   * {param} keys, path parameters are declared, operationIds are unique and every $ref resolves.
+   * options: { title, version, openapiVersion ('3.1.0'), basePath, serverUrl }.
+   */
+  static async generate_openapi_spec(input, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const doc = await Gen._generate('openapi_spec', {
+      text: input,
+      openapi_version: options.openapiVersion || '3.1.0',
+    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.long, temperature: 0.1 } });
+    return normalizeOpenApi(doc, options);
+  }
+
+  /**
+   * Design tokens: 11-step color scales, light/dark semantic roles, typography, radius and spacing, plus WCAG contrast,
+   * CSS custom properties and a Tailwind theme.extend object computed by the library.
+   * options: { brandColor, modes (['light', 'dark']), includeTypography, includeSpacing, cssPrefix ('color') }.
+   */
+  static async generate_design_tokens(input, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const modes = Array.isArray(options.modes) && options.modes.length ? options.modes : ['light', 'dark'];
+    const raw = await Gen._generate('design_tokens', {
+      text: input,
+      brand_color_rule: options.brandColor
+        ? `Use ${options.brandColor} exactly as primary 500.`
+        : 'Choose a primary 500 color that fits the brand.',
+      modes: modes.join(', '),
+      typography_rule: options.includeTypography === false
+        ? '- Set typography to null.'
+        : '- typography has fontFamily with sans and mono font stacks, and fontSize from xs to 4xl as rem strings.',
+      spacing_rule: options.includeSpacing === false
+        ? '- Set spacing to null.'
+        : '- spacing maps 1, 2, 3, 4, 6, 8, 12 and 16 to rem strings.',
+    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.long, temperature: 0.3 } });
+    return normalizeDesignTokens(raw, { ...options, modes });
   }
 
   // Instruct update
   static async instructUpdate(modelOutput, userInstruction, type = '', apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    const template = new SystemHelper().loadPrompt("instruct_update");
-    const promptTemp = new Prompt(template);
-    let tokenSize = 2000;
-    if (model_name.includes('gpt-4')) {
-      tokenSize = 3900;
-    }
-    let chatbot, input;
-    if (provider === SupportedLangModels.OPENAI) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      input = new ChatGPTInput('Update the model message based on user feedback while maintaining format.',
-        openaiInputOptions(model_name, tokenSize, 0.2));
-    } else if (provider === SupportedChatModels.NVIDIA) {
-      chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      input = new NvidiaInput('Update the model message based on user feedback while maintaining format.',
-        { maxTokens: tokenSize, temperature: 0.2 });
-    } else {
-      throw new Error("Unsupported provider for instructUpdate.");
-    }
-    input.addUserMessage(promptTemp.format({ 'model_output': modelOutput, 'user_instruction': userInstruction, 'type': type }));
-    const responses = await chatbot.chat(input);
-    let text = responses[0].trim();
-    if (provider === SupportedChatModels.NVIDIA) {
-      text = stripThinking(text);
-    }
-    return text;
+    return Gen._generate('instruct_update', { model_output: modelOutput, user_instruction: userInstruction, type }, apiKey, provider, {
+      model: resolveLegacyModel(provider, model_name),
+      maxTokens: (model_name || '').includes('gpt-4') ? 3900 : 2000,
+      temperature: 0.2,
+      customProxyHelper,
+    }, {
+      parse: 'text',
+      legacy: true,
+      system: 'Update the model message based on user feedback while maintaining format.',
+    });
   }
 }
 
 module.exports = { Gen };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../config.json":1,"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/ImageModelInput":17,"../model/input/LanguageModelInput":18,"../model/input/Text2SpeechInput":19,"../utils/FileHelper":33,"../utils/ModelHelper":38,"../utils/Prompt":39,"../utils/SystemHelper":42,"buffer":22,"path":26}],9:[function(require,module,exports){
+},{"../config.json":1,"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/ImageModelInput":17,"../model/input/Text2SpeechInput":19,"../utils/FileHelper":33,"../utils/ModelHelper":38,"../utils/OutputParser":39,"../utils/Prompt":40,"../utils/SystemHelper":43,"buffer":22,"path":26}],9:[function(require,module,exports){
 /*
 Apache License
 
@@ -1762,7 +2403,7 @@ class TextAnalyzer {
 }
 
 module.exports = { TextAnalyzer };
-},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":18,"../utils/SystemHelper":42}],12:[function(require,module,exports){
+},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":18,"../utils/SystemHelper":43}],12:[function(require,module,exports){
 // controllers
 const {
   RemoteLanguageModel,
@@ -1906,7 +2547,7 @@ module.exports = {
   MCPClient
 };
 
-},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":29,"./utils/ChatContext":30,"./utils/ConnHelper":31,"./utils/LLMEvaluation":34,"./utils/MCPClient":35,"./utils/MatchHelpers":36,"./utils/ModelHelper":38,"./utils/Prompt":39,"./utils/ProxyHelper":40,"./utils/StreamParser":41,"./utils/SystemHelper":42,"./wrappers/AWSEndpointWrapper":43,"./wrappers/AnthropicWrapper":44,"./wrappers/CohereAIWrapper":45,"./wrappers/GeminiAIWrapper":46,"./wrappers/GoogleAIWrapper":47,"./wrappers/HuggingWrapper":48,"./wrappers/IntellicloudWrapper":49,"./wrappers/MistralAIWrapper":50,"./wrappers/NvidiaWrapper":51,"./wrappers/OpenAIWrapper":52,"./wrappers/ReplicateWrapper":53,"./wrappers/StabilityAIWrapper":54,"./wrappers/VLLMWrapper":55}],13:[function(require,module,exports){
+},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":29,"./utils/ChatContext":30,"./utils/ConnHelper":31,"./utils/LLMEvaluation":34,"./utils/MCPClient":35,"./utils/MatchHelpers":36,"./utils/ModelHelper":38,"./utils/Prompt":40,"./utils/ProxyHelper":41,"./utils/StreamParser":42,"./utils/SystemHelper":43,"./wrappers/AWSEndpointWrapper":44,"./wrappers/AnthropicWrapper":45,"./wrappers/CohereAIWrapper":46,"./wrappers/GeminiAIWrapper":47,"./wrappers/GoogleAIWrapper":48,"./wrappers/HuggingWrapper":49,"./wrappers/IntellicloudWrapper":50,"./wrappers/MistralAIWrapper":51,"./wrappers/NvidiaWrapper":52,"./wrappers/OpenAIWrapper":53,"./wrappers/ReplicateWrapper":54,"./wrappers/StabilityAIWrapper":55,"./wrappers/VLLMWrapper":56}],13:[function(require,module,exports){
 /*
 Apache License
 
@@ -6414,13 +7055,40 @@ process.umask = function() { return 0; };
 },{}],28:[function(require,module,exports){
 // Generated by scripts/build-templates.js from resource/templates/*.in - do not edit.
 module.exports = {
+  "accessibility_prompt.in": "You are a web accessibility (WCAG 2.2 AA) expert. Review the HTML below, fix every accessibility problem you find and report what changed.\n\nReturn exactly two markdown code blocks and nothing else:\n1. A block tagged html containing the complete corrected HTML.\n2. A block tagged json containing an array of the problems you fixed, in this shape:\n[{\"issue\": \"what was wrong\", \"fix\": \"what you changed\", \"wcag\": \"criterion id, e.g. 1.1.1\"}]\n\nRules:\n- Keep the original structure, content and styling; only change what accessibility requires (alt text, labels, roles, landmarks, heading order, focus order, ARIA attributes, language, link text).\n- If the HTML has no problems, return it unchanged and an empty JSON array.\n\nHTML:\n${text}\n",
+  "api_endpoint_prompt.in": "You are an expert backend engineer. Implement a ${framework} API endpoint in ${language} for the request below.\n\nRequirements:\n- Return only the complete source code of one file inside a single markdown code block. No explanation.\n- Validate the input, return proper HTTP status codes and JSON responses, and handle errors without crashing the process.\n- Use async/await and keep the handler easy to test; include a short usage comment showing the route and an example request.\n- Do not include credentials; use a placeholder data layer or in-memory data where storage is needed.\n\nRequest: ${text}\n",
   "augmented_chatbot.in": "Using the provided context, craft a  cohesive response that directly addresses the user's query. If the context lacks relevance or is absent, focus on generating a knowledgeable and accurate answer based on the user's question alone. Aim for clarity and conciseness in your reply.\nContext:\n${semantic_search}\n---------------------------------\nUser's Question:\n${user_query}",
+  "code_review_prompt.in": "You are a senior software engineer doing a code review. Review the ${language} code below for bugs, security issues, performance problems, readability and best practices.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"summary\": \"one paragraph overall assessment\", \"score\": 7, \"issues\": [{\"severity\": \"high\", \"title\": \"short title\", \"description\": \"what is wrong and why it matters\", \"suggestion\": \"how to fix it, with a code snippet when useful\"}]}\n\nRules:\n- score is an integer from 1 (unsafe to ship) to 10 (excellent); severity is one of high, medium or low.\n- Order issues from highest to lowest severity and only report real problems; return an empty issues array for clean code.\n- Escape double quotes and newlines inside JSON strings so the JSON is valid.\n\nCode:\n${text}\n",
+  "color_palette_prompt.in": "You are an expert UI designer. Create a ${count}-color palette for the request below.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"name\": \"palette name\", \"colors\": [{\"name\": \"primary\", \"hex\": \"#RRGGBB\", \"usage\": \"where to use it\"}], \"css\": \":root { --color-primary: #RRGGBB; }\"}\n\nRules:\n- Return exactly ${count} colors, each with a unique lowercase kebab-case name, a 6-digit hex value and a short usage note.\n- Include at least one background, one text and one accent color, and make sure text and background colors have enough contrast.\n- The css field must declare one CSS custom property per color inside :root.\n\nRequest: ${text}\n",
+  "commit_message_prompt.in": "You are an expert developer writing a git commit message for the diff below.\n\nRequirements:\n- Return only the commit message as plain text: a subject line of at most 72 characters, then a blank line, then a short body with bullet points describing the changes and why.\n- ${style_rule}\n- Do not wrap the message in quotes or markdown.\n\nDiff:\n${text}\n",
+  "component_prompt.in": "You are an expert frontend engineer. Build a ${framework} component in ${language} using ${styling} for styling, based on the request below.\n\nRequirements:\n- Return only the complete source code of one file inside a single markdown code block. No explanation before or after it.\n- The component must be self-contained, production quality, accessible (semantic HTML, labels, keyboard support) and responsive.\n- Export the component as the default export when the framework supports it.\n- Include realistic placeholder content and sensible props or state where useful.\n\nRequest: ${text}\n",
+  "convert_code_prompt.in": "You are an expert software engineer. Convert the code below from ${from} to ${to}.\n\nRequirements:\n- Return only the converted code inside a single markdown code block. No explanation.\n- Preserve the behaviour, structure, names and comments; use idiomatic ${to} (for example proper types when converting to TypeScript, or utility classes when converting to Tailwind CSS).\n- Do not add features or remove existing ones.\n\nCode:\n${text}\n",
+  "design_tokens_prompt.in": "You are a design systems engineer. Create the design tokens for the brand described below.\n\nColor rules:\n- Six scales: primary, secondary, neutral, success, warning and danger. Each scale has exactly these eleven steps, from lightest to darkest: 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950.\n- Every color is a six digit hex string such as #1d4ed8. Never use rgb(), hsl(), oklch(), a three digit hex or a color name.\n- ${brand_color_rule}\n- Steps change evenly in perceived lightness. Neutral carries a slight tint of the brand hue. Secondary is an analogous or complementary hue.\n- Define semantic roles for each of these modes: ${modes}. Each mode defines all thirteen roles: background, foreground, muted, muted-foreground, primary, primary-foreground, secondary, secondary-foreground, accent, border, ring, danger and danger-foreground.\n- A role value is a hex string or a reference to a scale step such as primary.600.\n- In every mode, foreground on background, muted-foreground on background, primary-foreground on primary and danger-foreground on danger reach a contrast ratio of at least 4.5 to 1. Design the dark mode on purpose instead of inverting the light one.\n${typography_rule}\n${spacing_rule}\n- radius has sm, md, lg and full as CSS length strings.\n\nReturn only one JSON object and no markdown fences, in this shape, filling in every object shown empty:\n{\"name\": \"token set name\", \"palette\": {\"primary\": {\"50\": \"#eef2ff\", \"100\": \"#e0e7ff\", \"200\": \"#c7d2fe\", \"300\": \"#a5b4fc\", \"400\": \"#818cf8\", \"500\": \"#4f46e5\", \"600\": \"#4338ca\", \"700\": \"#3730a3\", \"800\": \"#312e81\", \"900\": \"#1e1b4b\", \"950\": \"#131029\"}, \"secondary\": {}, \"neutral\": {}, \"success\": {}, \"warning\": {}, \"danger\": {}}, \"semantic\": {\"light\": {\"background\": \"#ffffff\", \"foreground\": \"neutral.900\", \"muted\": \"neutral.100\", \"muted-foreground\": \"neutral.600\", \"primary\": \"primary.600\", \"primary-foreground\": \"#ffffff\", \"secondary\": \"secondary.500\", \"secondary-foreground\": \"#ffffff\", \"accent\": \"primary.100\", \"border\": \"neutral.200\", \"ring\": \"primary.500\", \"danger\": \"danger.600\", \"danger-foreground\": \"#ffffff\"}, \"dark\": {}}, \"typography\": {\"fontFamily\": {\"sans\": \"Inter, system-ui, sans-serif\", \"mono\": \"ui-monospace, SFMono-Regular, monospace\"}, \"fontSize\": {\"xs\": \"0.75rem\", \"sm\": \"0.875rem\", \"base\": \"1rem\", \"lg\": \"1.125rem\", \"xl\": \"1.25rem\", \"2xl\": \"1.5rem\", \"3xl\": \"1.875rem\", \"4xl\": \"2.25rem\"}}, \"radius\": {\"sm\": \"0.25rem\", \"md\": \"0.5rem\", \"lg\": \"1rem\", \"full\": \"9999px\"}, \"spacing\": {\"1\": \"0.25rem\", \"2\": \"0.5rem\", \"3\": \"0.75rem\", \"4\": \"1rem\", \"6\": \"1.5rem\", \"8\": \"2rem\", \"12\": \"3rem\", \"16\": \"4rem\"}}\n\nBrand:\n${text}\n",
+  "email_template_prompt.in": "You are an expert in HTML email development. Build a responsive HTML email for the request below.\n\nRequirements:\n- Return only the complete HTML document inside a single markdown code block. No explanation.\n- Use a table-based layout, inline CSS on elements, a 600px maximum width and web-safe fonts so it renders in Gmail, Outlook and Apple Mail.\n- Include a preheader, a header, the main content, a clear call-to-action button and a footer with an unsubscribe link placeholder.\n- Use placeholders like {{first_name}} and {{unsubscribe_url}} for dynamic values.\n- Add alt text to every image and keep the total size small.\n\nRequest: ${text}\n",
+  "explain_code_prompt.in": "You are a patient senior engineer. Explain the ${language} code below to a ${audience}.\n\nRequirements:\n- Return Markdown only, no surrounding code fence.\n- Start with a one-paragraph summary of what the code does, then a \"How it works\" section that walks through it step by step, then a \"Things to watch\" section with pitfalls, edge cases or improvements.\n- Reference identifiers from the code in backticks and keep the explanation accurate to the code; do not invent behaviour.\n\nCode:\n${text}\n",
+  "faq_prompt.in": "You are a content writer for a website. Write ${count} frequently asked questions with answers about the topic below.\n\nReturn only a JSON array with this exact shape and no markdown fences:\n[{\"question\": \"the question a visitor would ask\", \"answer\": \"a clear, helpful answer of one to three sentences\"}]\n\nRules:\n- Return exactly ${count} items, ordered from the most common to the least common question, without duplicates.\n- Write in a ${tone} tone and keep answers factual to the topic; use placeholders for details that are unknown.\n\nTopic:\n${text}\n",
+  "fix_code_prompt.in": "You are an expert ${language} debugger. Fix the code below so the reported problem no longer happens.\n\nReturn exactly two markdown code blocks and nothing else:\n1. A block containing the complete fixed code.\n2. A block tagged json in this shape: {\"explanation\": \"what was wrong and what changed\", \"changes\": [\"one short line per change\"]}\n\nRules:\n- Keep the original style, names and behaviour except for the fix; do not add unrelated changes.\n\nProblem: ${problem}\n\nCode:\n${text}\n",
+  "form_prompt.in": "You are an expert frontend engineer. Build a ${framework} form based on the request below.\n\nRequirements:\n- Return only the complete source code inside a single markdown code block. No explanation.\n- Include every field described, with proper labels, input types, placeholders and required markers.\n- Add client-side validation with clear inline error messages and an accessible success state.\n- The form must be responsive, keyboard accessible and use semantic HTML.\n- ${submit}\n\nRequest: ${text}\n",
   "graph_dashboard_prompt.in": "Generate an HTML dashboard using chart.js with ${count} graphs about the ${topic} topic from the provided data. Each graph should showcase the relationships between selected columns, ensuring the graphs are relevant to the topic.\n\nOutput example:\n[{\n  \"html\": \"<!DOCTYPE html><html><head>[Insert required styles and scripts for Chart.js]</head><body>[Include code for all the ${count} graphs]</body></html>\", \n  \"message\": \"the page ready to render\"\n}]\n\nFollow these instructions:\n---\n1. Return a single JSON response in the style shown in the output example.\n2. Use Chart.js for generating the graphs wherever possible.\n3. Use \\\" before any generated double quotation marks to ensure a valid JSON response.\n4. Design elegant, modern dashboard charts based on the provided data.\n5. Make sure the response is a valid JSON containing the complete HTML content.\n6. Ensure the response will not truncate in any circumstance.\n7. Select sample of the data based on the user instructions ensuring it fit in one page.\n8. Reply only with generated code.\n\nUser data: ###${text}###",
   "html_page_prompt.in": "Generate website, javascript and css in one page based on the user request.\n\nOutput format:\n{\"html\": \"<!DOCTYPE html><html><head>[generated head content]</head><body>[generated body content]</body></html>\", \"message\"\":\"the page ready for render\"}\n\nEnsure the page is compatible with screen sizes and use ready bootstrap component when needed.\n\nIf an image generated, add a clear image description in the alt to use for image generation:\n<img src=\"<image name and format>\" alt=\"<image description>\" width=\"<size or percentage>\" height=\"<size or percentage>\">\n\nuser request: ${text}\n\noutput:",
   "instruct_update.in": "Update the model output and make sure to maintain the format. Don't use the example content with the user message.\nReturn all the model generated after applying the instructions.\n\nExample:\nthe model generated json html output: ###{\"html\": \"<!DOCTYPE html><html><body><h1>Title1</h1></body></html>\"}###\nthe user update instructions: ###change to Title2###\noutput: {\"html\": \"<!DOCTYPE html><html><body><h1>Title2</h1></body></html>\"}\n----\nthe model generated text output: ###Text1 example bla bla###\nthe user update instructions: ###change to text2###\noutput: Text2 example  bla bla\n===\nUser message:\nthe model generated ${type} output: ###${model_output}###\nthe user update instructions:  ###${user_instruction}###\noutput:",
+  "json_schema_prompt.in": "You are an API design expert. Write a JSON Schema (draft 2020-12) for the data described below.\n\nReturn only the JSON Schema object and no markdown fences.\n\nRules:\n- Set \"$schema\", \"type\": \"object\", \"properties\", \"required\" and \"additionalProperties\".\n- Give every property a \"type\" and a \"description\"; use \"format\" (email, date-time, uri, uuid), \"enum\", \"minimum\", \"maximum\", \"minLength\", \"maxLength\" and \"pattern\" where the description implies them.\n- Nest objects and arrays with their own \"items\" or \"properties\".\n\nData:\n${text}\n",
+  "landing_copy_prompt.in": "You are a conversion copywriter. Write landing page copy for the product or service described below.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"headline\": \"short benefit-driven headline\", \"subheadline\": \"one supporting sentence\", \"features\": [{\"title\": \"feature title\", \"description\": \"one sentence benefit\"}], \"cta\": \"call-to-action button text\", \"socialProof\": \"one sentence trust statement\", \"faq\": [{\"question\": \"\", \"answer\": \"\"}]}\n\nRules:\n- Return exactly ${feature_count} features and 3 FAQ items, in a ${tone} tone.\n- Focus on benefits for the target audience, avoid hype words and keep every field concise.\n\nProduct:\n${text}\n",
+  "mock_data_prompt.in": "You are a test data generator for web applications. Generate ${count} realistic records that match the schema or description below.\n\nRequirements:\n- Return only a JSON array with exactly ${count} objects and no markdown fences or explanation.\n- Every object must have the same keys in the same order, with realistic and varied values (names, emails, ISO 8601 dates, prices as numbers, sequential integer ids or UUIDs as described).\n- Respect any types, formats, enums and constraints given in the schema.\n\nSchema or description:\n${text}\n",
+  "openapi_spec_prompt.in": "You are an API architect. Write an OpenAPI ${openapi_version} document for the API below.\n\nRules:\n- Document only the routes that appear in the input. Never invent endpoints, parameters, fields or status codes.\n- Write path keys in the OpenAPI brace form such as /users/{id}, never the colon form.\n- Infer request bodies from destructuring of the request body, or from a validation schema (zod, joi, yup) when one is present.\n- Infer status codes from the code: 201 for a created response, 204 for an empty response, 200 otherwise, plus every error status the code returns.\n- Declare query parameters with \"in\": \"query\", and path parameters with \"in\": \"path\" and \"required\": true.\n- GET and DELETE operations have no request body.\n- Give every operation a unique lowerCamelCase operationId, a short summary and at least one response.\n- Put a shape used more than once in components.schemas and reference it with $ref; every $ref must point to a schema defined in this document.\n\nReturn only one JSON object and no markdown fences, in this shape:\n{\"openapi\": \"${openapi_version}\", \"info\": {\"title\": \"API title\", \"version\": \"1.0.0\"}, \"paths\": {\"/users/{id}\": {\"get\": {\"operationId\": \"getUserById\", \"summary\": \"Get one user\", \"parameters\": [{\"name\": \"id\", \"in\": \"path\", \"required\": true, \"schema\": {\"type\": \"string\"}}], \"responses\": {\"200\": {\"description\": \"The user\", \"content\": {\"application/json\": {\"schema\": {\"$ref\": \"#/components/schemas/User\"}}}}, \"404\": {\"description\": \"Not found\"}}}}}, \"components\": {\"schemas\": {\"User\": {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"string\"}, \"email\": {\"type\": \"string\", \"format\": \"email\"}}, \"required\": [\"id\", \"email\"]}}}}\n\nAPI:\n${text}\n",
+  "page_section_prompt.in": "You are an expert frontend engineer. Build a ${section_type} section for a website using ${styling}, based on the request below.\n\nRequirements:\n- Return only the HTML for the section inside a single markdown code block. No explanation and no full document (no <html>, <head> or <body> tags).\n- Make it responsive and accessible, with semantic elements, real-looking placeholder text and image placeholders with descriptive alt text.\n- Any needed CSS must be in one <style> tag at the top of the snippet, scoped with a unique class prefix so it can be pasted into an existing page.\n\nRequest: ${text}\n",
   "prompt_example.in": "Example of good prompt engineering response:\n\nUser: Create a prompt: to {query} from {context}.\n\nAssistant: Given the following context:\n\ncontext:\n---------\n${context}\n\nExtract the specific information denoted by the query: ${query} from the provided context.",
+  "readme_prompt.in": "You are an expert technical writer. Write a README.md in Markdown for the project described below.\n\nRequirements:\n- Return only the Markdown content. No explanation and no surrounding code fence.\n- Start with a level-1 heading with the project name, then a one-paragraph description.\n- Include these level-2 sections: Features, Installation, Usage (with code examples), Configuration, Contributing and License.\n- Keep it concise, accurate to the description and free of invented facts; use placeholders where details are unknown.\n\nProject:\n${text}\n",
+  "regex_prompt.in": "You are a regular expression expert. Write a ${language} regular expression for the request below.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"pattern\": \"the pattern without surrounding slashes\", \"flags\": \"flags such as i or g, or an empty string\", \"explanation\": \"short explanation of each part\", \"matches\": [\"three example strings that must match\"], \"nonMatches\": [\"three example strings that must not match\"]}\n\nRules:\n- Escape backslashes for JSON (write \\\\d for a digit class).\n- Keep the pattern as simple as possible while still correct, and make sure every example in matches really matches and every example in nonMatches really does not.\n\nRequest: ${text}\n",
+  "release_notes_prompt.in": "You are a release manager. Write release notes in Markdown for the changes below.\n\nRequirements:\n- Return only the Markdown content. No explanation and no surrounding code fence.\n- Start with a level-2 heading \"${version}\" followed by a one-sentence summary.\n- Group changes under level-3 headings in this order, omitting empty groups: Highlights, New Features, Improvements, Bug Fixes, Breaking Changes, Other.\n- Write each change as a bullet from the user's point of view and keep the original ticket or PR references.\n\nChanges:\n${text}\n",
   "sentiment_prompt.in": "Outputs sentiment analysis results in a standardized JSON format with sentiment values 'positive', 'negative', or 'neutral'. The format of the output should follow json and you can add muti sentiments i needed. output format should be always {\"results\": {\"positive\": 0 or 1, \"negative\": 0 or 1, \"neutral\": 0 or 1}}}}",
-  "summary_prompt.in": "Provide a short summary of the following text:\\n\\n${text}\\n\\nSummary:"
+  "seo_meta_prompt.in": "You are an SEO specialist. Create the metadata for the web page described below.\n\nReturn only a JSON object with this exact shape and no markdown fences:\n{\"title\": \"page title of at most 60 characters\", \"description\": \"meta description of 120 to 160 characters\", \"keywords\": [\"five to ten keywords\"], \"openGraph\": {\"og:title\": \"\", \"og:description\": \"\", \"og:type\": \"website\", \"og:url\": \"${url}\", \"og:image\": \"https://example.com/og-image.jpg\"}, \"twitter\": {\"twitter:card\": \"summary_large_image\", \"twitter:title\": \"\", \"twitter:description\": \"\"}, \"jsonLd\": {\"@context\": \"https://schema.org\", \"@type\": \"WebPage\", \"name\": \"\", \"description\": \"\"}}\n\nRules:\n- Use the site name \"${site_name}\" where relevant and choose the most specific schema.org @type for the page (for example Product, Article, Organization or FAQPage).\n- Return plain JSON values only: no HTML in any field.\n\nPage:\n${text}\n",
+  "sql_prompt.in": "You are an expert database engineer. Write ${dialect} SQL for the request below.\n\nRequirements:\n- Return only the SQL inside a single markdown code block. No explanation outside SQL comments.\n- Use valid ${dialect} syntax, explicit column lists and parameter placeholders for user-supplied values where appropriate.\n- Add indexes or constraints when they are clearly needed and keep the statements safe to run.\n${schema_section}\nRequest: ${text}\n",
+  "styles_prompt.in": "You are an expert CSS engineer. Write ${format} for the request below.\n\nRequirements:\n- Return only the code inside a single markdown code block. No explanation.\n- Use modern, responsive techniques (flexbox or grid, relative units, media queries) and keep selectors simple.\n- Include short comments only where they help.\n${html_section}\nRequest: ${text}\n",
+  "summary_prompt.in": "Provide a short summary of the following text:\\n\\n${text}\\n\\nSummary:",
+  "svg_icon_prompt.in": "You are an expert icon designer. Create an SVG icon for the request below.\n\nRequirements:\n- Return only the SVG markup, starting with <svg and ending with </svg>. No markdown and no explanation.\n- Use viewBox=\"0 0 24 24\", width=\"${size}\", height=\"${size}\" and a ${style} style.\n- Use currentColor for strokes and fills so the icon inherits the CSS color, and keep the shape simple and recognizable at small sizes.\n- Add role=\"img\" and a <title> element that describes the icon.\n\nRequest: ${text}\n",
+  "translate_strings_prompt.in": "You are a professional software localizer. Translate the user interface strings in the JSON below from ${source_language} to ${target_language}.\n\nRequirements:\n- Return only a JSON object with exactly the same keys and nesting as the input, and no markdown fences.\n- Translate only the string values. Keep placeholders such as {name}, {{count}}, %s, %d and {0}, and any HTML tags, exactly as they are.\n- Use natural, concise wording that fits buttons, labels and messages; keep brand and product names untranslated.\n\nStrings:\n${text}\n",
+  "unit_tests_prompt.in": "You are an expert in automated testing. Write ${framework} unit tests for the code below.\n\nRequirements:\n- Return only the complete test file inside a single markdown code block. No explanation.\n- Cover the normal behaviour, edge cases and error handling of every exported function or component.\n- Import the code under test from \"${module_path}\" and keep each test independent, readable and deterministic (mock network, time and randomness).\n\nCode:\n${text}\n"
 };
 
 },{}],29:[function(require,module,exports){
@@ -7295,6 +7963,240 @@ module.exports = {
 };
 
 },{}],39:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+
+/**
+ * Remove reasoning that some models (e.g. DeepSeek) put before the answer: complete <think>...</think>
+ * blocks, and everything up to a leftover closing tag when the chat template opened the block itself.
+ */
+function stripThinking(text) {
+  let cleaned = String(text || '').replace(/<think>[\s\S]*?<\/think>/g, '');
+  const orphanClose = cleaned.lastIndexOf('</think>');
+  if (orphanClose !== -1) {
+    cleaned = cleaned.slice(orphanClose + '</think>'.length);
+  }
+  return cleaned.trim();
+}
+
+const FENCE_LINE = /^\s*```\s*([\w+#.-]*)/;
+
+/**
+ * All markdown code blocks in the text as [{ lang, code }], parsed line by line.
+ * A language-tagged fence inside a block opens a new block (closing fences never carry a language),
+ * which handles answers wrapped in an outer ```markdown fence. A block left open at the end of the
+ * text (truncated output) is kept only when no closed block exists.
+ */
+function extractBlocks(text) {
+  const cleaned = stripThinking(text);
+  const blocks = [];
+  let current = null;
+
+  for (const line of cleaned.split('\n')) {
+    const fence = FENCE_LINE.exec(line);
+    if (!fence) {
+      if (current) current.lines.push(line);
+      continue;
+    }
+    const lang = fence[1].toLowerCase();
+    if (!current) {
+      current = { lang, lines: [], closed: false };
+    } else if (lang) {
+      blocks.push(current);
+      current = { lang, lines: [], closed: false };
+    } else {
+      current.closed = true;
+      blocks.push(current);
+      current = null;
+    }
+  }
+  if (current) blocks.push(current);
+
+  const finished = blocks
+    .map((block) => ({ lang: block.lang, code: block.lines.join('\n').replace(/\s+$/, ''), closed: block.closed }))
+    .filter((block) => block.code.trim());
+  const hasClosed = finished.some((block) => block.closed);
+  return finished
+    .filter((block) => block.closed || !hasClosed)
+    .map((block) => ({ lang: block.lang, code: block.code }));
+}
+
+/**
+ * Return the code from the markdown block tagged `language`, otherwise the longest block
+ * (models sometimes emit a short block, e.g. a usage example, next to the real one).
+ * Text without fences is returned trimmed.
+ */
+function extractCode(text, language = null) {
+  const cleaned = stripThinking(text);
+  const blocks = extractBlocks(cleaned);
+  if (language) {
+    const wanted = blocks.find((block) => block.lang === String(language).toLowerCase());
+    if (wanted) return wanted.code;
+  }
+  if (blocks.length > 0) {
+    return blocks.reduce((best, block) => (block.code.length > best.code.length ? block : best)).code;
+  }
+  return cleaned.replace(/^```[^\n]*\n?/, '').replace(/\n?```\s*$/, '').trim();
+}
+
+// Remove an outer fence wrapper while keeping any code blocks nested inside it.
+function unwrapFence(text) {
+  const opener = /^\s*```[^\n]*\n?/.exec(text);
+  if (!opener) return text.trim();
+  let body = text.slice(opener[0].length);
+  const fences = body.match(/^\s*```/gm) || [];
+  if (fences.length % 2 === 1) {
+    // an odd number of remaining fences means the last one closes the wrapper
+    body = body.slice(0, body.lastIndexOf('```'));
+  }
+  return body.trim();
+}
+
+/** Markdown answers are sometimes wrapped in a ```markdown fence (even with code blocks inside); unwrap it. */
+function extractMarkdown(text) {
+  const cleaned = stripThinking(text);
+  const wrapper = /(^|\n)\s*```(?:markdown|md)\b[^\n]*\n/i.exec(cleaned);
+  if (wrapper) {
+    // only a short lead-in ("Here is the README:") may precede a wrapper; a later ```md block is an example inside the document
+    const leadIn = cleaned.slice(0, wrapper.index);
+    if (leadIn.split('\n').filter((line) => line.trim()).length <= 1 && !/^\s*#/m.test(leadIn)) {
+      return unwrapFence(cleaned.slice(wrapper.index));
+    }
+  }
+  // a document that merely starts with a code block is not a wrapper, so require a closing fence at the very end
+  return cleaned.startsWith('```') && /\n\s*```\s*$/.test(cleaned) ? unwrapFence(cleaned) : cleaned;
+}
+
+const JSON_ESCAPES = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u']);
+
+function dropTrailingComma(out) {
+  let i = out.length - 1;
+  while (i >= 0 && /\s/.test(out[i])) i--;
+  return out[i] === ',' ? out.slice(0, i) + out.slice(i + 1) : out;
+}
+
+/**
+ * Fix the JSON mistakes models make most: raw newlines/tabs inside strings, lone backslashes that are not
+ * JSON escapes (\d in a regex pattern) and trailing commas. Only structure outside strings is touched.
+ */
+function repairJson(text) {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (const ch of text) {
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        out += JSON_ESCAPES.has(ch) ? `\\${ch}` : `\\\\${ch}`;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+        out += ch;
+      } else if (ch === '\n') {
+        out += '\\n';
+      } else if (ch === '\r') {
+        out += '\\r';
+      } else if (ch === '\t') {
+        out += '\\t';
+      } else {
+        out += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === '}' || ch === ']') {
+      out = dropTrailingComma(out);
+    }
+    out += ch;
+  }
+  if (escaped) out += '\\\\';
+  return out;
+}
+
+function tryParse(candidate) {
+  for (const attempt of [candidate, repairJson(candidate)]) {
+    try {
+      return { value: JSON.parse(attempt) };
+    } catch (error) {
+      // try the next attempt
+    }
+  }
+  return null;
+}
+
+// Find the first balanced JSON object or array (respecting strings and escapes) that parses.
+// A candidate that does not parse is skipped as a whole, so nested objects are never returned in its place.
+function findBalancedJson(text) {
+  let start = 0;
+  while (start < text.length) {
+    const open = text[start];
+    if (open !== '{' && open !== '[') {
+      start++;
+      continue;
+    }
+    const close = open === '{' ? '}' : ']';
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let end = -1;
+    for (let i = start; i < text.length; i++) {
+      const ch = text[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === open) depth++;
+      else if (ch === close) {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    if (end === -1) return undefined;
+    const parsed = tryParse(text.slice(start, end + 1));
+    if (parsed) return parsed.value;
+    start = end + 1;
+  }
+  return undefined;
+}
+
+/** Parse JSON from model output that may include prose, markdown fences, thinking blocks or small syntax slips. */
+function parseJson(text) {
+  const cleaned = stripThinking(text);
+  for (const candidate of [cleaned, extractCode(cleaned, 'json')]) {
+    const parsed = tryParse(candidate);
+    if (parsed) return parsed.value;
+  }
+  const found = findBalancedJson(cleaned);
+  if (found !== undefined) return found;
+  throw new Error(`The model response is not valid JSON: ${cleaned.slice(0, 200)}`);
+}
+
+/** Return the first <svg>...</svg> element from model output. */
+function extractSvg(text) {
+  const cleaned = extractCode(text);
+  const match = /<svg[\s\S]*?<\/svg>/i.exec(cleaned);
+  if (!match) {
+    throw new Error(`The model response does not contain an <svg> element: ${cleaned.slice(0, 200)}`);
+  }
+  return match[0];
+}
+
+module.exports = { stripThinking, extractBlocks, extractCode, extractMarkdown, repairJson, parseJson, extractSvg };
+
+},{}],40:[function(require,module,exports){
 const FileHelper = require('./FileHelper')
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
@@ -7312,18 +8214,11 @@ class Prompt {
   }
 
   format(data) {
-    const regex = /\$\{([^}]+)\}/g;
-    let result = this.template;
-    let match;
-
-    while ((match = regex.exec(this.template)) !== null) {
-      const key = match[1];
-      const value = data.hasOwnProperty(key) ? data[key] : '';
-
-      result = result.replace(match[0], value);
-    }
-
-    return result;
+    // single pass with a replacer function: inserted values (user code, diffs) are never
+    // re-scanned for placeholders and replacement patterns such as "$1" inside them are kept as-is
+    return this.template.replace(/\$\{([^}]+)\}/g, (match, key) => (
+      Object.prototype.hasOwnProperty.call(data, key) ? String(data[key]) : ''
+    ));
   }
 
   static fromText(template) {
@@ -7346,7 +8241,7 @@ class Prompt {
     const input = new ChatGPTInput("generate a prompt text, following prompt engineering best practices", options);
     input.addUserMessage(promptExample);
     input.addUserMessage(`Create a prompt: ${promptTopic}`);
-    
+
     const responses = await chatbot.chat(input);
 
     return new Prompt(responses[0].trim());
@@ -7355,7 +8250,7 @@ class Prompt {
 
 module.exports = Prompt;
 
-},{"../config.json":1,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../utils/SystemHelper":42,"./FileHelper":33,"./ModelHelper":38}],40:[function(require,module,exports){
+},{"../config.json":1,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../utils/SystemHelper":43,"./FileHelper":33,"./ModelHelper":38}],41:[function(require,module,exports){
 const config = require('../config.json');
 
 
@@ -7563,7 +8458,7 @@ ProxyHelper.API_VERSION = '2023-12-01-preview'
 
 module.exports = ProxyHelper;
 
-},{"../config.json":1}],41:[function(require,module,exports){
+},{"../config.json":1}],42:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -7818,50 +8713,42 @@ module.exports = {
 };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":22}],42:[function(require,module,exports){
+},{"buffer":22}],43:[function(require,module,exports){
 (function (__dirname){(function (){
 const FileHelper = require('./FileHelper')
 const path = require("path");
+
+// Template files that do not follow the "<name>_prompt.in" naming.
+const TEMPLATE_FILES = {
+  instruct_update: "instruct_update.in",
+  prompt_example: "prompt_example.in",
+  augmented_chatbot: "augmented_chatbot.in",
+};
 
 class SystemHelper {
   constructor() {
     this.systemsPath = path.join(__dirname, "..", "resource", "templates");
   }
 
-  getPromptPath(fileType) {
-    let promptPath = '';
-    if (fileType === "sentiment") {
-      promptPath = path.join(this.systemsPath, "sentiment_prompt.in");
-    } else if (fileType === "summary") {
-      promptPath = path.join(this.systemsPath, "summary_prompt.in");
-    } else if (fileType === "html_page") {
-      promptPath = path.join(this.systemsPath, "html_page_prompt.in");
-    } else if (fileType === "graph_dashboard") {
-      promptPath = path.join(this.systemsPath, "graph_dashboard_prompt.in");
-    } else if (fileType === "instruct_update") {
-      promptPath = path.join(this.systemsPath, "instruct_update.in");
-    } else if (fileType === "prompt_example") {
-      promptPath = path.join(this.systemsPath, "prompt_example.in");
-    } else if (fileType === "augmented_chatbot") {
-      promptPath = path.join(this.systemsPath, "augmented_chatbot.in");
-    } else {
-      throw new Error(`File type '${fileType}' not supported`);
-    }
+  static getTemplateFileName(fileType) {
+    return TEMPLATE_FILES[fileType] || `${fileType}_prompt.in`;
+  }
 
-    return promptPath;
+  getPromptPath(fileType) {
+    return path.join(this.systemsPath, SystemHelper.getTemplateFileName(fileType));
   }
 
   loadPrompt(fileType) {
-    const promptPath = this.getPromptPath(fileType);
+    const fileName = SystemHelper.getTemplateFileName(fileType);
+    // the browser bundle has no file system, so fall back to the templates embedded at build time
+    const embedded = require('../resource/templates/templates');
     try {
-      return FileHelper.readData(promptPath, 'utf-8');
+      return FileHelper.readData(this.getPromptPath(fileType), 'utf-8');
     } catch (error) {
-      // the browser bundle has no file system, so use the templates embedded at build time
-      const embedded = require('../resource/templates/templates')[path.basename(promptPath)];
-      if (embedded === undefined) {
-        throw error;
+      if (embedded[fileName] !== undefined) {
+        return embedded[fileName];
       }
-      return embedded;
+      throw new Error(`File type '${fileType}' not supported`);
     }
   }
 
@@ -7884,7 +8771,7 @@ class SystemHelper {
 module.exports = SystemHelper;
 
 }).call(this)}).call(this,"/utils")
-},{"../resource/templates/templates":28,"./FileHelper":33,"path":26}],43:[function(require,module,exports){
+},{"../resource/templates/templates":28,"./FileHelper":33,"path":26}],44:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 
 class AWSEndpointWrapper {
@@ -7917,7 +8804,7 @@ class AWSEndpointWrapper {
 
 module.exports = AWSEndpointWrapper;
 
-},{"../utils/FetchClient":32}],44:[function(require,module,exports){
+},{"../utils/FetchClient":32}],45:[function(require,module,exports){
 /*
 Apache License
 
@@ -7985,7 +8872,7 @@ class AnthropicWrapper {
 
 module.exports = AnthropicWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],45:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],46:[function(require,module,exports){
 /*
 Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
@@ -8042,7 +8929,7 @@ class CohereAIWrapper {
 module.exports = CohereAIWrapper;
 
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],46:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],47:[function(require,module,exports){
 const config = require('../config.json');
 const { readFileSync } = require('fs');
 const connHelper = require('../utils/ConnHelper');
@@ -8135,7 +9022,7 @@ class GeminiAIWrapper {
 
 module.exports = GeminiAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"fs":21}],47:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"fs":21}],48:[function(require,module,exports){
 /*
 Apache License
 */
@@ -8200,7 +9087,7 @@ class GoogleAIWrapper {
 
 module.exports = GoogleAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],48:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],49:[function(require,module,exports){
 (function (Buffer){(function (){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
@@ -8253,7 +9140,7 @@ class HuggingWrapper {
 module.exports = HuggingWrapper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"buffer":22}],49:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"buffer":22}],50:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const FormData = require('form-data');
@@ -8303,7 +9190,7 @@ class IntellicloudWrapper {
 
 module.exports = IntellicloudWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"form-data":24}],50:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"form-data":24}],51:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -8346,7 +9233,7 @@ class MistralAIWrapper {
 
 module.exports = MistralAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],51:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],52:[function(require,module,exports){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
@@ -8425,7 +9312,7 @@ class NvidiaWrapper {
 
 module.exports = NvidiaWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],52:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],53:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const ProxyHelper = require('../utils/ProxyHelper');
@@ -8610,7 +9497,7 @@ class OpenAIWrapper {
 
 module.exports = OpenAIWrapper;
 
-},{"../utils/ConnHelper":31,"../utils/FetchClient":32,"../utils/ProxyHelper":40}],53:[function(require,module,exports){
+},{"../utils/ConnHelper":31,"../utils/FetchClient":32,"../utils/ProxyHelper":41}],54:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -8653,7 +9540,7 @@ class ReplicateWrapper {
 
 module.exports = ReplicateWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],54:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],55:[function(require,module,exports){
 // wrappers/StabilityAIWrapper.js
 
 const FormData = require('form-data');
@@ -9078,7 +9965,7 @@ class StabilityAIWrapper {
 }
 
 module.exports = StabilityAIWrapper;
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"form-data":24,"fs":21}],55:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"form-data":24,"fs":21}],56:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 const connHelper = require('../utils/ConnHelper');
 

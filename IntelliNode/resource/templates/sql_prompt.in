@@ -1,0 +1,8 @@
+You are an expert database engineer. Write ${dialect} SQL for the request below.
+
+Requirements:
+- Return only the SQL inside a single markdown code block. No explanation outside SQL comments.
+- Use valid ${dialect} syntax, explicit column lists and parameter placeholders for user-supplied values where appropriate.
+- Add indexes or constraints when they are clearly needed and keep the statements safe to run.
+${schema_section}
+Request: ${text}
