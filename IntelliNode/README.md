@@ -22,6 +22,7 @@ Integrate your data with the latest language models and deep learning frameworks
 - Gen: 25+ new one-call functions for developers (components, forms, API endpoints, SQL, mock data, regex, tests, code review, SEO meta, UI translation and more) that work the same with every provider. 🧰
 - OpenAI-compatible services (OpenRouter, Groq, DeepSeek, xAI, Together, local Ollama, LM Studio) join OpenAI, Anthropic, Gemini, Mistral, Cohere and NVIDIA, with TypeScript types, timeouts, retries and cancellation. 🔌
 - IntelliNode MCP server: `npx intellinode mcp` gives Claude Code, Cursor and VS Code cross-provider tools. 🧩
+- Coding agent: `new CodingAgent({ workspace })` edits a repository until its tests pass, with any provider. 🛠️
 - Update the default models: GPT-5.5, Claude Sonnet 5, Gemini 3.6 Flash, Mistral Medium, Command A and gpt-image-2. 🚀
 - Fix the frontend bundle: Anthropic browser access, streaming in browsers and Gen templates.
 - Add support for self-hosted vLLM models.
@@ -293,6 +294,15 @@ const { text } = await new Chatbot(openaiKey).runTools(input, files);   // MCP t
 ```
 The setup for Cursor and VS Code, the tool list, the HTTP mode and building your own `MCPServer` are in [MCP_IMPLEMENTATION.md](MCP_IMPLEMENTATION.md).
 TypeScript users get full typings from the bundled `index.d.ts`.
+
+### Coding Agent
+Point the agent at a repository and give it a task: it reads, edits, searches and runs commands (all confined to the workspace) and keeps iterating until the test command passes, on any chat provider:
+```js
+const { CodingAgent } = require('intellinode');
+const agent = new CodingAgent({ apiKey: anthropicKey, provider: 'anthropic', workspace: './my_repo' });
+const result = await agent.run('Fix the failing tests in calc.js', { testCommand: 'npm test' });
+console.log(result.success, result.summary);   // result.iterations, result.testOutput
+```
 
 # :closed_book: Documentation
 - [IntelliNode Docs](https://doc.intellinode.ai/docs/npm): Detailed documentation about IntelliNode.

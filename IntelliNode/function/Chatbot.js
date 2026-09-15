@@ -80,6 +80,18 @@ const COMPATIBLE_PROVIDERS = new Set([
     SupportedChatModels.OLLAMA, SupportedChatModels.LMSTUDIO
 ]);
 
+// The input class of every provider that takes a system message and plain text turns.
+const CHAT_INPUTS = {
+    [SupportedChatModels.OPENAI]: ChatGPTInput,
+    [SupportedChatModels.ANTHROPIC]: AnthropicInput,
+    [SupportedChatModels.GEMINI]: GeminiInput,
+    [SupportedChatModels.MISTRAL]: MistralInput,
+    [SupportedChatModels.COHERE]: CohereInput,
+    [SupportedChatModels.NVIDIA]: NvidiaInput,
+    [SupportedChatModels.VLLM]: VLLMInput,
+    ...Object.fromEntries([...COMPATIBLE_PROVIDERS].map((provider) => [provider, OpenAICompatibleInput])),
+};
+
 class Chatbot {
     /**
      * @param {string} keyValue - provider API key.
@@ -171,6 +183,18 @@ class Chatbot {
 
     getSupportedModels() {
         return Object.values(SupportedChatModels);
+    }
+
+    /**
+     * The chat input class of a provider, created with a system message: ChatGPTInput for openai, AnthropicInput
+     * for anthropic, ..., OpenAICompatibleInput for the OpenAI-compatible services.
+     */
+    static createInput(provider, systemMessage, options = {}) {
+        const InputClass = CHAT_INPUTS[provider];
+        if (!InputClass) {
+            throw new Error(`No chat input for provider '${provider}'. Use one of: ${Object.keys(CHAT_INPUTS).join(', ')}`);
+        }
+        return new InputClass(systemMessage, options);
     }
 
     async chat(modelInput, functions = null, function_call = null, debugMode = true) {

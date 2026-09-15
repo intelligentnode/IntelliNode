@@ -819,6 +819,18 @@ const COMPATIBLE_PROVIDERS = new Set([
     SupportedChatModels.OLLAMA, SupportedChatModels.LMSTUDIO
 ]);
 
+// The input class of every provider that takes a system message and plain text turns.
+const CHAT_INPUTS = {
+    [SupportedChatModels.OPENAI]: ChatGPTInput,
+    [SupportedChatModels.ANTHROPIC]: AnthropicInput,
+    [SupportedChatModels.GEMINI]: GeminiInput,
+    [SupportedChatModels.MISTRAL]: MistralInput,
+    [SupportedChatModels.COHERE]: CohereInput,
+    [SupportedChatModels.NVIDIA]: NvidiaInput,
+    [SupportedChatModels.VLLM]: VLLMInput,
+    ...Object.fromEntries([...COMPATIBLE_PROVIDERS].map((provider) => [provider, OpenAICompatibleInput])),
+};
+
 class Chatbot {
     /**
      * @param {string} keyValue - provider API key.
@@ -910,6 +922,18 @@ class Chatbot {
 
     getSupportedModels() {
         return Object.values(SupportedChatModels);
+    }
+
+    /**
+     * The chat input class of a provider, created with a system message: ChatGPTInput for openai, AnthropicInput
+     * for anthropic, ..., OpenAICompatibleInput for the OpenAI-compatible services.
+     */
+    static createInput(provider, systemMessage, options = {}) {
+        const InputClass = CHAT_INPUTS[provider];
+        if (!InputClass) {
+            throw new Error(`No chat input for provider '${provider}'. Use one of: ${Object.keys(CHAT_INPUTS).join(', ')}`);
+        }
+        return new InputClass(systemMessage, options);
     }
 
     async chat(modelInput, functions = null, function_call = null, debugMode = true) {
@@ -2947,6 +2971,10 @@ const {
 } = require('./function/SemanticSearchPaging');
 const { TextAnalyzer } = require('./function/TextAnalyzer');
 const { Gen } = require('./function/Gen');
+// Node only: the browser bundle maps these modules to empty objects (package.json "browser")
+const { CodingAgent } = require('./function/CodingAgent');
+const WorkspaceToolkitModule = require('./utils/WorkspaceToolkit');
+const WorkspaceToolkit = typeof WorkspaceToolkitModule === 'function' ? WorkspaceToolkitModule : undefined;
 
 // inputs
 const LanguageModelInput = require('./model/input/LanguageModelInput');
@@ -3063,13 +3091,15 @@ module.exports = {
   ModelHelper,
   MCPClient,
   MCPServer,
+  CodingAgent,
+  WorkspaceToolkit,
   OpenAICompatibleWrapper,
   OpenAICompatibleInput,
   FetchClient,
   OutputParser
 };
 
-},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./mcp/server":22,"./model/input/ChatModelInput":14,"./model/input/EmbedInput":15,"./model/input/FineTuneInput":16,"./model/input/FunctionModelInput":17,"./model/input/ImageModelInput":18,"./model/input/LanguageModelInput":19,"./model/input/Text2SpeechInput":20,"./utils/AudioHelper":32,"./utils/ChatContext":33,"./utils/ConnHelper":34,"./utils/FetchClient":35,"./utils/LLMEvaluation":37,"./utils/MCPClient":38,"./utils/MatchHelpers":39,"./utils/ModelHelper":41,"./utils/OutputParser":42,"./utils/Prompt":43,"./utils/ProxyHelper":44,"./utils/StreamParser":45,"./utils/SystemHelper":46,"./wrappers/AWSEndpointWrapper":47,"./wrappers/AnthropicWrapper":48,"./wrappers/CohereAIWrapper":49,"./wrappers/GeminiAIWrapper":50,"./wrappers/GoogleAIWrapper":51,"./wrappers/HuggingWrapper":52,"./wrappers/IntellicloudWrapper":53,"./wrappers/MistralAIWrapper":54,"./wrappers/NvidiaWrapper":55,"./wrappers/OpenAICompatibleWrapper":56,"./wrappers/OpenAIWrapper":57,"./wrappers/ReplicateWrapper":58,"./wrappers/StabilityAIWrapper":59,"./wrappers/VLLMWrapper":60}],13:[function(require,module,exports){
+},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/CodingAgent":22,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./mcp/server":22,"./model/input/ChatModelInput":14,"./model/input/EmbedInput":15,"./model/input/FineTuneInput":16,"./model/input/FunctionModelInput":17,"./model/input/ImageModelInput":18,"./model/input/LanguageModelInput":19,"./model/input/Text2SpeechInput":20,"./utils/AudioHelper":32,"./utils/ChatContext":33,"./utils/ConnHelper":34,"./utils/FetchClient":35,"./utils/LLMEvaluation":37,"./utils/MCPClient":38,"./utils/MatchHelpers":39,"./utils/ModelHelper":41,"./utils/OutputParser":42,"./utils/Prompt":43,"./utils/ProxyHelper":44,"./utils/StreamParser":45,"./utils/SystemHelper":46,"./utils/WorkspaceToolkit":22,"./wrappers/AWSEndpointWrapper":47,"./wrappers/AnthropicWrapper":48,"./wrappers/CohereAIWrapper":49,"./wrappers/GeminiAIWrapper":50,"./wrappers/GoogleAIWrapper":51,"./wrappers/HuggingWrapper":52,"./wrappers/IntellicloudWrapper":53,"./wrappers/MistralAIWrapper":54,"./wrappers/NvidiaWrapper":55,"./wrappers/OpenAICompatibleWrapper":56,"./wrappers/OpenAIWrapper":57,"./wrappers/ReplicateWrapper":58,"./wrappers/StabilityAIWrapper":59,"./wrappers/VLLMWrapper":60}],13:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -8247,7 +8277,9 @@ module.exports={
   },
   "mcpName": "io.github.intelligentnode/intellinode",
   "browser": {
-    "./mcp/server.js": false
+    "./mcp/server.js": false,
+    "./function/CodingAgent.js": false,
+    "./utils/WorkspaceToolkit.js": false
   },
   "keywords": [
     "ai",
@@ -8273,7 +8305,9 @@ module.exports={
     "openai-compatible",
     "tool-calling",
     "structured-output",
-    "model-context-protocol"
+    "model-context-protocol",
+    "coding-agent",
+    "agent"
   ],
   "author": "IntelliNode",
   "license": "Apache",

@@ -30,6 +30,10 @@ const {
 } = require('./function/SemanticSearchPaging');
 const { TextAnalyzer } = require('./function/TextAnalyzer');
 const { Gen } = require('./function/Gen');
+// Node only: the browser bundle maps these modules to empty objects (package.json "browser")
+const { CodingAgent } = require('./function/CodingAgent');
+const WorkspaceToolkitModule = require('./utils/WorkspaceToolkit');
+const WorkspaceToolkit = typeof WorkspaceToolkitModule === 'function' ? WorkspaceToolkitModule : undefined;
 
 // inputs
 const LanguageModelInput = require('./model/input/LanguageModelInput');
@@ -146,6 +150,8 @@ module.exports = {
   ModelHelper,
   MCPClient,
   MCPServer,
+  CodingAgent,
+  WorkspaceToolkit,
   OpenAICompatibleWrapper,
   OpenAICompatibleInput,
   FetchClient,

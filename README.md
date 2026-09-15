@@ -34,7 +34,7 @@ Unified prompt, evaluation, and production integration to any large model
 
 IntelliNode is a javascript module that integrates cutting-edge AI into your project. With its intuitive functions, you can easily feed data to models like **GPT-5.5**, **Claude**, **Gemini**, **LLaMA**, **WaveNet** and **Stable diffusion** and receive generated text, speech, or images. It also offers high-level functions such as semantic search, multi-model evaluation, and chatbot capabilities.
 
-New in 3.0: a tool-calling loop and schema-matched JSON on every provider, OpenAI-compatible services (OpenRouter, Groq, DeepSeek, Ollama), an MCP server for coding assistants (`npx intellinode mcp`) and TypeScript typings.
+New in 3.0: a tool-calling loop and schema-matched JSON on every provider, a coding agent that fixes a repository until its tests pass, OpenAI-compatible services (OpenRouter, Groq, DeepSeek, Ollama), an MCP server for coding assistants (`npx intellinode mcp`) and TypeScript typings.
 
 # Access the module
 ## Install
@@ -242,6 +242,13 @@ ProxyHelper.getInstance().setOpenaiProxyValues(openaiProxyJson);
 
 
 For more details and in-depth code, check [the samples](https://github.com/Barqawiz/IntelliNode/tree/main/samples/command_sample).
+
+# Coding agent
+Give the agent a repository and a task; it edits, searches and runs commands inside the workspace until the test command passes, with any chat provider:
+```js
+const agent = new CodingAgent({ apiKey: ANTHROPIC_API_KEY, provider: 'anthropic', workspace: './my_repo' });
+const result = await agent.run('Fix the failing tests in calc.js', { testCommand: 'npm test' });
+```
 
 # MCP server for coding assistants
 Give Claude Code, Cursor or VS Code the tools of every provider (ask a model, consensus, code review, fixes, tests, components, SQL, OpenAPI, mock data, images):

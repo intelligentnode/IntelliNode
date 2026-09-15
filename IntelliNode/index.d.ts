@@ -252,6 +252,8 @@ export class Chatbot {
   stream(modelInput: ChatModelInput | Record<string, any>): AsyncGenerator<string, void, unknown>;
   /** Model ids served by an OpenAI-compatible provider. */
   listModels(): Promise<string[]>;
+  /** The chat input class of a provider, created with a system message. */
+  static createInput(provider: ChatProvider, systemMessage: string, options?: ChatModelOptions & ChatGPTOptions): ChatModelInput;
   getSemanticSearchContext(modelInput: any): Promise<Record<string, any>>;
 }
 
@@ -351,6 +353,65 @@ export class Gen {
   static convert_code(code: string, apiKey: string, provider?: ChatProvider, options?: GenOptions & { from?: string; to?: string }): Promise<string>;
   static generate_commit_message(diff: string, apiKey: string, provider?: ChatProvider, options?: GenOptions): Promise<string>;
   static generate_openapi_spec(input: string, apiKey: string, provider?: ChatProvider, options?: GenOptions & { title?: string; basePath?: string; version?: string }): Promise<Record<string, any>>;
+}
+
+// ---------------------------------------------------------------------
+// Coding agent (Node only; not part of the browser bundle)
+// ---------------------------------------------------------------------
+
+export type CodingTool = 'read_file' | 'write_file' | 'edit_file' | 'list_files' | 'search' | 'bash' | 'finish';
+
+/** File, search and shell tools confined to one workspace directory. */
+export class WorkspaceToolkit {
+  constructor(workspaceDir: string, options?: { allowBash?: boolean; bashTimeout?: number; maxReadChars?: number; maxOutputChars?: number });
+  workspace: string;
+  allowBash: boolean;
+  bashTimeout: number;
+  resolve(relativePath: string): string;
+  readFile(relativePath: string): string;
+  writeFile(relativePath: string, content?: string): string;
+  editFile(relativePath: string, oldText: string, newText: string): string;
+  listFiles(maxFiles?: number): string;
+  search(pattern: string, maxResults?: number): string;
+  /** Returns "[exit code N]" followed by the combined output. */
+  runBash(command: string): string;
+  execute(tool: string, args?: Record<string, any>): string;
+}
+
+export interface CodingAgentSettings {
+  apiKey?: string | null;
+  provider?: ChatProvider;
+  model?: string | null;
+  /** Chatbot options: baseUrl, headers, timeout, retries, signal, customProxyHelper */
+  options?: ChatbotOptions & { customProxyHelper?: any };
+  /** directory the agent works in (every path is confined to it); default '.' */
+  workspace?: string;
+  allowBash?: boolean;
+  /** shell command timeout in ms (default 120000) */
+  bashTimeout?: number;
+  /** hard cap on agent turns (default 20) */
+  maxIterations?: number;
+  /** custom model backend: (system, history) => reply text */
+  chatFn?: (system: string, history: Array<{ role: 'user' | 'assistant'; content: string }>) => string | Promise<string>;
+  log?: boolean;
+  onAction?: (action: { iteration: number; tool: CodingTool | string; args: Record<string, any>; thought?: string }) => void | Promise<void>;
+}
+
+export interface CodingAgentResult {
+  success: boolean;
+  summary: string;
+  iterations: number;
+  testOutput: string | null;
+}
+
+/** Autonomous coding loop over a workspace: the model picks a tool per turn until the task (and its tests) are done. */
+export class CodingAgent {
+  constructor(settings?: CodingAgentSettings);
+  static SYSTEM_PROMPT: string;
+  static extractAction(text: string): { tool: string; args?: Record<string, any>; thought?: string; [key: string]: any } | null;
+  toolkit: WorkspaceToolkit;
+  maxIterations: number;
+  run(task: string, options?: { testCommand?: string | null }): Promise<CodingAgentResult>;
 }
 
 // ---------------------------------------------------------------------

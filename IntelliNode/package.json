@@ -9,7 +9,9 @@
   },
   "mcpName": "io.github.intelligentnode/intellinode",
   "browser": {
-    "./mcp/server.js": false
+    "./mcp/server.js": false,
+    "./function/CodingAgent.js": false,
+    "./utils/WorkspaceToolkit.js": false
   },
   "keywords": [
     "ai",
@@ -35,7 +37,9 @@
     "openai-compatible",
     "tool-calling",
     "structured-output",
-    "model-context-protocol"
+    "model-context-protocol",
+    "coding-agent",
+    "agent"
   ],
   "author": "IntelliNode",
   "license": "Apache",

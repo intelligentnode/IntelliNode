@@ -12,6 +12,7 @@ const testGen = require('./Gen.test');
 const testGenReview = require('./GenReview.test');
 const testToolLoop = require('./ToolLoop.test');
 const testFetchClient = require('./FetchClient.test');
+const testCodingAgent = require('./CodingAgent.test');
 const testMCP = require('./MCP.test');
 const IntelliNode = require('../../index');
 
@@ -61,6 +62,9 @@ const IntelliNode = require('../../index');
 
   console.log('Running FetchClient tests...');
   await testFetchClient();
+
+  console.log('Running CodingAgent tests...');
+  await testCodingAgent();
 
   console.log('Running MCP unit tests...');
   await testMCP();

@@ -50,6 +50,8 @@ async function testExportsAndTemplates() {
   }
   // the MCP server is Node only and must not drag the http polyfill into the bundle
   assert.strictEqual(IntelliNode.MCPServer, undefined);
+  assert.strictEqual(IntelliNode.CodingAgent, undefined);
+  assert.strictEqual(IntelliNode.WorkspaceToolkit, undefined);
   const compatible = new IntelliNode.Chatbot(null, 'ollama', null, { model: 'qwen3' });
   assert.strictEqual(compatible.compatibleWrapper.API_BASE_URL, 'http://localhost:11434/v1');
   // Gen prompt templates must load without a file system
