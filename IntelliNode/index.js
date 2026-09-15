@@ -46,7 +46,8 @@ const {
   GeminiInput,
   AnthropicInput,
   NvidiaInput,
-  VLLMInput
+  VLLMInput,
+  OpenAICompatibleInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
@@ -65,6 +66,7 @@ const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('./wrappers/AnthropicWrapper');
 const NvidiaWrapper = require('./wrappers/NvidiaWrapper');
 const VLLMWrapper = require('./wrappers/VLLMWrapper');
+const OpenAICompatibleWrapper = require('./wrappers/OpenAICompatibleWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -77,6 +79,10 @@ const { GPTStreamParser, CohereStreamParser, VLLMStreamParser, AnthropicStreamPa
 const ModelHelper = require('./utils/ModelHelper');
 const ChatContext = require('./utils/ChatContext');
 const MCPClient = require('./utils/MCPClient');
+// Node only: the browser bundle maps this module to an empty object (package.json "browser")
+const { MCPServer } = require('./mcp/server');
+const FetchClient = require('./utils/FetchClient');
+const OutputParser = require('./utils/OutputParser');
 
 module.exports = {
   RemoteLanguageModel,
@@ -138,5 +144,10 @@ module.exports = {
   VLLMStreamParser,
   AnthropicStreamParser,
   ModelHelper,
-  MCPClient
+  MCPClient,
+  MCPServer,
+  OpenAICompatibleWrapper,
+  OpenAICompatibleInput,
+  FetchClient,
+  OutputParser
 };

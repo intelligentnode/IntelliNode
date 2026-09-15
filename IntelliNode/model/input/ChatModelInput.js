@@ -34,14 +34,85 @@ class ChatGPTMessage {
   }
 }
 
+// Tool-call arguments arrive as a JSON string; the Anthropic and Gemini bodies need the object.
+function parseArguments(call) {
+  const args = call.function ? call.function.arguments : call.arguments;
+  if (args && typeof args === 'object') return args;
+  try {
+    return args ? JSON.parse(args) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function callName(call) {
+  return call.function ? call.function.name : call.name;
+}
+
+function resultText(result) {
+  const content = result.content !== undefined ? result.content : result.result;
+  if (content === undefined || content === null) return '';
+  return typeof content === 'string' ? content : JSON.stringify(content);
+}
+
+// Schema helpers for the structured-output options shared by every input class.
+function schemaName(schema, fallback = 'response') {
+  const raw = (schema && (schema.title || schema.name)) || fallback;
+  return String(raw).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64) || fallback;
+}
+
+// Strict structured output (OpenAI strict mode, Anthropic) requires additionalProperties: false on every object.
+function closedObjectSchema(schema) {
+  if (Array.isArray(schema)) return schema.map(closedObjectSchema);
+  if (!schema || typeof schema !== 'object') return schema;
+  const copy = {};
+  for (const [key, value] of Object.entries(schema)) copy[key] = closedObjectSchema(value);
+  if (copy.type === 'object' && copy.additionalProperties === undefined) copy.additionalProperties = false;
+  return copy;
+}
+
+// OpenAI-style structured output: json_schema when a schema is given, json_object otherwise.
+// The Responses API defaults strict to true, so strict is always sent explicitly there.
+function openAIResponseFormat(input, { nested = true } = {}) {
+  if (input.responseSchema) {
+    const strict = Boolean(input.strictSchema);
+    const definition = {
+      name: schemaName(input.responseSchema),
+      schema: strict ? closedObjectSchema(input.responseSchema) : input.responseSchema,
+      ...((strict || !nested) && { strict }),
+    };
+    return nested ? { type: 'json_schema', json_schema: definition } : { type: 'json_schema', ...definition };
+  }
+  if (input.responseFormat === 'json') return { type: 'json_object' };
+  return null;
+}
+
+function jsonModeInstruction(input) {
+  return input.responseFormat === 'json' && !input.responseSchema ? 'Respond with valid JSON only, without markdown fences.' : null;
+}
+
 class ChatModelInput {
-  constructor(options = {}) { 
+  constructor(options = {}) {
     this.searchK = options.searchK || 3;
     this.attachReference = options.attachReference || false;
+    // structured output: a JSON Schema for the reply, or 'json' for free-form JSON
+    this.responseSchema = options.responseSchema || null;
+    this.responseFormat = options.responseFormat || (options.responseSchema ? 'json' : null);
+    // OpenAI strict mode: every object gets additionalProperties: false and the model cannot deviate from the schema
+    this.strictSchema = options.strictSchema || false;
   }
-  
+
   getChatInput() {
     return null;
+  }
+
+  // Tool round trips are implemented per provider; inputs without them cannot run Chatbot.runTools.
+  addToolCalls() {
+    throw new Error(`${this.constructor.name} does not support tool calls.`);
+  }
+
+  addToolResults() {
+    throw new Error(`${this.constructor.name} does not support tool results.`);
   }
 }
 
@@ -106,6 +177,27 @@ class ChatGPTInput extends ChatModelInput {
     this.messages.push(new ChatGPTMessage(prompt, 'system'));
   }
 
+  /** Record the assistant turn that requested tools (tool_calls in chat-completions format). */
+  addToolCalls(toolCalls, content = null) {
+    const message = new ChatGPTMessage(content, 'assistant');
+    message.toolCalls = toolCalls.map((call) => ({
+      id: call.id,
+      type: 'function',
+      function: { name: callName(call), arguments: typeof call.function?.arguments === 'string' ? call.function.arguments : JSON.stringify(parseArguments(call)) },
+    }));
+    this.messages.push(message);
+  }
+
+  /** Record tool results: [{ id, name, content, isError }]. */
+  addToolResults(results) {
+    for (const result of results) {
+      const message = new ChatGPTMessage(resultText(result), 'tool');
+      message.toolCallId = result.id;
+      message.toolName = result.name;
+      this.messages.push(message);
+    }
+  }
+
   cleanMessages() {
     if (this.messages.length > 1) {
       const firstMessage = this.messages[0];
@@ -127,57 +219,103 @@ class ChatGPTInput extends ChatModelInput {
     return false;
   }
 
+  // Messages in chat-completions format, including tool calls and tool results.
+  getChatMessages({ toolResultName = false } = {}) {
+    return this.messages.map((message) => {
+      if (message.toolCalls) {
+        return { role: 'assistant', content: message.content ?? null, tool_calls: message.toolCalls };
+      }
+      if (message.role === 'tool') {
+        return {
+          role: 'tool',
+          tool_call_id: message.toolCallId,
+          ...(toolResultName && message.toolName && { name: message.toolName }),
+          content: message.content,
+        };
+      }
+      return {
+        role: message.role,
+        ...(message.name && { name: message.name }),
+        content: message.content,
+      };
+    });
+  }
+
   getChatInput() {
     // gpt-5 and newer use the Responses API (a ":chat" model suffix keeps chat completions).
     if (isReasoningModel(this.model)) {
       return this.getResponsesInput();
     }
 
-    const messages = this.messages.map((message) => {
-      if (message.name) {
-        return {
-          role: message.role,
-          name: message.name,
-          content: message.content,
-        };
-      } else {
-        return {
-          role: message.role,
-          content: message.content,
-        };
-      }
-    });
-
     // o-series and gpt-5+ on chat completions reject max_tokens and custom temperature.
     const reasoningChat = isReasoningChatModel(this.model);
+    const responseFormat = openAIResponseFormat(this);
 
     return {
       model: stripRouteOverride(this.model),
-      messages: messages,
+      messages: this.getChatMessages(),
       ...(!reasoningChat && this.temperature != null && { temperature: this.temperature }),
       ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
       ...(this.maxTokens && (reasoningChat ? { max_completion_tokens: this.maxTokens } : { max_tokens: this.maxTokens })),
       ...(this.tools && { tools: toChatTools(this.tools) }),
       ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 
   // Request body for the Responses API (/v1/responses).
   getResponsesInput() {
-    // Responses input messages accept role and content only (no name field).
-    const input = this.messages.map((message) => ({
-      role: message.role,
-      content: toResponsesContent(message.content, message.role),
-    }));
+    // Responses input messages accept role and content only (no name field); tool turns become items.
+    const input = [];
+    for (const message of this.messages) {
+      if (message.toolCalls) {
+        if (message.content) input.push({ role: 'assistant', content: toResponsesContent(message.content, 'assistant') });
+        for (const call of message.toolCalls) {
+          input.push({ type: 'function_call', call_id: call.id, name: call.function.name, arguments: call.function.arguments });
+        }
+      } else if (message.role === 'tool') {
+        input.push({ type: 'function_call_output', call_id: message.toolCallId, output: message.content });
+      } else {
+        input.push({ role: message.role, content: toResponsesContent(message.content, message.role) });
+      }
+    }
+
+    const format = openAIResponseFormat(this, { nested: false });
+    const text = { ...(this.verbosity && { verbosity: this.verbosity }), ...(format && { format }) };
 
     return {
       model: stripRouteOverride(this.model),
       input: input,
       reasoning: { effort: this.effort || defaultReasoningEffort(this.model) },
       ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
-      ...(this.verbosity && { text: { verbosity: this.verbosity } }),
+      ...(Object.keys(text).length > 0 && { text }),
       ...(this.tools && { tools: toResponsesTools(this.tools) }),
       ...(this.toolChoice != null && { tool_choice: toResponsesToolChoice(this.toolChoice) }),
+    };
+  }
+}
+
+/**
+ * Chat-completions input for OpenAI-compatible services (OpenRouter, Groq, DeepSeek, xAI, Together, Ollama,
+ * LM Studio, ...). The model defaults to the provider preset when omitted.
+ */
+class OpenAICompatibleInput extends ChatGPTInput {
+  constructor(systemMessage, options = {}) {
+    super(systemMessage, options);
+    this.model = options.model || null;
+    this.temperature = options.temperature ?? null;
+  }
+
+  getChatInput() {
+    const responseFormat = openAIResponseFormat(this);
+    return {
+      ...(this.model && { model: this.model }),
+      messages: this.getChatMessages(),
+      ...(this.temperature != null && { temperature: this.temperature }),
+      ...(this.maxTokens && { max_tokens: this.maxTokens }),
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 }
@@ -200,6 +338,10 @@ class CohereInput extends ChatGPTInput {
 
   addSystemMessage(prompt) {
     this.messages.push(new ChatGPTMessage(prompt, 'System'));
+  }
+
+  addToolCalls() {
+    throw new Error('CohereInput does not support tool calls; use openai, anthropic, gemini, mistral, nvidia or an OpenAI-compatible provider for Chatbot.runTools.');
   }
 
   getChatInput() {
@@ -230,6 +372,8 @@ class CohereInput extends ChatGPTInput {
         'chat_history': chatHistory,
         ...(this.temperature != null && { 'temperature': this.temperature }),
         ...(this.maxTokens && { 'max_tokens': this.maxTokens }),
+        ...(this.responseSchema && { 'response_format': { type: 'json_object', schema: this.responseSchema } }),
+        ...(!this.responseSchema && this.responseFormat === 'json' && { 'response_format': { type: 'json_object' } }),
     };
 
     return params;
@@ -240,30 +384,64 @@ class CohereInput extends ChatGPTInput {
 class MistralInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
-    
+
     this.model = options.model || config.url.mistral.models.chat;
     this.temperature = options.temperature ?? null;
   }
 
   getChatInput() {
-    // Prepare the messages in the expected format
-    const messages = this.messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
+    const responseFormat = openAIResponseFormat(this);
 
-    // Construct Mistral input parameters
+    // Construct Mistral input parameters (tool messages carry the tool name)
     const params = {
       model: this.model,
-      messages: messages,
+      messages: this.getChatMessages({ toolResultName: true }),
       ...(this.temperature != null && { temperature: this.temperature }),
       ...(this.maxTokens && { max_tokens: this.maxTokens }),
       ...(this.tools && { tools: toChatTools(this.tools) }),
       ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
 
     return params;
   }
+}
+
+// Gemini's schema dialect rejects a few JSON Schema keywords.
+function toGeminiSchema(schema) {
+  if (Array.isArray(schema)) return schema.map(toGeminiSchema);
+  if (!schema || typeof schema !== 'object') return schema;
+  const copy = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === '$schema' || key === 'additionalProperties' || key === 'title') continue;
+    copy[key] = toGeminiSchema(value);
+  }
+  return copy;
+}
+
+function toGeminiTools(tools) {
+  if (!Array.isArray(tools)) return tools;
+  if (tools.some((tool) => tool && tool.functionDeclarations)) return tools;
+  const declarations = toChatTools(tools)
+    .filter((tool) => tool && tool.type === 'function' && tool.function)
+    .map((tool) => ({
+      name: tool.function.name,
+      ...(tool.function.description && { description: tool.function.description }),
+      ...(tool.function.parameters && { parameters: toGeminiSchema(tool.function.parameters) }),
+    }));
+  return [{ functionDeclarations: declarations }];
+}
+
+function toGeminiToolConfig(choice) {
+  if (choice === 'auto') return { functionCallingConfig: { mode: 'AUTO' } };
+  if (choice === 'required' || choice === 'any') return { functionCallingConfig: { mode: 'ANY' } };
+  if (choice === 'none') return { functionCallingConfig: { mode: 'NONE' } };
+  if (choice && typeof choice === 'object') {
+    if (choice.functionCallingConfig) return choice;
+    const name = choice.function ? choice.function.name : choice.name;
+    if (name) return { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: [name] } };
+  }
+  return null;
 }
 
 class GeminiInput extends ChatModelInput {
@@ -274,7 +452,9 @@ class GeminiInput extends ChatModelInput {
     this.model = options.model && options.model !== 'gemini' ? options.model : config.url.gemini.models.chat;
     this.maxOutputTokens = options.maxTokens
     this.temperature = options.temperature
+    // tools in Gemini (functionDeclarations) or OpenAI function format
     this.tools = options.tools || null;
+    this.toolChoice = options.toolChoice ?? null;
 
     if (systemMessage && typeof systemMessage === 'string') {
       this.addUserMessage(systemMessage);
@@ -300,15 +480,35 @@ class GeminiInput extends ChatModelInput {
     this.addModelMessage(text);
   }
 
+  addToolCalls(toolCalls, content = null) {
+    const parts = toolCalls.map((call) => ({ functionCall: { name: callName(call), args: parseArguments(call) } }));
+    if (content) parts.unshift({ text: content });
+    this.messages.push({ role: 'model', parts });
+  }
+
+  addToolResults(results) {
+    // functionResponse.response must be an object
+    const parts = results.map((result) => {
+      const content = result.content !== undefined ? result.content : result.result;
+      const response = content && typeof content === 'object' && !Array.isArray(content) ? content : { result: resultText(result) };
+      return { functionResponse: { name: result.name, response: result.isError ? { error: resultText(result) } : response } };
+    });
+    this.messages.push({ role: 'user', parts });
+  }
+
   // The model is part of the endpoint URL, so it is not included in the body.
   getChatInput() {
+    const toolConfig = this.toolChoice != null ? toGeminiToolConfig(this.toolChoice) : null;
     return {
       contents: this.messages,
-      generationConfig: { 
+      generationConfig: {
         ...(this.temperature != null && { temperature: this.temperature }),
         ...(this.maxOutputTokens && { maxOutputTokens: this.maxOutputTokens }),
+        ...(this.responseFormat === 'json' && { responseMimeType: 'application/json' }),
+        ...(this.responseSchema && { responseSchema: toGeminiSchema(this.responseSchema) }),
       },
-      ...(this.tools && { tools: this.tools }),
+      ...(this.tools && { tools: toGeminiTools(this.tools) }),
+      ...(toolConfig && { toolConfig }),
     };
   }
 
@@ -357,6 +557,24 @@ class AnthropicInput extends ChatModelInput {
       });
   }
 
+  addToolCalls(toolCalls, content = null) {
+      const blocks = toolCalls.map((call) => ({ type: 'tool_use', id: call.id, name: callName(call), input: parseArguments(call) }));
+      if (content) blocks.unshift({ type: 'text', text: content });
+      this.messages.push({ role: 'assistant', content: blocks });
+  }
+
+  addToolResults(results) {
+      this.messages.push({
+          role: 'user',
+          content: results.map((result) => ({
+              type: 'tool_result',
+              tool_use_id: result.id,
+              content: resultText(result),
+              ...(result.isError && { is_error: true }),
+          })),
+      });
+  }
+
   cleanMessages() {
       this.messages = [];
   }
@@ -372,14 +590,18 @@ class AnthropicInput extends ChatModelInput {
   }
 
   getChatInput() {
+      // Claude has no free-form JSON mode, so plain JSON requests become a system instruction
+      const jsonInstruction = jsonModeInstruction(this);
+      const system = [this.system, jsonInstruction].filter(Boolean).join('\n');
       return {
-          ...(this.system && { system: this.system }),
+          ...(system && { system }),
           model: this.model,
           messages: this.messages,
           max_tokens: this.maxTokens,
           ...(this.temperature != null && !claudeRejectsSamplingParams(this.model) && { temperature: this.temperature }),
           ...(this.tools && { tools: toAnthropicTools(this.tools) }),
           ...(this.toolChoice != null && { tool_choice: toAnthropicToolChoice(this.toolChoice) }),
+          ...(this.responseSchema && { output_config: { format: { type: 'json_schema', schema: closedObjectSchema(this.responseSchema) } } }),
       };
   }
 }
@@ -567,7 +789,7 @@ class LLamaSageInput extends ChatModelInput {
       ],
     };
   }
-  
+
 }
 
 class NvidiaInput extends ChatModelInput {
@@ -585,6 +807,8 @@ class NvidiaInput extends ChatModelInput {
     this.presencePenalty = options.presencePenalty ?? 0;
     this.frequencyPenalty = options.frequencyPenalty ?? 0;
     this.stream = options.stream || false;
+    this.tools = options.tools || null;
+    this.toolChoice = options.toolChoice ?? null;
   }
 
   addUserMessage(text) {
@@ -593,6 +817,24 @@ class NvidiaInput extends ChatModelInput {
 
   addAssistantMessage(text) {
     this.messages.push({ role: 'assistant', content: text });
+  }
+
+  addToolCalls(toolCalls, content = null) {
+    this.messages.push({
+      role: 'assistant',
+      content: content ?? null,
+      tool_calls: toolCalls.map((call) => ({
+        id: call.id,
+        type: 'function',
+        function: { name: callName(call), arguments: typeof call.function?.arguments === 'string' ? call.function.arguments : JSON.stringify(parseArguments(call)) },
+      })),
+    });
+  }
+
+  addToolResults(results) {
+    for (const result of results) {
+      this.messages.push({ role: 'tool', tool_call_id: result.id, content: resultText(result) });
+    }
   }
 
   deleteLastMessage(message) {
@@ -609,6 +851,7 @@ class NvidiaInput extends ChatModelInput {
   }
 
   getChatInput() {
+    const responseFormat = openAIResponseFormat(this);
     return {
       model: this.model,
       messages: this.messages,
@@ -617,7 +860,10 @@ class NvidiaInput extends ChatModelInput {
       top_p: this.topP,
       presence_penalty: this.presencePenalty,
       frequency_penalty: this.frequencyPenalty,
-      stream: this.stream
+      stream: this.stream,
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 }
@@ -632,17 +878,16 @@ class VLLMInput extends ChatGPTInput {
   }
 
   getChatInput() {
-    const messages = this.messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
-
+    const responseFormat = openAIResponseFormat(this);
     return {
       model: this.model,
-      messages: messages,
+      messages: this.getChatMessages(),
       max_tokens: this.maxTokens,
       temperature: this.temperature,
       top_p: this.top_p,
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 }
@@ -650,6 +895,7 @@ class VLLMInput extends ChatGPTInput {
 
 module.exports = {
   ChatGPTInput,
+  OpenAICompatibleInput,
   ChatModelInput,
   ChatGPTMessage,
   ChatLLamaInput,

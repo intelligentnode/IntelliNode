@@ -77,13 +77,18 @@ function claudeRejectsSamplingParams(model) {
 
 // Tools can be written in chat-completions format ({type:'function', function:{...}}) or the flat
 // Responses format ({type:'function', name, parameters}); these helpers convert to what each API expects.
+// Accepts chat-completions tools ({ type, function }), Responses tools ({ type, name, parameters }) and plain
+// definitions ({ name, description, parameters | input_schema }); returns the chat-completions shape.
 function toChatTools(tools) {
   if (!Array.isArray(tools)) return tools;
   return tools.map((tool) => {
-    if (tool && tool.type === 'function' && !tool.function && tool.name) {
-      const { type, name, description, parameters, strict } = tool;
+    if (!tool || typeof tool !== 'object' || tool.function) return tool;
+    const plain = !tool.type && tool.name && (tool.parameters || tool.input_schema || tool.description);
+    if ((tool.type === 'function' || plain) && tool.name) {
+      const { name, description, strict } = tool;
+      const parameters = tool.parameters !== undefined ? tool.parameters : tool.input_schema;
       return {
-        type,
+        type: 'function',
         function: {
           name,
           ...(description !== undefined && { description }),
@@ -98,12 +103,12 @@ function toChatTools(tools) {
 
 function toResponsesTools(tools) {
   if (!Array.isArray(tools)) return tools;
-  return tools.map((tool) => (tool && tool.type === 'function' && tool.function ? { type: 'function', ...tool.function } : tool));
+  return toChatTools(tools).map((tool) => (tool && tool.type === 'function' && tool.function ? { type: 'function', ...tool.function } : tool));
 }
 
 function toAnthropicTools(tools) {
   if (!Array.isArray(tools)) return tools;
-  return tools.map((tool) => {
+  return toChatTools(tools).map((tool) => {
     if (tool && tool.type === 'function') {
       const fn = tool.function || tool;
       return {

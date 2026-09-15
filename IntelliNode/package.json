@@ -1,8 +1,16 @@
 {
   "name": "intellinode",
   "version": "3.0.0",
-  "description": "Create AI agents using the latest models, including ChatGPT, Llama, Diffusion, Cohere, Gemini, and Hugging Face.",
+  "description": "Unified AI toolkit: one API for OpenAI, Anthropic, Gemini, Mistral, Cohere, NVIDIA and OpenAI-compatible services, with a tool loop, structured output, generators for web developers and an MCP server.",
   "main": "index.js",
+  "types": "index.d.ts",
+  "bin": {
+    "intellinode": "bin/intellinode.js"
+  },
+  "mcpName": "io.github.intelligentnode/intellinode",
+  "browser": {
+    "./mcp/server.js": false
+  },
   "keywords": [
     "ai",
     "ChatGPT",
@@ -18,7 +26,16 @@
     "gemini",
     "deepseek",
     "framework",
-    "mcp"
+    "mcp",
+    "anthropic",
+    "claude",
+    "ollama",
+    "openrouter",
+    "groq",
+    "openai-compatible",
+    "tool-calling",
+    "structured-output",
+    "model-context-protocol"
   ],
   "author": "IntelliNode",
   "license": "Apache",

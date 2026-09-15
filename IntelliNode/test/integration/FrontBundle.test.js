@@ -44,9 +44,14 @@ async function collect(stream) {
 }
 
 async function testExportsAndTemplates() {
-  for (const name of ['Chatbot', 'ChatGPTInput', 'AnthropicInput', 'MistralInput', 'GeminiInput', 'Gen', 'ModelHelper', 'AnthropicStreamParser']) {
+  for (const name of ['Chatbot', 'ChatGPTInput', 'AnthropicInput', 'MistralInput', 'GeminiInput', 'Gen', 'ModelHelper', 'AnthropicStreamParser',
+    'OpenAICompatibleInput', 'OpenAICompatibleWrapper', 'FetchClient', 'OutputParser', 'MCPClient']) {
     assert.ok(IntelliNode[name], `missing export ${name}`);
   }
+  // the MCP server is Node only and must not drag the http polyfill into the bundle
+  assert.strictEqual(IntelliNode.MCPServer, undefined);
+  const compatible = new IntelliNode.Chatbot(null, 'ollama', null, { model: 'qwen3' });
+  assert.strictEqual(compatible.compatibleWrapper.API_BASE_URL, 'http://localhost:11434/v1');
   // Gen prompt templates must load without a file system
   const template = new IntelliNode.Prompt('${text}').format({ text: 'ok' });
   assert.strictEqual(template, 'ok');

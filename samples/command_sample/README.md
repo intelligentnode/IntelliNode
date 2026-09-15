@@ -25,6 +25,9 @@ The Llama model is made available by several hosting services, and Replicate is 
 
 ## Samples Execution
 
+0. Tool loop, structured JSON output, OpenAI-compatible providers and MCP (3.0 features):
+`node test_tool_loop.js`, `node test_openai_compatible.js` (needs a local Ollama), `node test_mcp_tools.js`
+
 1. E-commerce sample to product descriptions description and images:
 `node ecommerce_tool.js`
 

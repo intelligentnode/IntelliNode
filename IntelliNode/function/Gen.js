@@ -18,7 +18,8 @@ const {
   MistralInput,
   CohereInput,
   NvidiaInput,
-  VLLMInput
+  VLLMInput,
+  OpenAICompatibleInput
 } = require("../model/input/ChatModelInput");
 const SystemHelper = require("../utils/SystemHelper");
 const Prompt = require("../utils/Prompt");
@@ -40,10 +41,35 @@ const CHAT_INPUTS = {
   [SupportedChatModels.COHERE]: CohereInput,
   [SupportedChatModels.NVIDIA]: NvidiaInput,
   [SupportedChatModels.VLLM]: VLLMInput,
+  // OpenAI-compatible services share one chat-completions input
+  [SupportedChatModels.OPENAI_COMPATIBLE]: OpenAICompatibleInput,
+  [SupportedChatModels.OPENROUTER]: OpenAICompatibleInput,
+  [SupportedChatModels.GROQ]: OpenAICompatibleInput,
+  [SupportedChatModels.DEEPSEEK]: OpenAICompatibleInput,
+  [SupportedChatModels.XAI]: OpenAICompatibleInput,
+  [SupportedChatModels.TOGETHER]: OpenAICompatibleInput,
+  [SupportedChatModels.OLLAMA]: OpenAICompatibleInput,
+  [SupportedChatModels.LMSTUDIO]: OpenAICompatibleInput,
 };
 
-// Providers whose models (e.g. DeepSeek) return <think> reasoning inline; the other providers separate it already.
-const INLINE_REASONING_PROVIDERS = new Set([SupportedChatModels.NVIDIA, SupportedChatModels.VLLM]);
+// Providers whose models (e.g. DeepSeek, local reasoning models) can return <think> reasoning inline;
+// the other providers separate it already.
+const INLINE_REASONING_PROVIDERS = new Set([
+  SupportedChatModels.NVIDIA, SupportedChatModels.VLLM, SupportedChatModels.OPENAI_COMPATIBLE,
+  SupportedChatModels.OPENROUTER, SupportedChatModels.GROQ, SupportedChatModels.DEEPSEEK, SupportedChatModels.XAI,
+  SupportedChatModels.TOGETHER, SupportedChatModels.OLLAMA, SupportedChatModels.LMSTUDIO,
+]);
+
+// Chatbot options that Gen passes straight through from options.
+const CHATBOT_OPTION_KEYS = ['baseUrl', 'headers', 'timeout', 'retries', 'retryDelay', 'signal'];
+
+function chatbotOptionsFrom(options) {
+  const chatbotOptions = {};
+  for (const key of CHATBOT_OPTION_KEYS) {
+    if (options[key] !== undefined) chatbotOptions[key] = options[key];
+  }
+  return chatbotOptions;
+}
 
 // Output token budgets for the generation use cases (ignored for OpenAI reasoning models).
 const TOKENS = { short: 1200, medium: 4000, long: 8000, page: 12000 };
@@ -63,7 +89,11 @@ function buildChatInput(provider, system, options) {
   if (!InputClass) {
     throw new Error(`Unsupported provider '${provider}'. Use one of: ${Object.keys(CHAT_INPUTS).join(', ')}`);
   }
-  const inputOptions = { ...(options.model && { model: options.model }) };
+  const inputOptions = {
+    ...(options.model && { model: options.model }),
+    ...(options.responseSchema && { responseSchema: options.responseSchema }),
+    ...(options.responseFormat && { responseFormat: options.responseFormat }),
+  };
   // reasoning models (gpt-5+) spend output tokens on thinking, so only cap and tune the other models
   const reasoning = provider === SupportedChatModels.OPENAI && isReasoningModel(options.model || DEFAULT_OPENAI_MODEL);
   if (!reasoning) {
@@ -536,20 +566,45 @@ class Gen {
    *
    * @param {string} prompt - the user message.
    * @param {string} apiKey - the provider key.
-   * @param {string} provider - openai, anthropic, gemini, mistral, cohere, nvidia or vllm.
-   * @param {object} options - { system, model, maxTokens, temperature, customProxyHelper, baseUrl }.
+   * @param {string} provider - openai, anthropic, gemini, mistral, cohere, nvidia, vllm, or an OpenAI-compatible
+   *   service: openrouter, groq, deepseek, xai, together, ollama, lmstudio, openai_compatible (with options.baseUrl).
+   * @param {object} options - { system, model, maxTokens, temperature, customProxyHelper, baseUrl, headers,
+   *   timeout, retries, retryDelay, signal }.
    */
   static async generate_text(prompt, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
     const input = buildChatInput(provider, options.system || DEFAULT_SYSTEM, options);
     input.addUserMessage(prompt);
 
-    const chatbotOptions = options.baseUrl ? { baseUrl: options.baseUrl } : {};
-    const chatbot = new Chatbot(apiKey, provider, options.customProxyHelper || null, chatbotOptions);
+    const chatbot = new Chatbot(apiKey, provider, options.customProxyHelper || null, chatbotOptionsFrom(options));
     const responses = await chatbot.chat(input);
 
     const first = responses[0];
     const text = typeof first === 'string' ? first : (first && first.content) || '';
     return INLINE_REASONING_PROVIDERS.has(provider) ? stripThinking(text) : String(text).trim();
+  }
+
+  /**
+   * One call that returns parsed JSON. With a JSON Schema the provider's structured output is used (OpenAI,
+   * Anthropic, Gemini, Mistral, Cohere and compatible services), so the reply matches the schema; without one the
+   * model is asked for JSON and the reply is parsed even when it is wrapped in prose or fences.
+   *
+   * @param {string} prompt - the user message.
+   * @param {object|null} schema - a JSON Schema for the reply, or null for free-form JSON.
+   * @param {string} apiKey - the provider key.
+   * @param {string} provider - any provider accepted by generate_text.
+   * @param {object} options - the generate_text options.
+   */
+  static async generate_json(prompt, schema, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const text = await Gen.generate_text(prompt, apiKey, provider, {
+      ...options,
+      ...(schema ? { responseSchema: schema } : { responseFormat: 'json' }),
+      system: options.system || 'You are a helpful assistant that replies with JSON.',
+    });
+    if (!text) {
+      throw new Error(`Gen: empty response from ${provider}. The output budget may have been spent before any text was produced; raise options.maxTokens.`);
+    }
+    const kind = schema && (schema.type === 'array' ? 'array' : schema.type === 'object' ? 'object' : null);
+    return parseJson(text, kind || null);
   }
 
   // Fill a prompt template, call the provider and parse the output as text, markdown, code, json or svg.

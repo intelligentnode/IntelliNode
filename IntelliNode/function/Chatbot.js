@@ -23,12 +23,16 @@ const AnthropicWrapper = require('../wrappers/AnthropicWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
+const OpenAICompatibleWrapper = require('../wrappers/OpenAICompatibleWrapper');
+const FetchClient = require('../utils/FetchClient');
+const { parseJson } = require('../utils/OutputParser');
 const {
     isReasoningModel,
     functionsToTools,
     functionCallToToolChoice,
     toResponsesTools,
-    toResponsesToolChoice
+    toResponsesToolChoice,
+    toChatTools
 } = require('../utils/ModelHelper');
 
 const {
@@ -43,7 +47,8 @@ const {
     GeminiInput,
     AnthropicInput,
     NvidiaInput,
-    VLLMInput
+    VLLMInput,
+    OpenAICompatibleInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
@@ -55,10 +60,32 @@ const SupportedChatModels = {
     GEMINI: "gemini",
     ANTHROPIC: "anthropic",
     NVIDIA: "nvidia",
-    VLLM: "vllm"
+    VLLM: "vllm",
+    // any service with an OpenAI chat-completions API (needs options.baseUrl)
+    OPENAI_COMPATIBLE: "openai_compatible",
+    OPENROUTER: "openrouter",
+    GROQ: "groq",
+    DEEPSEEK: "deepseek",
+    XAI: "xai",
+    TOGETHER: "together",
+    OLLAMA: "ollama",
+    LMSTUDIO: "lmstudio"
 };
 
+// Providers served by OpenAICompatibleWrapper, keyed by the config preset name.
+const COMPATIBLE_PROVIDERS = new Set([
+    SupportedChatModels.OPENAI_COMPATIBLE, SupportedChatModels.OPENROUTER, SupportedChatModels.GROQ,
+    SupportedChatModels.DEEPSEEK, SupportedChatModels.XAI, SupportedChatModels.TOGETHER,
+    SupportedChatModels.OLLAMA, SupportedChatModels.LMSTUDIO
+]);
+
 class Chatbot {
+    /**
+     * @param {string} keyValue - provider API key.
+     * @param {string} provider - one of SupportedChatModels.
+     * @param {object} customProxyHelper - OpenAI proxy/Azure helper, or { url } for SageMaker.
+     * @param {object} options - { oneKey, intelliBase, baseUrl, headers, timeout, retries, retryDelay, signal }.
+     */
     constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null, options = {}) {
 
         const supportedModels = this.getSupportedModels();
@@ -76,6 +103,7 @@ class Chatbot {
 
     initiate(keyValue, provider, customProxyHelper = null, options = {}) {
         this.provider = provider;
+        options = options || {};
 
         if (provider === SupportedChatModels.OPENAI) {
             this.openaiWrapper = new OpenAIWrapper(keyValue, customProxyHelper);
@@ -92,8 +120,7 @@ class Chatbot {
         } else if (provider === SupportedChatModels.ANTHROPIC) {
             this.anthropicWrapper = new AnthropicWrapper(keyValue);
         } else if (provider === SupportedChatModels.NVIDIA) {
-            const my_options = options || {};
-            const baseUrl = (my_options.nvidiaOptions && my_options.nvidiaOptions.baseUrl) || my_options.baseUrl;
+            const baseUrl = (options.nvidiaOptions && options.nvidiaOptions.baseUrl) || options.baseUrl;
             if (baseUrl) {
                 this.nvidiaWrapper = new NvidiaWrapper(keyValue, { baseUrl: baseUrl });
             } else {
@@ -103,16 +130,39 @@ class Chatbot {
             const baseUrl = options.baseUrl;
             if (!baseUrl) throw new Error("VLLM requires 'baseUrl' in options.");
             this.vllmWrapper = new VLLMWrapper(baseUrl);
+        } else if (COMPATIBLE_PROVIDERS.has(provider)) {
+            if (provider === SupportedChatModels.OPENAI_COMPATIBLE && !options.baseUrl) {
+                throw new Error("The openai_compatible provider requires 'baseUrl' in options.");
+            }
+            this.compatibleWrapper = new OpenAICompatibleWrapper(keyValue, {
+                preset: provider === SupportedChatModels.OPENAI_COMPATIBLE ? null : provider,
+                baseUrl: options.baseUrl,
+                headers: options.headers,
+                model: options.model,
+            });
         } else {
             throw new Error("Invalid provider name");
         }
 
+        this.setRequestOptions(options);
+
         // initiate the optional search feature
-        if (options && options.oneKey) {
+        if (options.oneKey) {
             const apiBase = options.intelliBase ? options.intelliBase : null;
             this.extendedController = options.oneKey.startsWith("in") ? new IntellicloudWrapper(options.oneKey, apiBase) : null;
         }
 
+    }
+
+    /** Apply timeout (ms), retries, retryDelay (ms) or an AbortSignal to every request of this chatbot. */
+    setRequestOptions({ timeout, retries, retryDelay, signal } = {}) {
+        const requestOptions = { timeout, retries, retryDelay, signal };
+        for (const value of Object.values(this)) {
+            if (value && value.client instanceof FetchClient) {
+                value.client.setRequestOptions(requestOptions);
+            }
+        }
+        return this;
     }
 
     getSupportedModels() {
@@ -157,9 +207,130 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.VLLM) {
             let result = await this._chatVLLM(modelInput);
             return modelInput.attachReference ? { result: result, references } : result;
+        } else if (COMPATIBLE_PROVIDERS.has(this.provider)) {
+            const result = await this._chatCompatible(modelInput);
+            return modelInput.attachReference ? { result, references } : result;
         } else {
             throw new Error("The provider is not supported");
         }
+    }
+
+    /**
+     * Chat and parse the first reply as JSON. Set `responseSchema` (a JSON Schema) or `responseFormat: 'json'`
+     * on the input so the model is asked for JSON; the reply is parsed even when it is wrapped in prose or fences.
+     */
+    async chatJson(modelInput) {
+        const response = await this.chat(modelInput);
+        const replies = Array.isArray(response) ? response : response.result;
+        const first = replies[0];
+        const text = typeof first === 'string' ? first : (first && first.content) || '';
+        const schema = modelInput instanceof ChatModelInput ? modelInput.responseSchema : null;
+        const kind = schema && (schema.type === 'array' ? 'array' : schema.type === 'object' ? 'object' : null);
+        return parseJson(text, kind);
+    }
+
+    /**
+     * Run a tool-calling loop: call the model, execute every requested tool, feed the results back and repeat
+     * until the model answers with text or `maxSteps` rounds have run.
+     *
+     * @param {ChatModelInput} modelInput - an input with `tools` set, or tools are taken from `tools`.
+     * @param {object|Array|MCPClient} tools - { name: async (args) => result }, [{ name, description, parameters, handler }],
+     *   or an MCP client (anything with callTool and toChatTools).
+     * @param {object} options - { maxSteps = 5, onToolCall(name, args), onToolResult(name, result) }.
+     * @returns {Promise<{ text: string, steps: Array<{ name, arguments, result, isError }>, toolCalls: number }>}
+     */
+    async runTools(modelInput, tools = {}, options = {}) {
+        if (!(modelInput instanceof ChatModelInput)) {
+            throw new Error('runTools needs a chat input instance (ChatGPTInput, AnthropicInput, GeminiInput, ...).');
+        }
+        const maxSteps = options.maxSteps || 5;
+        const registry = Chatbot._toolRegistry(tools);
+        if (!modelInput.tools && registry.definitions.length > 0) {
+            modelInput.tools = registry.definitions;
+        }
+        if (!modelInput.tools || modelInput.tools.length === 0) {
+            throw new Error('runTools needs tool definitions: pass tools with descriptions and parameters, or an MCP client.');
+        }
+
+        const steps = [];
+        for (let step = 0; step < maxSteps; step++) {
+            const response = await this.chat(modelInput);
+            const replies = Array.isArray(response) ? response : response.result;
+            const first = replies[0];
+            if (!first || typeof first === 'string' || !Array.isArray(first.tool_calls) || first.tool_calls.length === 0) {
+                const text = typeof first === 'string' ? first : (first && first.content) || '';
+                return { text, steps, toolCalls: steps.length };
+            }
+
+            const results = [];
+            for (const call of first.tool_calls) {
+                const name = call.function ? call.function.name : call.name;
+                const args = Chatbot._parseArguments(call);
+                if (options.onToolCall) await options.onToolCall(name, args);
+                let content;
+                let isError = false;
+                try {
+                    const handler = registry.handlers[name];
+                    if (!handler) throw new Error(`Unknown tool '${name}'.`);
+                    content = await handler(args, call);
+                } catch (error) {
+                    content = `Error: ${error.message}`;
+                    isError = true;
+                }
+                if (options.onToolResult) await options.onToolResult(name, content, isError);
+                steps.push({ name, arguments: args, result: content, isError });
+                results.push({ id: call.id, name, content, isError });
+            }
+            modelInput.addToolCalls(first.tool_calls, first.content);
+            modelInput.addToolResults(results);
+        }
+        throw new Error(`runTools stopped after ${maxSteps} tool rounds without a final answer; raise options.maxSteps.`);
+    }
+
+    static _parseArguments(call) {
+        const args = call.function ? call.function.arguments : call.arguments;
+        if (args && typeof args === 'object') return args;
+        try {
+            return args ? JSON.parse(args) : {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    // Normalise the accepted tool shapes into { definitions, handlers }.
+    static _toolRegistry(tools) {
+        const handlers = {};
+        const definitions = [];
+        if (tools && typeof tools.callTool === 'function' && typeof tools.toChatTools === 'function') {
+            for (const definition of tools.toChatTools()) {
+                definitions.push(definition);
+                handlers[definition.function.name] = async (args) => {
+                    const result = await tools.callTool(definition.function.name, args);
+                    if (result && result.isError) throw new Error(result.text || 'The tool reported an error.');
+                    if (result && result.text) return result.text;
+                    if (result && result.structuredContent !== undefined) return result.structuredContent;
+                    return result;
+                };
+            }
+        } else if (Array.isArray(tools)) {
+            for (const tool of tools) {
+                const spec = tool.function || tool;
+                if (typeof (tool.handler || spec.handler) === 'function') handlers[spec.name] = tool.handler || spec.handler;
+                definitions.push({
+                    type: 'function',
+                    function: {
+                        name: spec.name,
+                        ...(spec.description && { description: spec.description }),
+                        parameters: spec.parameters || spec.input_schema || { type: 'object', properties: {} },
+                    },
+                });
+            }
+        } else if (tools && typeof tools === 'object') {
+            for (const [name, handler] of Object.entries(tools)) {
+                if (typeof handler === 'function') handlers[name] = handler;
+            }
+        }
+        return { definitions, handlers };
     }
 
     async *stream(modelInput) {
@@ -178,9 +349,44 @@ class Chatbot {
             yield* this._streamNvidia(modelInput);
         } else if (this.provider === SupportedChatModels.VLLM) {
             yield* this._streamVLLM(modelInput);
+        } else if (COMPATIBLE_PROVIDERS.has(this.provider)) {
+            yield* this._streamCompatible(modelInput);
         } else {
-            throw new Error("The stream function supports openai, anthropic, mistral, cohere, nvidia and vllm; for other providers use the chat function.");
+            throw new Error("The stream function supports openai, anthropic, mistral, cohere, nvidia, vllm and the OpenAI-compatible providers; for other providers use the chat function.");
         }
+    }
+
+    _getCompatibleParams(modelInput) {
+        if (modelInput instanceof ChatModelInput) {
+            return modelInput.getChatInput();
+        } else if (modelInput && typeof modelInput === "object") {
+            return { ...modelInput };
+        }
+        throw new Error("Invalid input: Must be an instance of OpenAICompatibleInput or a chat-completions object");
+    }
+
+    async _chatCompatible(modelInput) {
+        const params = this._getCompatibleParams(modelInput);
+        const results = await this.compatibleWrapper.generateChatText(params);
+        return this._parseChatChoices(results);
+    }
+
+    async *_streamCompatible(modelInput) {
+        const params = this._getCompatibleParams(modelInput);
+        params.stream = true;
+        const stream = await this.compatibleWrapper.generateChatText(params);
+        const streamParser = new GPTStreamParser();
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
+        }
+    }
+
+    /** Model ids served by an OpenAI-compatible provider (openrouter, ollama, ...). */
+    async listModels() {
+        if (!this.compatibleWrapper) {
+            throw new Error('listModels is available for the OpenAI-compatible providers only.');
+        }
+        return this.compatibleWrapper.listModels();
     }
 
     async *_streamVLLM(modelInput) {
@@ -256,7 +462,7 @@ class Chatbot {
             const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
 
             if (semanticResult && semanticResult.length > 0) {
-                
+
                 references = semanticResult.reduce((acc, doc) => {
                     // check if the document_name exists in the accumulator
                     if (!acc[doc.document_name]) {
@@ -285,7 +491,7 @@ class Chatbot {
                 }
             }
         }
-        
+
         return references;
     }
 
@@ -314,7 +520,7 @@ class Chatbot {
         return result.choices.map(c => c.text.trim());
       } else {
         const result = await this.vllmWrapper.generateChatText(params);
-        return result.choices.map(c => c.message.content);
+        return this._parseChatChoices(result);
       }
     }
 
@@ -596,12 +802,21 @@ class Chatbot {
         }
 
         // a candidate can have no parts, e.g. when thinking used the whole output budget
-        return result.candidates.map(candidate => {
+        return result.candidates.map((candidate, index) => {
             const parts = (candidate.content && candidate.content.parts) || [];
-            return parts
+            const text = parts
                 .filter(part => typeof part.text === 'string' && !part.thought)
                 .map(part => part.text)
                 .join('');
+            // Gemini has no call ids, so function calls get local ones for the tool loop
+            const toolCalls = parts
+                .filter(part => part.functionCall)
+                .map((part, callIndex) => ({
+                    id: part.functionCall.id || `call_${index}_${callIndex}`,
+                    type: 'function',
+                    function: { name: part.functionCall.name, arguments: JSON.stringify(part.functionCall.args || {}) }
+                }));
+            return toolCalls.length > 0 ? { content: text || null, tool_calls: toolCalls } : text;
         });
     }
 
@@ -654,7 +869,7 @@ class Chatbot {
         let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
         if (params.stream) throw new Error("Use stream() for NVIDIA streaming.");
         let resp = await this.nvidiaWrapper.generateText(params);
-        return resp.choices.map(c => c.message.content);
+        return this._parseChatChoices(resp);
     }
 
     async *_streamNvidia(modelInput) {

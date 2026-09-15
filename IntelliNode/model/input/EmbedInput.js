@@ -80,6 +80,9 @@ class EmbedInput {
         this.model = config.nvidia.models.embed;
     } else if (provider === "vllm") {
         this.model = null;
+    } else if (["openai_compatible", "openrouter", "together", "ollama", "lmstudio"].includes(provider)) {
+        // the preset default (or the model given in the request) is applied by the wrapper
+        this.model = null;
     } else {
       throw new Error("Invalid provider name");
     }

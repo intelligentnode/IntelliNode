@@ -107,6 +107,50 @@ module.exports={
         "opus": "claude-opus-5",
         "haiku": "claude-haiku-4-5"
       }
+    },
+    "openai_compatible": {
+      "chat": "/chat/completions",
+      "embeddings": "/embeddings",
+      "models": "/models",
+      "presets": {
+        "openrouter": {
+          "base": "https://openrouter.ai/api/v1",
+          "chat_model": "openai/gpt-5.5",
+          "embed_model": "openai/text-embedding-3-small"
+        },
+        "groq": {
+          "base": "https://api.groq.com/openai/v1",
+          "chat_model": null,
+          "embed_model": null
+        },
+        "deepseek": {
+          "base": "https://api.deepseek.com",
+          "chat_model": "deepseek-chat",
+          "embed_model": null
+        },
+        "xai": {
+          "base": "https://api.x.ai/v1",
+          "chat_model": null,
+          "embed_model": null
+        },
+        "together": {
+          "base": "https://api.together.xyz/v1",
+          "chat_model": null,
+          "embed_model": null
+        },
+        "ollama": {
+          "base": "http://localhost:11434/v1",
+          "chat_model": null,
+          "embed_model": null,
+          "local": true
+        },
+        "lmstudio": {
+          "base": "http://localhost:1234/v1",
+          "chat_model": null,
+          "embed_model": null,
+          "local": true
+        }
+      }
     }
   },
   "nvidia": {
@@ -141,6 +185,7 @@ module.exports={
     }
   }
 }
+
 },{}],2:[function(require,module,exports){
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
@@ -149,6 +194,7 @@ const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const EmbedInput = require('../model/input/EmbedInput');
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
 const NvidiaWrapper = require('../wrappers/NvidiaWrapper');
+const OpenAICompatibleWrapper = require('../wrappers/OpenAICompatibleWrapper');
 
 const SupportedEmbedModels = {
   OPENAI: 'openai',
@@ -156,8 +202,19 @@ const SupportedEmbedModels = {
   REPLICATE: 'replicate',
   GEMINI: 'gemini',
   NVIDIA: 'nvidia',
-  VLLM: "vllm"
+  VLLM: "vllm",
+  // any service with an OpenAI embeddings API (needs { baseUrl } as the third argument)
+  OPENAI_COMPATIBLE: 'openai_compatible',
+  OPENROUTER: 'openrouter',
+  TOGETHER: 'together',
+  OLLAMA: 'ollama',
+  LMSTUDIO: 'lmstudio'
 };
+
+const COMPATIBLE_PROVIDERS = new Set([
+  SupportedEmbedModels.OPENAI_COMPATIBLE, SupportedEmbedModels.OPENROUTER, SupportedEmbedModels.TOGETHER,
+  SupportedEmbedModels.OLLAMA, SupportedEmbedModels.LMSTUDIO
+]);
 
 class RemoteEmbedModel {
   constructor(keyValue, provider, customProxyHelper = null) {
@@ -191,6 +248,16 @@ class RemoteEmbedModel {
     } else if (keyType === SupportedEmbedModels.VLLM) {
       const baseUrl = customProxyHelper.baseUrl;
       this.vllmWrapper = new VLLMWrapper(baseUrl);
+    } else if (COMPATIBLE_PROVIDERS.has(keyType)) {
+      const options = customProxyHelper || {};
+      if (keyType === SupportedEmbedModels.OPENAI_COMPATIBLE && !options.baseUrl) {
+        throw new Error("The openai_compatible provider requires { baseUrl } as the third argument.");
+      }
+      this.compatibleWrapper = new OpenAICompatibleWrapper(keyValue, {
+        preset: keyType === SupportedEmbedModels.OPENAI_COMPATIBLE ? null : keyType,
+        baseUrl: options.baseUrl,
+        headers: options.headers,
+      });
     } else {
       throw new Error('Invalid provider name');
     }
@@ -216,6 +283,8 @@ class RemoteEmbedModel {
         inputs = embedInput.getNvidiaInputs();
       } else if (this.keyType === SupportedEmbedModels.VLLM) {
         inputs = embedInput.getVLLMInputs();
+      } else if (COMPATIBLE_PROVIDERS.has(this.keyType)) {
+        inputs = embedInput.getOpenAIInputs();
      } else {
         throw new Error('The keyType is not supported');
       }
@@ -283,7 +352,10 @@ class RemoteEmbedModel {
         index: index,
         embedding: embedding
       }));
-    }else {
+    } else if (COMPATIBLE_PROVIDERS.has(this.keyType)) {
+      const results = await this.compatibleWrapper.getEmbeddings(inputs);
+      return results.data;
+    } else {
       throw new Error('The keyType is not supported');
     }
   }
@@ -293,7 +365,7 @@ module.exports = {
   RemoteEmbedModel,
   SupportedEmbedModels,
 };
-},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":46,"../wrappers/GeminiAIWrapper":47,"../wrappers/NvidiaWrapper":52,"../wrappers/OpenAIWrapper":53,"../wrappers/ReplicateWrapper":54,"../wrappers/VLLMWrapper":56}],3:[function(require,module,exports){
+},{"../model/input/EmbedInput":15,"../wrappers/CohereAIWrapper":49,"../wrappers/GeminiAIWrapper":50,"../wrappers/NvidiaWrapper":55,"../wrappers/OpenAICompatibleWrapper":56,"../wrappers/OpenAIWrapper":57,"../wrappers/ReplicateWrapper":58,"../wrappers/VLLMWrapper":60}],3:[function(require,module,exports){
 /*
 Apache License
 
@@ -379,7 +451,7 @@ module.exports = {
     SupportedFineTuneModels,
 };
 
-},{"../model/input/FineTuneInput":15,"../wrappers/OpenAIWrapper":53}],4:[function(require,module,exports){
+},{"../model/input/FineTuneInput":16,"../wrappers/OpenAIWrapper":57}],4:[function(require,module,exports){
 /*
 Apache License
 
@@ -480,7 +552,7 @@ module.exports = {
   RemoteImageModel,
   SupportedImageModels,
 };
-},{"../model/input/ImageModelInput":17,"../wrappers/OpenAIWrapper":53,"../wrappers/StabilityAIWrapper":55}],5:[function(require,module,exports){
+},{"../model/input/ImageModelInput":18,"../wrappers/OpenAIWrapper":57,"../wrappers/StabilityAIWrapper":59}],5:[function(require,module,exports){
 /*
 Apache License
 
@@ -576,7 +648,7 @@ module.exports = {
   RemoteLanguageModel,
   SupportedLangModels,
 };
-},{"../config.json":1,"../model/input/LanguageModelInput":18,"../wrappers/CohereAIWrapper":46,"../wrappers/OpenAIWrapper":53}],6:[function(require,module,exports){
+},{"../config.json":1,"../model/input/LanguageModelInput":19,"../wrappers/CohereAIWrapper":49,"../wrappers/OpenAIWrapper":57}],6:[function(require,module,exports){
 /*
 Apache License
 
@@ -663,7 +735,7 @@ module.exports = {
   SupportedSpeechModels,
 };
 
-},{"../model/input/Text2SpeechInput":19,"../wrappers/GoogleAIWrapper":48,"../wrappers/OpenAIWrapper":53}],7:[function(require,module,exports){
+},{"../model/input/Text2SpeechInput":20,"../wrappers/GoogleAIWrapper":51,"../wrappers/OpenAIWrapper":57}],7:[function(require,module,exports){
 /*
 Apache License
 
@@ -689,12 +761,16 @@ const AnthropicWrapper = require('../wrappers/AnthropicWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
+const OpenAICompatibleWrapper = require('../wrappers/OpenAICompatibleWrapper');
+const FetchClient = require('../utils/FetchClient');
+const { parseJson } = require('../utils/OutputParser');
 const {
     isReasoningModel,
     functionsToTools,
     functionCallToToolChoice,
     toResponsesTools,
-    toResponsesToolChoice
+    toResponsesToolChoice,
+    toChatTools
 } = require('../utils/ModelHelper');
 
 const {
@@ -709,7 +785,8 @@ const {
     GeminiInput,
     AnthropicInput,
     NvidiaInput,
-    VLLMInput
+    VLLMInput,
+    OpenAICompatibleInput
 } = require("../model/input/ChatModelInput");
 
 const SupportedChatModels = {
@@ -721,10 +798,32 @@ const SupportedChatModels = {
     GEMINI: "gemini",
     ANTHROPIC: "anthropic",
     NVIDIA: "nvidia",
-    VLLM: "vllm"
+    VLLM: "vllm",
+    // any service with an OpenAI chat-completions API (needs options.baseUrl)
+    OPENAI_COMPATIBLE: "openai_compatible",
+    OPENROUTER: "openrouter",
+    GROQ: "groq",
+    DEEPSEEK: "deepseek",
+    XAI: "xai",
+    TOGETHER: "together",
+    OLLAMA: "ollama",
+    LMSTUDIO: "lmstudio"
 };
 
+// Providers served by OpenAICompatibleWrapper, keyed by the config preset name.
+const COMPATIBLE_PROVIDERS = new Set([
+    SupportedChatModels.OPENAI_COMPATIBLE, SupportedChatModels.OPENROUTER, SupportedChatModels.GROQ,
+    SupportedChatModels.DEEPSEEK, SupportedChatModels.XAI, SupportedChatModels.TOGETHER,
+    SupportedChatModels.OLLAMA, SupportedChatModels.LMSTUDIO
+]);
+
 class Chatbot {
+    /**
+     * @param {string} keyValue - provider API key.
+     * @param {string} provider - one of SupportedChatModels.
+     * @param {object} customProxyHelper - OpenAI proxy/Azure helper, or { url } for SageMaker.
+     * @param {object} options - { oneKey, intelliBase, baseUrl, headers, timeout, retries, retryDelay, signal }.
+     */
     constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null, options = {}) {
 
         const supportedModels = this.getSupportedModels();
@@ -742,6 +841,7 @@ class Chatbot {
 
     initiate(keyValue, provider, customProxyHelper = null, options = {}) {
         this.provider = provider;
+        options = options || {};
 
         if (provider === SupportedChatModels.OPENAI) {
             this.openaiWrapper = new OpenAIWrapper(keyValue, customProxyHelper);
@@ -758,8 +858,7 @@ class Chatbot {
         } else if (provider === SupportedChatModels.ANTHROPIC) {
             this.anthropicWrapper = new AnthropicWrapper(keyValue);
         } else if (provider === SupportedChatModels.NVIDIA) {
-            const my_options = options || {};
-            const baseUrl = (my_options.nvidiaOptions && my_options.nvidiaOptions.baseUrl) || my_options.baseUrl;
+            const baseUrl = (options.nvidiaOptions && options.nvidiaOptions.baseUrl) || options.baseUrl;
             if (baseUrl) {
                 this.nvidiaWrapper = new NvidiaWrapper(keyValue, { baseUrl: baseUrl });
             } else {
@@ -769,16 +868,39 @@ class Chatbot {
             const baseUrl = options.baseUrl;
             if (!baseUrl) throw new Error("VLLM requires 'baseUrl' in options.");
             this.vllmWrapper = new VLLMWrapper(baseUrl);
+        } else if (COMPATIBLE_PROVIDERS.has(provider)) {
+            if (provider === SupportedChatModels.OPENAI_COMPATIBLE && !options.baseUrl) {
+                throw new Error("The openai_compatible provider requires 'baseUrl' in options.");
+            }
+            this.compatibleWrapper = new OpenAICompatibleWrapper(keyValue, {
+                preset: provider === SupportedChatModels.OPENAI_COMPATIBLE ? null : provider,
+                baseUrl: options.baseUrl,
+                headers: options.headers,
+                model: options.model,
+            });
         } else {
             throw new Error("Invalid provider name");
         }
 
+        this.setRequestOptions(options);
+
         // initiate the optional search feature
-        if (options && options.oneKey) {
+        if (options.oneKey) {
             const apiBase = options.intelliBase ? options.intelliBase : null;
             this.extendedController = options.oneKey.startsWith("in") ? new IntellicloudWrapper(options.oneKey, apiBase) : null;
         }
 
+    }
+
+    /** Apply timeout (ms), retries, retryDelay (ms) or an AbortSignal to every request of this chatbot. */
+    setRequestOptions({ timeout, retries, retryDelay, signal } = {}) {
+        const requestOptions = { timeout, retries, retryDelay, signal };
+        for (const value of Object.values(this)) {
+            if (value && value.client instanceof FetchClient) {
+                value.client.setRequestOptions(requestOptions);
+            }
+        }
+        return this;
     }
 
     getSupportedModels() {
@@ -823,9 +945,130 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.VLLM) {
             let result = await this._chatVLLM(modelInput);
             return modelInput.attachReference ? { result: result, references } : result;
+        } else if (COMPATIBLE_PROVIDERS.has(this.provider)) {
+            const result = await this._chatCompatible(modelInput);
+            return modelInput.attachReference ? { result, references } : result;
         } else {
             throw new Error("The provider is not supported");
         }
+    }
+
+    /**
+     * Chat and parse the first reply as JSON. Set `responseSchema` (a JSON Schema) or `responseFormat: 'json'`
+     * on the input so the model is asked for JSON; the reply is parsed even when it is wrapped in prose or fences.
+     */
+    async chatJson(modelInput) {
+        const response = await this.chat(modelInput);
+        const replies = Array.isArray(response) ? response : response.result;
+        const first = replies[0];
+        const text = typeof first === 'string' ? first : (first && first.content) || '';
+        const schema = modelInput instanceof ChatModelInput ? modelInput.responseSchema : null;
+        const kind = schema && (schema.type === 'array' ? 'array' : schema.type === 'object' ? 'object' : null);
+        return parseJson(text, kind);
+    }
+
+    /**
+     * Run a tool-calling loop: call the model, execute every requested tool, feed the results back and repeat
+     * until the model answers with text or `maxSteps` rounds have run.
+     *
+     * @param {ChatModelInput} modelInput - an input with `tools` set, or tools are taken from `tools`.
+     * @param {object|Array|MCPClient} tools - { name: async (args) => result }, [{ name, description, parameters, handler }],
+     *   or an MCP client (anything with callTool and toChatTools).
+     * @param {object} options - { maxSteps = 5, onToolCall(name, args), onToolResult(name, result) }.
+     * @returns {Promise<{ text: string, steps: Array<{ name, arguments, result, isError }>, toolCalls: number }>}
+     */
+    async runTools(modelInput, tools = {}, options = {}) {
+        if (!(modelInput instanceof ChatModelInput)) {
+            throw new Error('runTools needs a chat input instance (ChatGPTInput, AnthropicInput, GeminiInput, ...).');
+        }
+        const maxSteps = options.maxSteps || 5;
+        const registry = Chatbot._toolRegistry(tools);
+        if (!modelInput.tools && registry.definitions.length > 0) {
+            modelInput.tools = registry.definitions;
+        }
+        if (!modelInput.tools || modelInput.tools.length === 0) {
+            throw new Error('runTools needs tool definitions: pass tools with descriptions and parameters, or an MCP client.');
+        }
+
+        const steps = [];
+        for (let step = 0; step < maxSteps; step++) {
+            const response = await this.chat(modelInput);
+            const replies = Array.isArray(response) ? response : response.result;
+            const first = replies[0];
+            if (!first || typeof first === 'string' || !Array.isArray(first.tool_calls) || first.tool_calls.length === 0) {
+                const text = typeof first === 'string' ? first : (first && first.content) || '';
+                return { text, steps, toolCalls: steps.length };
+            }
+
+            const results = [];
+            for (const call of first.tool_calls) {
+                const name = call.function ? call.function.name : call.name;
+                const args = Chatbot._parseArguments(call);
+                if (options.onToolCall) await options.onToolCall(name, args);
+                let content;
+                let isError = false;
+                try {
+                    const handler = registry.handlers[name];
+                    if (!handler) throw new Error(`Unknown tool '${name}'.`);
+                    content = await handler(args, call);
+                } catch (error) {
+                    content = `Error: ${error.message}`;
+                    isError = true;
+                }
+                if (options.onToolResult) await options.onToolResult(name, content, isError);
+                steps.push({ name, arguments: args, result: content, isError });
+                results.push({ id: call.id, name, content, isError });
+            }
+            modelInput.addToolCalls(first.tool_calls, first.content);
+            modelInput.addToolResults(results);
+        }
+        throw new Error(`runTools stopped after ${maxSteps} tool rounds without a final answer; raise options.maxSteps.`);
+    }
+
+    static _parseArguments(call) {
+        const args = call.function ? call.function.arguments : call.arguments;
+        if (args && typeof args === 'object') return args;
+        try {
+            return args ? JSON.parse(args) : {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    // Normalise the accepted tool shapes into { definitions, handlers }.
+    static _toolRegistry(tools) {
+        const handlers = {};
+        const definitions = [];
+        if (tools && typeof tools.callTool === 'function' && typeof tools.toChatTools === 'function') {
+            for (const definition of tools.toChatTools()) {
+                definitions.push(definition);
+                handlers[definition.function.name] = async (args) => {
+                    const result = await tools.callTool(definition.function.name, args);
+                    if (result && result.isError) throw new Error(result.text || 'The tool reported an error.');
+                    if (result && result.text) return result.text;
+                    if (result && result.structuredContent !== undefined) return result.structuredContent;
+                    return result;
+                };
+            }
+        } else if (Array.isArray(tools)) {
+            for (const tool of tools) {
+                const spec = tool.function || tool;
+                if (typeof (tool.handler || spec.handler) === 'function') handlers[spec.name] = tool.handler || spec.handler;
+                definitions.push({
+                    type: 'function',
+                    function: {
+                        name: spec.name,
+                        ...(spec.description && { description: spec.description }),
+                        parameters: spec.parameters || spec.input_schema || { type: 'object', properties: {} },
+                    },
+                });
+            }
+        } else if (tools && typeof tools === 'object') {
+            for (const [name, handler] of Object.entries(tools)) {
+                if (typeof handler === 'function') handlers[name] = handler;
+            }
+        }
+        return { definitions, handlers };
     }
 
     async *stream(modelInput) {
@@ -844,9 +1087,44 @@ class Chatbot {
             yield* this._streamNvidia(modelInput);
         } else if (this.provider === SupportedChatModels.VLLM) {
             yield* this._streamVLLM(modelInput);
+        } else if (COMPATIBLE_PROVIDERS.has(this.provider)) {
+            yield* this._streamCompatible(modelInput);
         } else {
-            throw new Error("The stream function supports openai, anthropic, mistral, cohere, nvidia and vllm; for other providers use the chat function.");
+            throw new Error("The stream function supports openai, anthropic, mistral, cohere, nvidia, vllm and the OpenAI-compatible providers; for other providers use the chat function.");
         }
+    }
+
+    _getCompatibleParams(modelInput) {
+        if (modelInput instanceof ChatModelInput) {
+            return modelInput.getChatInput();
+        } else if (modelInput && typeof modelInput === "object") {
+            return { ...modelInput };
+        }
+        throw new Error("Invalid input: Must be an instance of OpenAICompatibleInput or a chat-completions object");
+    }
+
+    async _chatCompatible(modelInput) {
+        const params = this._getCompatibleParams(modelInput);
+        const results = await this.compatibleWrapper.generateChatText(params);
+        return this._parseChatChoices(results);
+    }
+
+    async *_streamCompatible(modelInput) {
+        const params = this._getCompatibleParams(modelInput);
+        params.stream = true;
+        const stream = await this.compatibleWrapper.generateChatText(params);
+        const streamParser = new GPTStreamParser();
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
+        }
+    }
+
+    /** Model ids served by an OpenAI-compatible provider (openrouter, ollama, ...). */
+    async listModels() {
+        if (!this.compatibleWrapper) {
+            throw new Error('listModels is available for the OpenAI-compatible providers only.');
+        }
+        return this.compatibleWrapper.listModels();
     }
 
     async *_streamVLLM(modelInput) {
@@ -922,7 +1200,7 @@ class Chatbot {
             const semanticResult = await this.extendedController.semanticSearch(lastMessage.content, modelInput.searchK);
 
             if (semanticResult && semanticResult.length > 0) {
-                
+
                 references = semanticResult.reduce((acc, doc) => {
                     // check if the document_name exists in the accumulator
                     if (!acc[doc.document_name]) {
@@ -951,7 +1229,7 @@ class Chatbot {
                 }
             }
         }
-        
+
         return references;
     }
 
@@ -980,7 +1258,7 @@ class Chatbot {
         return result.choices.map(c => c.text.trim());
       } else {
         const result = await this.vllmWrapper.generateChatText(params);
-        return result.choices.map(c => c.message.content);
+        return this._parseChatChoices(result);
       }
     }
 
@@ -1262,12 +1540,21 @@ class Chatbot {
         }
 
         // a candidate can have no parts, e.g. when thinking used the whole output budget
-        return result.candidates.map(candidate => {
+        return result.candidates.map((candidate, index) => {
             const parts = (candidate.content && candidate.content.parts) || [];
-            return parts
+            const text = parts
                 .filter(part => typeof part.text === 'string' && !part.thought)
                 .map(part => part.text)
                 .join('');
+            // Gemini has no call ids, so function calls get local ones for the tool loop
+            const toolCalls = parts
+                .filter(part => part.functionCall)
+                .map((part, callIndex) => ({
+                    id: part.functionCall.id || `call_${index}_${callIndex}`,
+                    type: 'function',
+                    function: { name: part.functionCall.name, arguments: JSON.stringify(part.functionCall.args || {}) }
+                }));
+            return toolCalls.length > 0 ? { content: text || null, tool_calls: toolCalls } : text;
         });
     }
 
@@ -1320,7 +1607,7 @@ class Chatbot {
         let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
         if (params.stream) throw new Error("Use stream() for NVIDIA streaming.");
         let resp = await this.nvidiaWrapper.generateText(params);
-        return resp.choices.map(c => c.message.content);
+        return this._parseChatChoices(resp);
     }
 
     async *_streamNvidia(modelInput) {
@@ -1341,7 +1628,7 @@ module.exports = {
     SupportedChatModels,
 };
 
-},{"../model/input/ChatModelInput":13,"../utils/ModelHelper":38,"../utils/StreamParser":42,"../utils/SystemHelper":43,"../wrappers/AWSEndpointWrapper":44,"../wrappers/AnthropicWrapper":45,"../wrappers/CohereAIWrapper":46,"../wrappers/GeminiAIWrapper":47,"../wrappers/IntellicloudWrapper":50,"../wrappers/MistralAIWrapper":51,"../wrappers/NvidiaWrapper":52,"../wrappers/OpenAIWrapper":53,"../wrappers/ReplicateWrapper":54,"../wrappers/VLLMWrapper":56}],8:[function(require,module,exports){
+},{"../model/input/ChatModelInput":14,"../utils/FetchClient":35,"../utils/ModelHelper":41,"../utils/OutputParser":42,"../utils/StreamParser":45,"../utils/SystemHelper":46,"../wrappers/AWSEndpointWrapper":47,"../wrappers/AnthropicWrapper":48,"../wrappers/CohereAIWrapper":49,"../wrappers/GeminiAIWrapper":50,"../wrappers/IntellicloudWrapper":53,"../wrappers/MistralAIWrapper":54,"../wrappers/NvidiaWrapper":55,"../wrappers/OpenAICompatibleWrapper":56,"../wrappers/OpenAIWrapper":57,"../wrappers/ReplicateWrapper":58,"../wrappers/VLLMWrapper":60}],8:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -1363,7 +1650,8 @@ const {
   MistralInput,
   CohereInput,
   NvidiaInput,
-  VLLMInput
+  VLLMInput,
+  OpenAICompatibleInput
 } = require("../model/input/ChatModelInput");
 const SystemHelper = require("../utils/SystemHelper");
 const Prompt = require("../utils/Prompt");
@@ -1385,10 +1673,35 @@ const CHAT_INPUTS = {
   [SupportedChatModels.COHERE]: CohereInput,
   [SupportedChatModels.NVIDIA]: NvidiaInput,
   [SupportedChatModels.VLLM]: VLLMInput,
+  // OpenAI-compatible services share one chat-completions input
+  [SupportedChatModels.OPENAI_COMPATIBLE]: OpenAICompatibleInput,
+  [SupportedChatModels.OPENROUTER]: OpenAICompatibleInput,
+  [SupportedChatModels.GROQ]: OpenAICompatibleInput,
+  [SupportedChatModels.DEEPSEEK]: OpenAICompatibleInput,
+  [SupportedChatModels.XAI]: OpenAICompatibleInput,
+  [SupportedChatModels.TOGETHER]: OpenAICompatibleInput,
+  [SupportedChatModels.OLLAMA]: OpenAICompatibleInput,
+  [SupportedChatModels.LMSTUDIO]: OpenAICompatibleInput,
 };
 
-// Providers whose models (e.g. DeepSeek) return <think> reasoning inline; the other providers separate it already.
-const INLINE_REASONING_PROVIDERS = new Set([SupportedChatModels.NVIDIA, SupportedChatModels.VLLM]);
+// Providers whose models (e.g. DeepSeek, local reasoning models) can return <think> reasoning inline;
+// the other providers separate it already.
+const INLINE_REASONING_PROVIDERS = new Set([
+  SupportedChatModels.NVIDIA, SupportedChatModels.VLLM, SupportedChatModels.OPENAI_COMPATIBLE,
+  SupportedChatModels.OPENROUTER, SupportedChatModels.GROQ, SupportedChatModels.DEEPSEEK, SupportedChatModels.XAI,
+  SupportedChatModels.TOGETHER, SupportedChatModels.OLLAMA, SupportedChatModels.LMSTUDIO,
+]);
+
+// Chatbot options that Gen passes straight through from options.
+const CHATBOT_OPTION_KEYS = ['baseUrl', 'headers', 'timeout', 'retries', 'retryDelay', 'signal'];
+
+function chatbotOptionsFrom(options) {
+  const chatbotOptions = {};
+  for (const key of CHATBOT_OPTION_KEYS) {
+    if (options[key] !== undefined) chatbotOptions[key] = options[key];
+  }
+  return chatbotOptions;
+}
 
 // Output token budgets for the generation use cases (ignored for OpenAI reasoning models).
 const TOKENS = { short: 1200, medium: 4000, long: 8000, page: 12000 };
@@ -1408,7 +1721,11 @@ function buildChatInput(provider, system, options) {
   if (!InputClass) {
     throw new Error(`Unsupported provider '${provider}'. Use one of: ${Object.keys(CHAT_INPUTS).join(', ')}`);
   }
-  const inputOptions = { ...(options.model && { model: options.model }) };
+  const inputOptions = {
+    ...(options.model && { model: options.model }),
+    ...(options.responseSchema && { responseSchema: options.responseSchema }),
+    ...(options.responseFormat && { responseFormat: options.responseFormat }),
+  };
   // reasoning models (gpt-5+) spend output tokens on thinking, so only cap and tune the other models
   const reasoning = provider === SupportedChatModels.OPENAI && isReasoningModel(options.model || DEFAULT_OPENAI_MODEL);
   if (!reasoning) {
@@ -1881,20 +2198,45 @@ class Gen {
    *
    * @param {string} prompt - the user message.
    * @param {string} apiKey - the provider key.
-   * @param {string} provider - openai, anthropic, gemini, mistral, cohere, nvidia or vllm.
-   * @param {object} options - { system, model, maxTokens, temperature, customProxyHelper, baseUrl }.
+   * @param {string} provider - openai, anthropic, gemini, mistral, cohere, nvidia, vllm, or an OpenAI-compatible
+   *   service: openrouter, groq, deepseek, xai, together, ollama, lmstudio, openai_compatible (with options.baseUrl).
+   * @param {object} options - { system, model, maxTokens, temperature, customProxyHelper, baseUrl, headers,
+   *   timeout, retries, retryDelay, signal }.
    */
   static async generate_text(prompt, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
     const input = buildChatInput(provider, options.system || DEFAULT_SYSTEM, options);
     input.addUserMessage(prompt);
 
-    const chatbotOptions = options.baseUrl ? { baseUrl: options.baseUrl } : {};
-    const chatbot = new Chatbot(apiKey, provider, options.customProxyHelper || null, chatbotOptions);
+    const chatbot = new Chatbot(apiKey, provider, options.customProxyHelper || null, chatbotOptionsFrom(options));
     const responses = await chatbot.chat(input);
 
     const first = responses[0];
     const text = typeof first === 'string' ? first : (first && first.content) || '';
     return INLINE_REASONING_PROVIDERS.has(provider) ? stripThinking(text) : String(text).trim();
+  }
+
+  /**
+   * One call that returns parsed JSON. With a JSON Schema the provider's structured output is used (OpenAI,
+   * Anthropic, Gemini, Mistral, Cohere and compatible services), so the reply matches the schema; without one the
+   * model is asked for JSON and the reply is parsed even when it is wrapped in prose or fences.
+   *
+   * @param {string} prompt - the user message.
+   * @param {object|null} schema - a JSON Schema for the reply, or null for free-form JSON.
+   * @param {string} apiKey - the provider key.
+   * @param {string} provider - any provider accepted by generate_text.
+   * @param {object} options - the generate_text options.
+   */
+  static async generate_json(prompt, schema, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const text = await Gen.generate_text(prompt, apiKey, provider, {
+      ...options,
+      ...(schema ? { responseSchema: schema } : { responseFormat: 'json' }),
+      system: options.system || 'You are a helpful assistant that replies with JSON.',
+    });
+    if (!text) {
+      throw new Error(`Gen: empty response from ${provider}. The output budget may have been spent before any text was produced; raise options.maxTokens.`);
+    }
+    const kind = schema && (schema.type === 'array' ? 'array' : schema.type === 'object' ? 'object' : null);
+    return parseJson(text, kind || null);
   }
 
   // Fill a prompt template, call the provider and parse the output as text, markdown, code, json or svg.
@@ -2350,7 +2692,7 @@ class Gen {
 module.exports = { Gen };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../config.json":1,"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/ImageModelInput":17,"../model/input/Text2SpeechInput":19,"../utils/FileHelper":33,"../utils/ModelHelper":38,"../utils/OutputParser":39,"../utils/Prompt":40,"../utils/SystemHelper":43,"buffer":22,"path":26}],9:[function(require,module,exports){
+},{"../config.json":1,"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":14,"../model/input/ImageModelInput":18,"../model/input/Text2SpeechInput":20,"../utils/FileHelper":36,"../utils/ModelHelper":41,"../utils/OutputParser":42,"../utils/Prompt":43,"../utils/SystemHelper":46,"buffer":24,"path":28}],9:[function(require,module,exports){
 /*
 Apache License
 
@@ -2432,7 +2774,7 @@ class SemanticSearch {
 
 module.exports = { SemanticSearch };
 
-},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":14,"../utils/MatchHelpers":36}],10:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":15,"../utils/MatchHelpers":39}],10:[function(require,module,exports){
 const { SemanticSearch } = require('./SemanticSearch'); // assuming path
 
 class SemanticSearchPaging extends SemanticSearch {
@@ -2529,7 +2871,7 @@ class TextAnalyzer {
 }
 
 module.exports = { TextAnalyzer };
-},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":18,"../utils/SystemHelper":43}],12:[function(require,module,exports){
+},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":19,"../utils/SystemHelper":46}],12:[function(require,module,exports){
 // controllers
 const {
   RemoteLanguageModel,
@@ -2578,7 +2920,8 @@ const {
   GeminiInput,
   AnthropicInput,
   NvidiaInput,
-  VLLMInput
+  VLLMInput,
+  OpenAICompatibleInput
 } = require('./model/input/ChatModelInput');
 const FunctionModelInput = require('./model/input/FunctionModelInput');
 const EmbedInput = require('./model/input/EmbedInput');
@@ -2597,6 +2940,7 @@ const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
 const AnthropicWrapper = require('./wrappers/AnthropicWrapper');
 const NvidiaWrapper = require('./wrappers/NvidiaWrapper');
 const VLLMWrapper = require('./wrappers/VLLMWrapper');
+const OpenAICompatibleWrapper = require('./wrappers/OpenAICompatibleWrapper');
 // utils
 const { LLMEvaluation } = require('./utils/LLMEvaluation');
 const AudioHelper = require('./utils/AudioHelper');
@@ -2609,6 +2953,10 @@ const { GPTStreamParser, CohereStreamParser, VLLMStreamParser, AnthropicStreamPa
 const ModelHelper = require('./utils/ModelHelper');
 const ChatContext = require('./utils/ChatContext');
 const MCPClient = require('./utils/MCPClient');
+// Node only: the browser bundle maps this module to an empty object (package.json "browser")
+const { MCPServer } = require('./mcp/server');
+const FetchClient = require('./utils/FetchClient');
+const OutputParser = require('./utils/OutputParser');
 
 module.exports = {
   RemoteLanguageModel,
@@ -2670,10 +3018,359 @@ module.exports = {
   VLLMStreamParser,
   AnthropicStreamParser,
   ModelHelper,
-  MCPClient
+  MCPClient,
+  MCPServer,
+  OpenAICompatibleWrapper,
+  OpenAICompatibleInput,
+  FetchClient,
+  OutputParser
 };
 
-},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":29,"./utils/ChatContext":30,"./utils/ConnHelper":31,"./utils/LLMEvaluation":34,"./utils/MCPClient":35,"./utils/MatchHelpers":36,"./utils/ModelHelper":38,"./utils/Prompt":40,"./utils/ProxyHelper":41,"./utils/StreamParser":42,"./utils/SystemHelper":43,"./wrappers/AWSEndpointWrapper":44,"./wrappers/AnthropicWrapper":45,"./wrappers/CohereAIWrapper":46,"./wrappers/GeminiAIWrapper":47,"./wrappers/GoogleAIWrapper":48,"./wrappers/HuggingWrapper":49,"./wrappers/IntellicloudWrapper":50,"./wrappers/MistralAIWrapper":51,"./wrappers/NvidiaWrapper":52,"./wrappers/OpenAIWrapper":53,"./wrappers/ReplicateWrapper":54,"./wrappers/StabilityAIWrapper":55,"./wrappers/VLLMWrapper":56}],13:[function(require,module,exports){
+},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./mcp/server":22,"./model/input/ChatModelInput":14,"./model/input/EmbedInput":15,"./model/input/FineTuneInput":16,"./model/input/FunctionModelInput":17,"./model/input/ImageModelInput":18,"./model/input/LanguageModelInput":19,"./model/input/Text2SpeechInput":20,"./utils/AudioHelper":32,"./utils/ChatContext":33,"./utils/ConnHelper":34,"./utils/FetchClient":35,"./utils/LLMEvaluation":37,"./utils/MCPClient":38,"./utils/MatchHelpers":39,"./utils/ModelHelper":41,"./utils/OutputParser":42,"./utils/Prompt":43,"./utils/ProxyHelper":44,"./utils/StreamParser":45,"./utils/SystemHelper":46,"./wrappers/AWSEndpointWrapper":47,"./wrappers/AnthropicWrapper":48,"./wrappers/CohereAIWrapper":49,"./wrappers/GeminiAIWrapper":50,"./wrappers/GoogleAIWrapper":51,"./wrappers/HuggingWrapper":52,"./wrappers/IntellicloudWrapper":53,"./wrappers/MistralAIWrapper":54,"./wrappers/NvidiaWrapper":55,"./wrappers/OpenAICompatibleWrapper":56,"./wrappers/OpenAIWrapper":57,"./wrappers/ReplicateWrapper":58,"./wrappers/StabilityAIWrapper":59,"./wrappers/VLLMWrapper":60}],13:[function(require,module,exports){
+(function (Buffer){(function (){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const { readStreamChunks } = require('../utils/StreamParser');
+
+/**
+ * JSON-RPC 2.0 helpers shared by the MCP client and server: message builders and validators, the error codes
+ * used by MCP, a newline-delimited JSON reader (stdio transport) and an SSE parser (Streamable HTTP transport).
+ */
+
+const JSONRPC_VERSION = '2.0';
+
+const ERROR_CODES = {
+  PARSE_ERROR: -32700,
+  INVALID_REQUEST: -32600,
+  METHOD_NOT_FOUND: -32601,
+  INVALID_PARAMS: -32602,
+  INTERNAL_ERROR: -32603,
+  // MCP 2026-07-28 protocol errors
+  HEADER_MISMATCH: -32020,
+  MISSING_REQUIRED_CLIENT_CAPABILITY: -32021,
+  UNSUPPORTED_PROTOCOL_VERSION: -32022,
+  // legacy (2025-xx) Streamable HTTP servers use these for "not initialized" and "session not found"
+  SERVER_NOT_INITIALIZED: -32000,
+  SESSION_NOT_FOUND: -32001,
+};
+
+// A JSON-RPC error with one of these codes can only come from a modern (2026-07-28+) server.
+const MODERN_ERROR_CODES = new Set([
+  ERROR_CODES.HEADER_MISMATCH,
+  ERROR_CODES.MISSING_REQUIRED_CLIENT_CAPABILITY,
+  ERROR_CODES.UNSUPPORTED_PROTOCOL_VERSION,
+]);
+
+// Protocol revisions: modern ones carry per-request _meta, legacy ones start with an initialize handshake.
+const MODERN_VERSIONS = ['2026-07-28'];
+const LEGACY_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
+const LATEST_LEGACY_VERSION = LEGACY_VERSIONS[0];
+
+const META_KEYS = {
+  protocolVersion: 'io.modelcontextprotocol/protocolVersion',
+  clientInfo: 'io.modelcontextprotocol/clientInfo',
+  clientCapabilities: 'io.modelcontextprotocol/clientCapabilities',
+  serverInfo: 'io.modelcontextprotocol/serverInfo',
+};
+
+// Methods whose params.name / params.uri is mirrored into the Mcp-Name HTTP header.
+const NAME_HEADER_FIELDS = {
+  'tools/call': 'name',
+  'resources/read': 'uri',
+  'prompts/get': 'name',
+};
+
+class JsonRpcError extends Error {
+  constructor(code, message, data) {
+    super(message);
+    this.name = 'JsonRpcError';
+    this.code = code;
+    if (data !== undefined) this.data = data;
+  }
+
+  toJSON() {
+    return { code: this.code, message: this.message, ...(this.data !== undefined && { data: this.data }) };
+  }
+}
+
+function hasId(message) {
+  return message.id !== undefined && message.id !== null;
+}
+
+function isObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isMessage(message) {
+  return isObject(message) && message.jsonrpc === JSONRPC_VERSION
+    && (typeof message.method === 'string' || 'result' in message || isObject(message.error));
+}
+
+function isRequest(message) {
+  return isMessage(message) && typeof message.method === 'string' && hasId(message);
+}
+
+function isNotification(message) {
+  return isMessage(message) && typeof message.method === 'string' && !hasId(message);
+}
+
+function isResponse(message) {
+  return isMessage(message) && typeof message.method !== 'string' && ('result' in message || isObject(message.error));
+}
+
+function request(id, method, params) {
+  return { jsonrpc: JSONRPC_VERSION, id, method, ...(params !== undefined && { params }) };
+}
+
+function notification(method, params) {
+  return { jsonrpc: JSONRPC_VERSION, method, ...(params !== undefined && { params }) };
+}
+
+function response(id, result) {
+  return { jsonrpc: JSONRPC_VERSION, id, result };
+}
+
+// id is null when the request id could not be determined (parse errors, invalid requests).
+function errorResponse(id, code, message, data) {
+  return {
+    jsonrpc: JSONRPC_VERSION,
+    id: id === undefined ? null : id,
+    error: { code, message, ...(data !== undefined && { data }) },
+  };
+}
+
+function errorFromResponse(message) {
+  const error = message && message.error ? message.error : {};
+  return new JsonRpcError(
+    typeof error.code === 'number' ? error.code : ERROR_CODES.INTERNAL_ERROR,
+    error.message || 'Unknown JSON-RPC error',
+    error.data,
+  );
+}
+
+// JSON.stringify escapes control characters, so the output never contains an embedded newline.
+function serialize(message) {
+  return JSON.stringify(message);
+}
+
+function parseMessage(text) {
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    throw new JsonRpcError(ERROR_CODES.PARSE_ERROR, `Parse error: ${error.message}`);
+  }
+  if (!isMessage(value)) {
+    throw new JsonRpcError(ERROR_CODES.INVALID_REQUEST, 'Invalid Request: not a JSON-RPC 2.0 message');
+  }
+  return value;
+}
+
+// ---------------------------------------------------------------------
+// HTTP header value encoding (Mcp-Name, Mcp-Param-*)
+// ---------------------------------------------------------------------
+
+const SENTINEL_PREFIX = '=?base64?';
+const SENTINEL_SUFFIX = '?=';
+
+// visible ASCII plus inner spaces/tabs, without leading or trailing whitespace
+function isPlainHeaderValue(value) {
+  return /^[\x21-\x7e]([\x20\x21-\x7e\t]*[\x21-\x7e])?$/.test(value);
+}
+
+function isSentinel(value) {
+  return value.startsWith(SENTINEL_PREFIX) && value.endsWith(SENTINEL_SUFFIX);
+}
+
+// Base64 helpers that work in Node and in the browser bundle.
+function toBase64(text) {
+  if (typeof Buffer !== 'undefined') return Buffer.from(text, 'utf8').toString('base64');
+  return btoa(unescape(encodeURIComponent(text)));
+}
+
+function fromBase64(text) {
+  if (typeof Buffer !== 'undefined') return Buffer.from(text, 'base64').toString('utf8');
+  return decodeURIComponent(escape(atob(text)));
+}
+
+/** Encode a body value for a mirrored header; non-ASCII, padded or sentinel-looking values use the Base64 form. */
+function encodeHeaderValue(value) {
+  const text = String(value);
+  if (isPlainHeaderValue(text) && !isSentinel(text)) return text;
+  return `${SENTINEL_PREFIX}${toBase64(text)}${SENTINEL_SUFFIX}`;
+}
+
+/** Decode a mirrored header value; throws on a malformed Base64 sentinel. */
+function decodeHeaderValue(value) {
+  const text = String(value);
+  if (!isSentinel(text)) return text;
+  const encoded = text.slice(SENTINEL_PREFIX.length, -SENTINEL_SUFFIX.length);
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) {
+    throw new JsonRpcError(ERROR_CODES.HEADER_MISMATCH, 'Header value is not valid Base64');
+  }
+  return fromBase64(encoded);
+}
+
+// ---------------------------------------------------------------------
+// Stream readers
+// ---------------------------------------------------------------------
+
+/**
+ * Yield one parsed JSON value per non-empty line of a text stream (Node stream, web ReadableStream or an
+ * iterable of string/Buffer chunks). Lines that are not valid JSON are passed to onInvalid and skipped.
+ */
+async function* readJsonLines(stream, onInvalid = null) {
+  let buffer = '';
+  const parse = (line) => {
+    const text = line.endsWith('\r') ? line.slice(0, -1) : line;
+    if (!text.trim()) return undefined;
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      if (onInvalid) onInvalid(text, error);
+      return undefined;
+    }
+  };
+  for await (const chunk of readStreamChunks(stream)) {
+    buffer += chunk;
+    let index;
+    while ((index = buffer.indexOf('\n')) !== -1) {
+      const value = parse(buffer.slice(0, index));
+      buffer = buffer.slice(index + 1);
+      if (value !== undefined) yield value;
+    }
+  }
+  const last = parse(buffer);
+  if (last !== undefined) yield last;
+}
+
+/**
+ * Incremental text/event-stream parser. feed(chunk) returns the events completed by that chunk as
+ * { event, data, id }; end() flushes a final event that was not terminated by a blank line.
+ * Handles data:/event:/id:/retry: fields, comment lines, multi-line data and LF, CRLF or CR line endings.
+ */
+class SSEParser {
+  constructor() {
+    this.buffer = '';
+    this._reset();
+  }
+
+  _reset() {
+    this.dataLines = [];
+    this.eventName = null;
+    this.eventId = null;
+  }
+
+  feed(chunk) {
+    this.buffer += chunk;
+    const events = [];
+    let index;
+    while ((index = this.buffer.search(/\r\n|\n|\r/)) !== -1) {
+      // a trailing CR may be the first half of a CRLF split across chunks
+      if (this.buffer[index] === '\r' && index === this.buffer.length - 1) break;
+      const line = this.buffer.slice(0, index);
+      const width = this.buffer[index] === '\r' && this.buffer[index + 1] === '\n' ? 2 : 1;
+      this.buffer = this.buffer.slice(index + width);
+      const event = this._line(line);
+      if (event) events.push(event);
+    }
+    return events;
+  }
+
+  end() {
+    const events = [];
+    const rest = this.buffer.replace(/\r$/, '');
+    this.buffer = '';
+    if (rest) {
+      const event = this._line(rest);
+      if (event) events.push(event);
+    }
+    const last = this._dispatch();
+    if (last) events.push(last);
+    return events;
+  }
+
+  _line(line) {
+    if (line === '') return this._dispatch();
+    if (line.startsWith(':')) return null;
+    const colon = line.indexOf(':');
+    const field = colon === -1 ? line : line.slice(0, colon);
+    let value = colon === -1 ? '' : line.slice(colon + 1);
+    if (value.startsWith(' ')) value = value.slice(1);
+    if (field === 'data') this.dataLines.push(value);
+    else if (field === 'event') this.eventName = value;
+    else if (field === 'id' && !value.includes(' ')) this.eventId = value;
+    // retry and unknown fields are ignored
+    return null;
+  }
+
+  _dispatch() {
+    if (this.dataLines.length === 0) {
+      this._reset();
+      return null;
+    }
+    const event = { event: this.eventName || 'message', data: this.dataLines.join('\n'), id: this.eventId };
+    this._reset();
+    return event;
+  }
+}
+
+/** Yield the JSON-RPC messages carried by the data of an SSE body; events with other data are skipped. */
+async function* readSSEMessages(body, onInvalid = null) {
+  const parser = new SSEParser();
+  const messages = (events) => events.map((event) => {
+    if (!event.data.trim()) return undefined;
+    try {
+      const value = JSON.parse(event.data);
+      if (isMessage(value)) return value;
+      if (onInvalid) onInvalid(event.data, new Error('not a JSON-RPC message'));
+    } catch (error) {
+      if (onInvalid) onInvalid(event.data, error);
+    }
+    return undefined;
+  }).filter((value) => value !== undefined);
+
+  for await (const chunk of readStreamChunks(body)) {
+    for (const message of messages(parser.feed(chunk))) yield message;
+  }
+  for (const message of messages(parser.end())) yield message;
+}
+
+module.exports = {
+  JSONRPC_VERSION,
+  ERROR_CODES,
+  MODERN_ERROR_CODES,
+  MODERN_VERSIONS,
+  LEGACY_VERSIONS,
+  LATEST_LEGACY_VERSION,
+  META_KEYS,
+  NAME_HEADER_FIELDS,
+  JsonRpcError,
+  isMessage,
+  isRequest,
+  isNotification,
+  isResponse,
+  request,
+  notification,
+  response,
+  errorResponse,
+  errorFromResponse,
+  serialize,
+  parseMessage,
+  encodeHeaderValue,
+  decodeHeaderValue,
+  readJsonLines,
+  SSEParser,
+  readSSEMessages,
+};
+
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"../utils/StreamParser":45,"buffer":24}],14:[function(require,module,exports){
 /*
 Apache License
 
@@ -2710,14 +3407,85 @@ class ChatGPTMessage {
   }
 }
 
+// Tool-call arguments arrive as a JSON string; the Anthropic and Gemini bodies need the object.
+function parseArguments(call) {
+  const args = call.function ? call.function.arguments : call.arguments;
+  if (args && typeof args === 'object') return args;
+  try {
+    return args ? JSON.parse(args) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function callName(call) {
+  return call.function ? call.function.name : call.name;
+}
+
+function resultText(result) {
+  const content = result.content !== undefined ? result.content : result.result;
+  if (content === undefined || content === null) return '';
+  return typeof content === 'string' ? content : JSON.stringify(content);
+}
+
+// Schema helpers for the structured-output options shared by every input class.
+function schemaName(schema, fallback = 'response') {
+  const raw = (schema && (schema.title || schema.name)) || fallback;
+  return String(raw).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64) || fallback;
+}
+
+// Strict structured output (OpenAI strict mode, Anthropic) requires additionalProperties: false on every object.
+function closedObjectSchema(schema) {
+  if (Array.isArray(schema)) return schema.map(closedObjectSchema);
+  if (!schema || typeof schema !== 'object') return schema;
+  const copy = {};
+  for (const [key, value] of Object.entries(schema)) copy[key] = closedObjectSchema(value);
+  if (copy.type === 'object' && copy.additionalProperties === undefined) copy.additionalProperties = false;
+  return copy;
+}
+
+// OpenAI-style structured output: json_schema when a schema is given, json_object otherwise.
+// The Responses API defaults strict to true, so strict is always sent explicitly there.
+function openAIResponseFormat(input, { nested = true } = {}) {
+  if (input.responseSchema) {
+    const strict = Boolean(input.strictSchema);
+    const definition = {
+      name: schemaName(input.responseSchema),
+      schema: strict ? closedObjectSchema(input.responseSchema) : input.responseSchema,
+      ...((strict || !nested) && { strict }),
+    };
+    return nested ? { type: 'json_schema', json_schema: definition } : { type: 'json_schema', ...definition };
+  }
+  if (input.responseFormat === 'json') return { type: 'json_object' };
+  return null;
+}
+
+function jsonModeInstruction(input) {
+  return input.responseFormat === 'json' && !input.responseSchema ? 'Respond with valid JSON only, without markdown fences.' : null;
+}
+
 class ChatModelInput {
-  constructor(options = {}) { 
+  constructor(options = {}) {
     this.searchK = options.searchK || 3;
     this.attachReference = options.attachReference || false;
+    // structured output: a JSON Schema for the reply, or 'json' for free-form JSON
+    this.responseSchema = options.responseSchema || null;
+    this.responseFormat = options.responseFormat || (options.responseSchema ? 'json' : null);
+    // OpenAI strict mode: every object gets additionalProperties: false and the model cannot deviate from the schema
+    this.strictSchema = options.strictSchema || false;
   }
-  
+
   getChatInput() {
     return null;
+  }
+
+  // Tool round trips are implemented per provider; inputs without them cannot run Chatbot.runTools.
+  addToolCalls() {
+    throw new Error(`${this.constructor.name} does not support tool calls.`);
+  }
+
+  addToolResults() {
+    throw new Error(`${this.constructor.name} does not support tool results.`);
   }
 }
 
@@ -2782,6 +3550,27 @@ class ChatGPTInput extends ChatModelInput {
     this.messages.push(new ChatGPTMessage(prompt, 'system'));
   }
 
+  /** Record the assistant turn that requested tools (tool_calls in chat-completions format). */
+  addToolCalls(toolCalls, content = null) {
+    const message = new ChatGPTMessage(content, 'assistant');
+    message.toolCalls = toolCalls.map((call) => ({
+      id: call.id,
+      type: 'function',
+      function: { name: callName(call), arguments: typeof call.function?.arguments === 'string' ? call.function.arguments : JSON.stringify(parseArguments(call)) },
+    }));
+    this.messages.push(message);
+  }
+
+  /** Record tool results: [{ id, name, content, isError }]. */
+  addToolResults(results) {
+    for (const result of results) {
+      const message = new ChatGPTMessage(resultText(result), 'tool');
+      message.toolCallId = result.id;
+      message.toolName = result.name;
+      this.messages.push(message);
+    }
+  }
+
   cleanMessages() {
     if (this.messages.length > 1) {
       const firstMessage = this.messages[0];
@@ -2803,57 +3592,103 @@ class ChatGPTInput extends ChatModelInput {
     return false;
   }
 
+  // Messages in chat-completions format, including tool calls and tool results.
+  getChatMessages({ toolResultName = false } = {}) {
+    return this.messages.map((message) => {
+      if (message.toolCalls) {
+        return { role: 'assistant', content: message.content ?? null, tool_calls: message.toolCalls };
+      }
+      if (message.role === 'tool') {
+        return {
+          role: 'tool',
+          tool_call_id: message.toolCallId,
+          ...(toolResultName && message.toolName && { name: message.toolName }),
+          content: message.content,
+        };
+      }
+      return {
+        role: message.role,
+        ...(message.name && { name: message.name }),
+        content: message.content,
+      };
+    });
+  }
+
   getChatInput() {
     // gpt-5 and newer use the Responses API (a ":chat" model suffix keeps chat completions).
     if (isReasoningModel(this.model)) {
       return this.getResponsesInput();
     }
 
-    const messages = this.messages.map((message) => {
-      if (message.name) {
-        return {
-          role: message.role,
-          name: message.name,
-          content: message.content,
-        };
-      } else {
-        return {
-          role: message.role,
-          content: message.content,
-        };
-      }
-    });
-
     // o-series and gpt-5+ on chat completions reject max_tokens and custom temperature.
     const reasoningChat = isReasoningChatModel(this.model);
+    const responseFormat = openAIResponseFormat(this);
 
     return {
       model: stripRouteOverride(this.model),
-      messages: messages,
+      messages: this.getChatMessages(),
       ...(!reasoningChat && this.temperature != null && { temperature: this.temperature }),
       ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
       ...(this.maxTokens && (reasoningChat ? { max_completion_tokens: this.maxTokens } : { max_tokens: this.maxTokens })),
       ...(this.tools && { tools: toChatTools(this.tools) }),
       ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 
   // Request body for the Responses API (/v1/responses).
   getResponsesInput() {
-    // Responses input messages accept role and content only (no name field).
-    const input = this.messages.map((message) => ({
-      role: message.role,
-      content: toResponsesContent(message.content, message.role),
-    }));
+    // Responses input messages accept role and content only (no name field); tool turns become items.
+    const input = [];
+    for (const message of this.messages) {
+      if (message.toolCalls) {
+        if (message.content) input.push({ role: 'assistant', content: toResponsesContent(message.content, 'assistant') });
+        for (const call of message.toolCalls) {
+          input.push({ type: 'function_call', call_id: call.id, name: call.function.name, arguments: call.function.arguments });
+        }
+      } else if (message.role === 'tool') {
+        input.push({ type: 'function_call_output', call_id: message.toolCallId, output: message.content });
+      } else {
+        input.push({ role: message.role, content: toResponsesContent(message.content, message.role) });
+      }
+    }
+
+    const format = openAIResponseFormat(this, { nested: false });
+    const text = { ...(this.verbosity && { verbosity: this.verbosity }), ...(format && { format }) };
 
     return {
       model: stripRouteOverride(this.model),
       input: input,
       reasoning: { effort: this.effort || defaultReasoningEffort(this.model) },
       ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
-      ...(this.verbosity && { text: { verbosity: this.verbosity } }),
+      ...(Object.keys(text).length > 0 && { text }),
       ...(this.tools && { tools: toResponsesTools(this.tools) }),
       ...(this.toolChoice != null && { tool_choice: toResponsesToolChoice(this.toolChoice) }),
+    };
+  }
+}
+
+/**
+ * Chat-completions input for OpenAI-compatible services (OpenRouter, Groq, DeepSeek, xAI, Together, Ollama,
+ * LM Studio, ...). The model defaults to the provider preset when omitted.
+ */
+class OpenAICompatibleInput extends ChatGPTInput {
+  constructor(systemMessage, options = {}) {
+    super(systemMessage, options);
+    this.model = options.model || null;
+    this.temperature = options.temperature ?? null;
+  }
+
+  getChatInput() {
+    const responseFormat = openAIResponseFormat(this);
+    return {
+      ...(this.model && { model: this.model }),
+      messages: this.getChatMessages(),
+      ...(this.temperature != null && { temperature: this.temperature }),
+      ...(this.maxTokens && { max_tokens: this.maxTokens }),
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 }
@@ -2876,6 +3711,10 @@ class CohereInput extends ChatGPTInput {
 
   addSystemMessage(prompt) {
     this.messages.push(new ChatGPTMessage(prompt, 'System'));
+  }
+
+  addToolCalls() {
+    throw new Error('CohereInput does not support tool calls; use openai, anthropic, gemini, mistral, nvidia or an OpenAI-compatible provider for Chatbot.runTools.');
   }
 
   getChatInput() {
@@ -2906,6 +3745,8 @@ class CohereInput extends ChatGPTInput {
         'chat_history': chatHistory,
         ...(this.temperature != null && { 'temperature': this.temperature }),
         ...(this.maxTokens && { 'max_tokens': this.maxTokens }),
+        ...(this.responseSchema && { 'response_format': { type: 'json_object', schema: this.responseSchema } }),
+        ...(!this.responseSchema && this.responseFormat === 'json' && { 'response_format': { type: 'json_object' } }),
     };
 
     return params;
@@ -2916,30 +3757,64 @@ class CohereInput extends ChatGPTInput {
 class MistralInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
-    
+
     this.model = options.model || config.url.mistral.models.chat;
     this.temperature = options.temperature ?? null;
   }
 
   getChatInput() {
-    // Prepare the messages in the expected format
-    const messages = this.messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
+    const responseFormat = openAIResponseFormat(this);
 
-    // Construct Mistral input parameters
+    // Construct Mistral input parameters (tool messages carry the tool name)
     const params = {
       model: this.model,
-      messages: messages,
+      messages: this.getChatMessages({ toolResultName: true }),
       ...(this.temperature != null && { temperature: this.temperature }),
       ...(this.maxTokens && { max_tokens: this.maxTokens }),
       ...(this.tools && { tools: toChatTools(this.tools) }),
       ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
 
     return params;
   }
+}
+
+// Gemini's schema dialect rejects a few JSON Schema keywords.
+function toGeminiSchema(schema) {
+  if (Array.isArray(schema)) return schema.map(toGeminiSchema);
+  if (!schema || typeof schema !== 'object') return schema;
+  const copy = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === '$schema' || key === 'additionalProperties' || key === 'title') continue;
+    copy[key] = toGeminiSchema(value);
+  }
+  return copy;
+}
+
+function toGeminiTools(tools) {
+  if (!Array.isArray(tools)) return tools;
+  if (tools.some((tool) => tool && tool.functionDeclarations)) return tools;
+  const declarations = toChatTools(tools)
+    .filter((tool) => tool && tool.type === 'function' && tool.function)
+    .map((tool) => ({
+      name: tool.function.name,
+      ...(tool.function.description && { description: tool.function.description }),
+      ...(tool.function.parameters && { parameters: toGeminiSchema(tool.function.parameters) }),
+    }));
+  return [{ functionDeclarations: declarations }];
+}
+
+function toGeminiToolConfig(choice) {
+  if (choice === 'auto') return { functionCallingConfig: { mode: 'AUTO' } };
+  if (choice === 'required' || choice === 'any') return { functionCallingConfig: { mode: 'ANY' } };
+  if (choice === 'none') return { functionCallingConfig: { mode: 'NONE' } };
+  if (choice && typeof choice === 'object') {
+    if (choice.functionCallingConfig) return choice;
+    const name = choice.function ? choice.function.name : choice.name;
+    if (name) return { functionCallingConfig: { mode: 'ANY', allowedFunctionNames: [name] } };
+  }
+  return null;
 }
 
 class GeminiInput extends ChatModelInput {
@@ -2950,7 +3825,9 @@ class GeminiInput extends ChatModelInput {
     this.model = options.model && options.model !== 'gemini' ? options.model : config.url.gemini.models.chat;
     this.maxOutputTokens = options.maxTokens
     this.temperature = options.temperature
+    // tools in Gemini (functionDeclarations) or OpenAI function format
     this.tools = options.tools || null;
+    this.toolChoice = options.toolChoice ?? null;
 
     if (systemMessage && typeof systemMessage === 'string') {
       this.addUserMessage(systemMessage);
@@ -2976,15 +3853,35 @@ class GeminiInput extends ChatModelInput {
     this.addModelMessage(text);
   }
 
+  addToolCalls(toolCalls, content = null) {
+    const parts = toolCalls.map((call) => ({ functionCall: { name: callName(call), args: parseArguments(call) } }));
+    if (content) parts.unshift({ text: content });
+    this.messages.push({ role: 'model', parts });
+  }
+
+  addToolResults(results) {
+    // functionResponse.response must be an object
+    const parts = results.map((result) => {
+      const content = result.content !== undefined ? result.content : result.result;
+      const response = content && typeof content === 'object' && !Array.isArray(content) ? content : { result: resultText(result) };
+      return { functionResponse: { name: result.name, response: result.isError ? { error: resultText(result) } : response } };
+    });
+    this.messages.push({ role: 'user', parts });
+  }
+
   // The model is part of the endpoint URL, so it is not included in the body.
   getChatInput() {
+    const toolConfig = this.toolChoice != null ? toGeminiToolConfig(this.toolChoice) : null;
     return {
       contents: this.messages,
-      generationConfig: { 
+      generationConfig: {
         ...(this.temperature != null && { temperature: this.temperature }),
         ...(this.maxOutputTokens && { maxOutputTokens: this.maxOutputTokens }),
+        ...(this.responseFormat === 'json' && { responseMimeType: 'application/json' }),
+        ...(this.responseSchema && { responseSchema: toGeminiSchema(this.responseSchema) }),
       },
-      ...(this.tools && { tools: this.tools }),
+      ...(this.tools && { tools: toGeminiTools(this.tools) }),
+      ...(toolConfig && { toolConfig }),
     };
   }
 
@@ -3033,6 +3930,24 @@ class AnthropicInput extends ChatModelInput {
       });
   }
 
+  addToolCalls(toolCalls, content = null) {
+      const blocks = toolCalls.map((call) => ({ type: 'tool_use', id: call.id, name: callName(call), input: parseArguments(call) }));
+      if (content) blocks.unshift({ type: 'text', text: content });
+      this.messages.push({ role: 'assistant', content: blocks });
+  }
+
+  addToolResults(results) {
+      this.messages.push({
+          role: 'user',
+          content: results.map((result) => ({
+              type: 'tool_result',
+              tool_use_id: result.id,
+              content: resultText(result),
+              ...(result.isError && { is_error: true }),
+          })),
+      });
+  }
+
   cleanMessages() {
       this.messages = [];
   }
@@ -3048,14 +3963,18 @@ class AnthropicInput extends ChatModelInput {
   }
 
   getChatInput() {
+      // Claude has no free-form JSON mode, so plain JSON requests become a system instruction
+      const jsonInstruction = jsonModeInstruction(this);
+      const system = [this.system, jsonInstruction].filter(Boolean).join('\n');
       return {
-          ...(this.system && { system: this.system }),
+          ...(system && { system }),
           model: this.model,
           messages: this.messages,
           max_tokens: this.maxTokens,
           ...(this.temperature != null && !claudeRejectsSamplingParams(this.model) && { temperature: this.temperature }),
           ...(this.tools && { tools: toAnthropicTools(this.tools) }),
           ...(this.toolChoice != null && { tool_choice: toAnthropicToolChoice(this.toolChoice) }),
+          ...(this.responseSchema && { output_config: { format: { type: 'json_schema', schema: closedObjectSchema(this.responseSchema) } } }),
       };
   }
 }
@@ -3243,7 +4162,7 @@ class LLamaSageInput extends ChatModelInput {
       ],
     };
   }
-  
+
 }
 
 class NvidiaInput extends ChatModelInput {
@@ -3261,6 +4180,8 @@ class NvidiaInput extends ChatModelInput {
     this.presencePenalty = options.presencePenalty ?? 0;
     this.frequencyPenalty = options.frequencyPenalty ?? 0;
     this.stream = options.stream || false;
+    this.tools = options.tools || null;
+    this.toolChoice = options.toolChoice ?? null;
   }
 
   addUserMessage(text) {
@@ -3269,6 +4190,24 @@ class NvidiaInput extends ChatModelInput {
 
   addAssistantMessage(text) {
     this.messages.push({ role: 'assistant', content: text });
+  }
+
+  addToolCalls(toolCalls, content = null) {
+    this.messages.push({
+      role: 'assistant',
+      content: content ?? null,
+      tool_calls: toolCalls.map((call) => ({
+        id: call.id,
+        type: 'function',
+        function: { name: callName(call), arguments: typeof call.function?.arguments === 'string' ? call.function.arguments : JSON.stringify(parseArguments(call)) },
+      })),
+    });
+  }
+
+  addToolResults(results) {
+    for (const result of results) {
+      this.messages.push({ role: 'tool', tool_call_id: result.id, content: resultText(result) });
+    }
   }
 
   deleteLastMessage(message) {
@@ -3285,6 +4224,7 @@ class NvidiaInput extends ChatModelInput {
   }
 
   getChatInput() {
+    const responseFormat = openAIResponseFormat(this);
     return {
       model: this.model,
       messages: this.messages,
@@ -3293,7 +4233,10 @@ class NvidiaInput extends ChatModelInput {
       top_p: this.topP,
       presence_penalty: this.presencePenalty,
       frequency_penalty: this.frequencyPenalty,
-      stream: this.stream
+      stream: this.stream,
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 }
@@ -3308,17 +4251,16 @@ class VLLMInput extends ChatGPTInput {
   }
 
   getChatInput() {
-    const messages = this.messages.map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
-
+    const responseFormat = openAIResponseFormat(this);
     return {
       model: this.model,
-      messages: messages,
+      messages: this.getChatMessages(),
       max_tokens: this.maxTokens,
       temperature: this.temperature,
       top_p: this.top_p,
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+      ...(responseFormat && { response_format: responseFormat }),
     };
   }
 }
@@ -3326,6 +4268,7 @@ class VLLMInput extends ChatGPTInput {
 
 module.exports = {
   ChatGPTInput,
+  OpenAICompatibleInput,
   ChatModelInput,
   ChatGPTMessage,
   ChatLLamaInput,
@@ -3339,7 +4282,7 @@ module.exports = {
   VLLMInput
 };
 
-},{"../../config.json":1,"../../utils/ModelHelper":38}],14:[function(require,module,exports){
+},{"../../config.json":1,"../../utils/ModelHelper":41}],15:[function(require,module,exports){
 const config = require('../../config.json');
 
 class EmbedInput {
@@ -3422,6 +4365,9 @@ class EmbedInput {
         this.model = config.nvidia.models.embed;
     } else if (provider === "vllm") {
         this.model = null;
+    } else if (["openai_compatible", "openrouter", "together", "ollama", "lmstudio"].includes(provider)) {
+        // the preset default (or the model given in the request) is applied by the wrapper
+        this.model = null;
     } else {
       throw new Error("Invalid provider name");
     }
@@ -3430,7 +4376,7 @@ class EmbedInput {
 
 module.exports = EmbedInput;
 
-},{"../../config.json":1}],15:[function(require,module,exports){
+},{"../../config.json":1}],16:[function(require,module,exports){
 /*
 Apache License
 
@@ -3455,7 +4401,7 @@ class FineTuneInput {
 
 module.exports = FineTuneInput;
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 /*
 Apache License
 
@@ -3490,7 +4436,7 @@ class FunctionModelInput {
 
 module.exports = FunctionModelInput ;
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /*
 Apache License
 
@@ -3599,7 +4545,7 @@ class ImageModelInput {
 
 module.exports = ImageModelInput;
 
-},{"../../config.json":1}],18:[function(require,module,exports){
+},{"../../config.json":1}],19:[function(require,module,exports){
 /*
 Apache License
 
@@ -3679,7 +4625,7 @@ class LanguageModelInput {
 
 module.exports = LanguageModelInput;
 
-},{"../../config.json":1}],19:[function(require,module,exports){
+},{"../../config.json":1}],20:[function(require,module,exports){
 /*
 Apache License
 
@@ -3745,7 +4691,7 @@ Text2SpeechInput.Gender = {
 
 module.exports = Text2SpeechInput;
 
-},{"../../config.json":1}],20:[function(require,module,exports){
+},{"../../config.json":1}],21:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -3897,9 +4843,11 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],21:[function(require,module,exports){
-
 },{}],22:[function(require,module,exports){
+
+},{}],23:[function(require,module,exports){
+arguments[4][22][0].apply(exports,arguments)
+},{"dup":22}],24:[function(require,module,exports){
 (function (Buffer){(function (){
 /*!
  * The buffer module from node.js, for the browser.
@@ -5680,7 +6628,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"base64-js":20,"buffer":22,"ieee754":25}],23:[function(require,module,exports){
+},{"base64-js":21,"buffer":24,"ieee754":27}],25:[function(require,module,exports){
 (function (global){(function (){
 // Save global object in a variable
 var __global__ =
@@ -6368,13 +7316,13 @@ exports.Response = ctx.Response
 module.exports = exports
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],24:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 /* eslint-env browser */
 module.exports = typeof self === 'object' ? self.FormData : window.FormData;
 
-},{}],25:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
@@ -6461,7 +7409,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],26:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 (function (process){(function (){
 // 'path' module extracted from Node.js v8.11.1 (only the posix part)
 // transplited with Babel
@@ -6994,7 +7942,7 @@ posix.posix = posix;
 module.exports = posix;
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":27}],27:[function(require,module,exports){
+},{"_process":29}],29:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -7180,7 +8128,69 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],28:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
+module.exports={
+  "name": "intellinode",
+  "version": "3.0.0",
+  "description": "Unified AI toolkit: one API for OpenAI, Anthropic, Gemini, Mistral, Cohere, NVIDIA and OpenAI-compatible services, with a tool loop, structured output, generators for web developers and an MCP server.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "bin": {
+    "intellinode": "bin/intellinode.js"
+  },
+  "mcpName": "io.github.intelligentnode/intellinode",
+  "browser": {
+    "./mcp/server.js": false
+  },
+  "keywords": [
+    "ai",
+    "ChatGPT",
+    "stable diffusion",
+    "openai",
+    "huggingface",
+    "Llama",
+    "image generation",
+    "speech synthesis",
+    "prompt",
+    "automation",
+    "mistral",
+    "gemini",
+    "deepseek",
+    "framework",
+    "mcp",
+    "anthropic",
+    "claude",
+    "ollama",
+    "openrouter",
+    "groq",
+    "openai-compatible",
+    "tool-calling",
+    "structured-output",
+    "model-context-protocol"
+  ],
+  "author": "IntelliNode",
+  "license": "Apache",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/intelligentnode/IntelliNode.git"
+  },
+  "scripts": {
+    "build": "node scripts/build-templates.js && browserify index.js --standalone IntelliNode -o front/intellinode.js && uglifyjs front/intellinode.js -o front/intellinode.min.js",
+    "test": "node test/unit/testRunner"
+  },
+  "homepage": "https://docs.intellinode.ai",
+  "devDependencies": {
+    "browserify": "^17.0.1",
+    "uglify-js": "^3.19.3"
+  },
+  "dependencies": {
+    "cross-fetch": "^4.1.0",
+    "dotenv": "^17.4.2",
+    "form-data": "^4.0.6"
+  }
+}
+
+},{}],31:[function(require,module,exports){
 // Generated by scripts/build-templates.js from resource/templates/*.in - do not edit.
 module.exports = {
   "accessibility_prompt.in": "You are a web accessibility (WCAG 2.2 AA) expert. Review the HTML below, fix every accessibility problem you find and report what changed.\n\nReturn exactly two markdown code blocks and nothing else:\n1. A block tagged html containing the complete corrected HTML.\n2. A block tagged json containing an array of the problems you fixed, in this shape:\n[{\"issue\": \"what was wrong\", \"fix\": \"what you changed\", \"wcag\": \"criterion id, e.g. 1.1.1\"}]\n\nRules:\n- Keep the original structure, content and styling; only change what accessibility requires (alt text, labels, roles, landmarks, heading order, focus order, ARIA attributes, language, link text).\n- If the HTML has no problems, return it unchanged and an empty JSON array.\n\nHTML:\n${text}\n",
@@ -7219,7 +8229,7 @@ module.exports = {
   "unit_tests_prompt.in": "You are an expert in automated testing. Write ${framework} unit tests for the code below.\n\nRequirements:\n- Return only the complete test file inside a single markdown code block. No explanation.\n- Cover the normal behaviour, edge cases and error handling of every exported function or component.\n- Import the code under test from \"${module_path}\" and keep each test independent, readable and deterministic (mock network, time and randomness).\n\nCode:\n${text}\n"
 };
 
-},{}],29:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -7260,7 +8270,7 @@ class AudioHelper {
 module.exports = AudioHelper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./FileHelper":33,"buffer":22}],30:[function(require,module,exports){
+},{"./FileHelper":36,"buffer":24}],33:[function(require,module,exports){
 /* Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode */
 const { SemanticSearch } = require('../function/SemanticSearch');
@@ -7344,7 +8354,7 @@ class ChatContext {
 }
 
 module.exports = ChatContext;
-},{"../controller/RemoteEmbedModel":2,"../function/SemanticSearch":9}],31:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../function/SemanticSearch":9}],34:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -7427,114 +8437,223 @@ class ConnHelper {
 module.exports = ConnHelper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":22}],32:[function(require,module,exports){
+},{"buffer":24}],35:[function(require,module,exports){
 const fetch = require('cross-fetch');
 const FormData = require('form-data');
 
+// Statuses worth retrying: request timeout, conflict, too early, rate limit and server errors.
+const RETRY_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const MAX_BACKOFF_MS = 30000;
+const MAX_RETRY_AFTER_MS = 60000;
+
+function isFormData(data) {
+  return data instanceof FormData
+    || (typeof globalThis.FormData !== 'undefined' && data instanceof globalThis.FormData);
+}
+
+// Retry-After can be seconds or an HTTP date.
+function retryAfterMs(response) {
+  const header = response.headers && typeof response.headers.get === 'function' && response.headers.get('retry-after');
+  if (!header) return null;
+  const seconds = Number(header);
+  if (!Number.isNaN(seconds)) return seconds * 1000;
+  const date = Date.parse(header);
+  return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// One AbortSignal that fires on the caller's signal or on the timeout.
+function linkSignal(signal, timeout) {
+  const controller = new AbortController();
+  const state = { signal: controller.signal, timedOut: false, timer: null };
+  if (timeout) {
+    state.timer = setTimeout(() => {
+      state.timedOut = true;
+      controller.abort();
+    }, timeout);
+  }
+  state.abort = () => controller.abort();
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', onAbort);
+  }
+  state.clearTimer = () => {
+    if (state.timer) clearTimeout(state.timer);
+    state.timer = null;
+  };
+  state.cleanup = () => {
+    state.clearTimer();
+    if (signal) signal.removeEventListener('abort', onAbort);
+  };
+  return state;
+}
+
+/**
+ * Small fetch wrapper shared by every provider wrapper: JSON or FormData bodies, JSON / stream / arraybuffer
+ * responses, a per-request timeout, retries with exponential backoff (honouring Retry-After) and AbortSignal.
+ *
+ * Defaults come from FetchClient.defaults and can be changed globally with FetchClient.configure({...}),
+ * per client with setRequestOptions({...}), or per call through extraConfig.
+ */
 class FetchClient {
-  constructor({ baseURL = '', headers = {} } = {}) {
+  constructor({ baseURL = '', headers = {}, timeout, retries, retryDelay, signal } = {}) {
     this.baseURL = baseURL;
     this.defaultHeaders = headers;
+    this.requestOptions = {};
+    this.setRequestOptions({ timeout, retries, retryDelay, signal });
+  }
+
+  /** Change the defaults for every FetchClient created afterwards. */
+  static configure(options = {}) {
+    for (const key of ['timeout', 'retries', 'retryDelay']) {
+      if (options[key] !== undefined) FetchClient.defaults[key] = options[key];
+    }
+    return FetchClient.defaults;
+  }
+
+  /** Set timeout (ms), retries, retryDelay (ms) or an AbortSignal for this client; undefined values are ignored. */
+  setRequestOptions(options = {}) {
+    for (const key of ['timeout', 'retries', 'retryDelay', 'signal']) {
+      if (options[key] !== undefined) this.requestOptions[key] = options[key];
+    }
+    return this;
+  }
+
+  resolveOptions(extraConfig) {
+    const pick = (key) => (extraConfig[key] !== undefined ? extraConfig[key]
+      : this.requestOptions[key] !== undefined ? this.requestOptions[key] : FetchClient.defaults[key]);
+    return {
+      timeout: pick('timeout') || 0,
+      retries: Math.max(0, pick('retries') || 0),
+      retryDelay: pick('retryDelay') || 0,
+      signal: extraConfig.signal || this.requestOptions.signal || null,
+    };
   }
 
   /**
-   * Send a POST request using cross-fetch.
-   * 
-   * @param {string} endpoint - URL path or full URL if starts with http.
+   * Send a POST request.
+   *
+   * @param {string} endpoint - URL path or full URL if it starts with http.
    * @param {object|FormData} data - Data to send in the request body.
-   * @param {object} extraConfig - Optional config (e.g. { responseType: 'arraybuffer' | 'stream' }).
-   * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or stream/arrayBuffer if specified.
+   * @param {object} extraConfig - Optional { headers, responseType: 'arraybuffer' | 'stream', timeout, retries, retryDelay, signal }.
+   * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or the stream/arrayBuffer if specified.
    */
   async post(endpoint, data, extraConfig = {}) {
-    const url = endpoint.startsWith('http')
-      ? endpoint
-      : this.baseURL + endpoint;
+    return this.request('POST', endpoint, data, extraConfig);
+  }
 
-    // Decide how to handle the request body
+  /**
+   * Send a GET request.
+   *
+   * @param {string} endpoint - URL path or full URL if it starts with http.
+   * @param {object} extraConfig - Optional { headers, responseType: 'arraybuffer' | 'stream', timeout, retries, retryDelay, signal }.
+   * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or the stream/arrayBuffer if specified.
+   */
+  async get(endpoint, extraConfig = {}) {
+    return this.request('GET', endpoint, undefined, extraConfig);
+  }
+
+  async request(method, endpoint, data, extraConfig = {}) {
+    const url = endpoint.startsWith('http') ? endpoint : this.baseURL + endpoint;
+    const headers = { ...this.defaultHeaders, ...(extraConfig.headers || {}) };
+
     let body;
-    if (data instanceof FormData) {
-      // Use FormData directly (e.g., file uploads)
+    if (isFormData(data)) {
       body = data;
+      // In Node the form supplies its own multipart boundary header.
+      if (typeof data.getHeaders === 'function') Object.assign(headers, data.getHeaders());
+      else delete headers['Content-Type'];
     } else if (data !== undefined) {
-      // Assume JSON
       body = JSON.stringify(data);
     }
 
-    // Merge default and extra headers
-    const headers = {
-      ...this.defaultHeaders,
-      ...(extraConfig.headers || {})
-    };
+    const options = this.resolveOptions(extraConfig);
+    // a multipart body with file streams cannot be sent twice
+    const retries = isFormData(data) ? 0 : options.retries;
 
-    // If using FormData in Node, merge the form's headers
-    if (data instanceof FormData && typeof data.getHeaders === 'function') {
-      Object.assign(headers, data.getHeaders());
-    }
+    for (let attempt = 0; ; attempt++) {
+      if (options.signal && options.signal.aborted) throw abortError();
+      const link = linkSignal(options.signal, options.timeout);
+      let response;
+      try {
+        response = await fetch(url, { method, headers, body, signal: link.signal });
+      } catch (error) {
+        link.cleanup();
+        if (options.signal && options.signal.aborted) throw abortError();
+        const failure = link.timedOut
+          ? Object.assign(new Error(`Request timed out after ${options.timeout}ms: ${url}`), { code: 'ETIMEDOUT' })
+          : error;
+        if (attempt < retries) {
+          await sleep(backoff(attempt, options.retryDelay));
+          continue;
+        }
+        throw failure;
+      }
 
-    const config = {
-      method: 'POST',
-      headers,
-      body
-    };
+      if (!response.ok) {
+        link.cleanup();
+        const errorText = await response.text().catch(() => '');
+        if (attempt < retries && RETRY_STATUSES.has(response.status)) {
+          const wait = retryAfterMs(response);
+          await sleep(wait !== null && wait <= MAX_RETRY_AFTER_MS ? wait : backoff(attempt, options.retryDelay));
+          continue;
+        }
+        const error = new Error(`HTTP error ${response.status}: ${errorText}`);
+        error.status = response.status;
+        error.body = errorText;
+        throw error;
+      }
 
-    // Make the request
-    const response = await fetch(url, config);
-
-    // Check for HTTP error
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error ${response.status}: ${errorText}`);
-    }
-
-    // Handle custom response types
-    if (extraConfig.responseType === 'arraybuffer') {
-      return await response.arrayBuffer();
-    } else if (extraConfig.responseType === 'stream') {
-      // Return raw body stream (ReadableStream in browser / Node 18+)
-      return response.body;
-    } else {
-      // Default: parse JSON
-      return await response.json();
-    }
-  }
-
-  /**
-   * Send a GET request using cross-fetch.
-   * 
-   * @param {string} endpoint - URL path or full URL if starts with http.
-   * @param {object} extraConfig - Optional config (e.g. { responseType: 'arraybuffer' }).
-   * @returns {Promise<any|ReadableStream|ArrayBuffer>} - JSON by default, or stream/arrayBuffer if specified.
-   */
-  async get(endpoint, extraConfig = {}) {
-    const url = endpoint.startsWith('http')
-      ? endpoint
-      : this.baseURL + endpoint;
-
-    const headers = {
-      ...this.defaultHeaders,
-      ...(extraConfig.headers || {})
-    };
-
-    const response = await fetch(url, { method: 'GET', headers });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error ${response.status}: ${errorText}`);
-    }
-
-    if (extraConfig.responseType === 'arraybuffer') {
-      return await response.arrayBuffer();
-    } else if (extraConfig.responseType === 'stream') {
-      return response.body;
-    } else {
-      return await response.json();
+      if (extraConfig.responseType === 'stream') {
+        // the timeout covers the connection only; the caller's signal can still cancel the stream
+        link.clearTimer();
+        return releaseOnEarlyClose(response.body, link.abort);
+      }
+      try {
+        if (extraConfig.responseType === 'arraybuffer') return await response.arrayBuffer();
+        if (extraConfig.responseType === 'text') return await response.text();
+        return await response.json();
+      } finally {
+        link.cleanup();
+      }
     }
   }
 }
 
+FetchClient.defaults = { timeout: 300000, retries: 2, retryDelay: 500 };
+
+function backoff(attempt, retryDelay) {
+  return Math.min(MAX_BACKOFF_MS, retryDelay * (2 ** attempt)) + Math.floor(Math.random() * 250);
+}
+
+// A Node body that the consumer destroys before the end (e.g. breaking out of a for-await loop) must also
+// abort the request, otherwise the paused socket stays open until the server has sent the whole response.
+function releaseOnEarlyClose(body, abort) {
+  if (body && typeof body.once === 'function' && typeof body.on === 'function') {
+    body.once('close', () => {
+      if (!body.readableEnded) {
+        body.on('error', () => {});
+        abort();
+      }
+    });
+  }
+  return body;
+}
+
+function abortError() {
+  const error = new Error('The request was aborted.');
+  error.name = 'AbortError';
+  error.code = 'ABORT_ERR';
+  return error;
+}
+
 module.exports = FetchClient;
 
-},{"cross-fetch":23,"form-data":24}],33:[function(require,module,exports){
+},{"cross-fetch":25,"form-data":26}],36:[function(require,module,exports){
 const fs = require('fs');
 
 
@@ -7556,7 +8675,7 @@ class FileHelper {
 
 module.exports = FileHelper
 
-},{"fs":21}],34:[function(require,module,exports){
+},{"fs":23}],37:[function(require,module,exports){
 const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/RemoteEmbedModel');
 const LanguageModelInput = require('../model/input/LanguageModelInput');
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
@@ -7718,7 +8837,8 @@ class LLMEvaluation extends ModelEvaluation {
 module.exports = {
   LLMEvaluation
 };
-},{"../config.json":1,"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/EmbedInput":14,"../model/input/LanguageModelInput":18,"../utils/MatchHelpers":36,"./ModelEvaluation":37,"./ModelHelper":38}],35:[function(require,module,exports){
+},{"../config.json":1,"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":7,"../model/input/ChatModelInput":14,"../model/input/EmbedInput":15,"../model/input/LanguageModelInput":19,"../utils/MatchHelpers":39,"./ModelEvaluation":40,"./ModelHelper":41}],38:[function(require,module,exports){
+(function (process){(function (){
 /*
 Apache License
 
@@ -7727,142 +8847,602 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 const fetch = require('cross-fetch');
-const connHelper = require('./ConnHelper');
+const rpc = require('../mcp/jsonrpc');
+const packageInfo = require('../package.json');
+
+const {
+  ERROR_CODES, MODERN_ERROR_CODES, MODERN_VERSIONS, LATEST_LEGACY_VERSION, META_KEYS, NAME_HEADER_FIELDS, JsonRpcError,
+} = rpc;
+
+const DEFAULT_TIMEOUT = 60000;
+// how long the server/discover era probe waits before a silent server is treated as legacy
+const DEFAULT_PROBE_TIMEOUT = 5000;
+const SHUTDOWN_GRACE = 2000;
+const MAX_LIST_PAGES = 1000;
+
+class MCPTimeoutError extends Error {
+  constructor(method, timeout) {
+    super(`MCP request '${method}' timed out after ${timeout}ms`);
+    this.name = 'MCPTimeoutError';
+  }
+}
 
 /**
- * MCPClient - Simple Model Context Protocol client for connecting to MCP servers
- * Supports HTTP/SSE transport for tool execution and data retrieval
- * 
+ * MCPClient - Model Context Protocol client for Streamable HTTP and stdio servers.
+ *
+ * Talks the modern protocol (2026-07-28, per-request _meta, no sessions) and falls back to the legacy
+ * initialize handshake (2025-11-25 and earlier, Mcp-Session-Id over HTTP) when the server needs it.
+ *
  * Usage:
- * const mcpClient = new MCPClient('http://localhost:3000');
- * const tools = await mcpClient.getTools();
- * const result = await mcpClient.callTool('tool_name', { param: 'value' });
+ *   const client = new MCPClient('https://host/mcp');                              // Streamable HTTP
+ *   const client = new MCPClient({ url, headers: { Authorization: 'Bearer ..' } }); // with auth headers
+ *   const client = new MCPClient({ command: 'npx', args: ['-y', 'pkg'] });         // stdio subprocess
+ *   await client.connect();
+ *   const tools = await client.listTools();
+ *   const { text } = await client.callTool('tool_name', { param: 'value' });
+ *   await client.close();
  */
 class MCPClient {
-  constructor(serverUrl) {
-    this.serverUrl = serverUrl.replace(/\/$/, ''); // remove trailing slash
-    this.requestId = 0;
+  constructor(options = {}) {
+    const config = typeof options === 'string' ? { url: options } : { ...options };
+    if (!config.url && !config.command) {
+      throw new Error('MCPClient needs a url (Streamable HTTP) or a command (stdio subprocess)');
+    }
+    this.url = config.url ? String(config.url).replace(/(.)\/$/, '$1') : null;
+    this.headers = { ...(config.headers || {}) };
+    this.command = config.command || null;
+    this.args = Array.isArray(config.args) ? config.args.slice() : [];
+    this.env = config.env || null;
+    this.cwd = config.cwd || null;
+    this.transport = this.command ? 'stdio' : 'http';
+    this.timeout = config.timeout || DEFAULT_TIMEOUT;
+    this.probeTimeout = config.probeTimeout || DEFAULT_PROBE_TIMEOUT;
+    this.debug = Boolean(config.debug);
+    this.clientInfo = { name: config.name || 'intellinode', version: config.version || packageInfo.version };
+    this.onNotification = typeof config.onNotification === 'function' ? config.onNotification : null;
+
+    this.era = null; // 'modern' | 'legacy', cached per server
+    this.protocolVersion = null;
+    this.serverInfo = null;
+    this.capabilities = null;
+    this.instructions = null;
+    this.sessionId = null; // legacy HTTP only
     this.tools = [];
+    this.requestId = 0;
+
+    this.process = null;
+    this.pending = new Map();
+    this.exitError = null;
   }
 
-  /**
-   * Initialize connection to MCP server and fetch available tools
-   */
+  /** { name: MCPClient } from a Claude Desktop / Cursor style { mcpServers: { name: { command | url, ... } } }. */
+  static fromConfig(config, defaults = {}) {
+    const servers = config && config.mcpServers ? config.mcpServers : config || {};
+    const clients = {};
+    for (const [name, entry] of Object.entries(servers)) {
+      if (!entry || typeof entry !== 'object' || entry.disabled) continue;
+      clients[name] = new MCPClient({ ...defaults, ...entry });
+    }
+    return clients;
+  }
+
+  // ---------------------------------------------------------------------
+  // Lifecycle
+  // ---------------------------------------------------------------------
+
+  /** Detect the server era and return { protocolVersion, serverInfo, capabilities, instructions }. */
+  async connect() {
+    if (this.era) return this._info();
+    try {
+      if (this.transport === 'stdio') await this._spawn();
+      const probe = await this._probe(MODERN_VERSIONS[0]);
+      if (probe.kind === 'legacy') {
+        this._log(`legacy server detected (${probe.reason}); using the initialize handshake`);
+        await this._initializeLegacy();
+      } else {
+        this._applyDiscover(probe.result, probe.version);
+      }
+    } catch (error) {
+      this.era = null;
+      this.protocolVersion = null;
+      this.sessionId = null;
+      throw error;
+    }
+    return this._info();
+  }
+
+  /** Backward-compatible alias: connect, fetch every tool and return the tool list. */
   async initialize() {
     try {
-      this.tools = await this.getTools();
-      return this.tools;
+      await this.connect();
+      return await this.listTools();
     } catch (error) {
       throw new Error(`Failed to initialize MCP client: ${error.message}`);
     }
   }
 
-  /**
-   * Get all available tools from MCP server
-   */
-  async getTools() {
-    try {
-      const response = await fetch(`${this.serverUrl}/mcp/tools`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  /** End the stdio process or the legacy HTTP session; the client can connect() again afterwards. */
+  async close() {
+    if (this.transport === 'stdio') {
+      await this._stopProcess();
+    } else if (this.era === 'legacy' && this.sessionId) {
+      try {
+        await this._fetch({ method: 'DELETE', headers: this._legacyHeaders() }, SHUTDOWN_GRACE);
+      } catch (error) {
+        this._log(`session DELETE ignored: ${error.message}`);
       }
-
-      const data = await response.json();
-      return data.tools || [];
-    } catch (error) {
-      throw new Error(`Failed to fetch tools from MCP server: ${error.message}`);
     }
+    this.era = null;
+    this.protocolVersion = null;
+    this.sessionId = null;
+    this.exitError = null;
   }
 
-  /**
-   * Call a specific tool on the MCP server
-   * @param {string} toolName - Name of the tool to call
-   * @param {object} input - Input parameters for the tool
-   * @returns {Promise<object>} Tool execution result
-   */
-  async callTool(toolName, input = {}) {
-    try {
-      const tool = this.tools.find(t => t.name === toolName);
-      if (!tool) {
-        throw new Error(`Tool '${toolName}' not found on MCP server`);
-      }
+  _info() {
+    return {
+      protocolVersion: this.protocolVersion,
+      serverInfo: this.serverInfo,
+      capabilities: this.capabilities,
+      instructions: this.instructions,
+    };
+  }
 
-      const payload = {
-        jsonrpc: '2.0',
-        id: ++this.requestId,
-        method: 'tools/call',
-        params: {
-          name: toolName,
-          arguments: input
-        }
-      };
+  // ---------------------------------------------------------------------
+  // Tools
+  // ---------------------------------------------------------------------
 
-      const response = await fetch(`${this.serverUrl}/mcp/call`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(`Tool execution error: ${data.error.message}`);
-      }
-
-      return data.result || data;
-    } catch (error) {
-      throw new Error(`Failed to call tool '${toolName}': ${error.message}`);
+  /** Fetch every page of tools/list, cache them in client.tools and return them. */
+  async listTools() {
+    if (!this.era) await this.connect();
+    const tools = [];
+    const seen = new Set();
+    let cursor;
+    for (let page = 0; page < MAX_LIST_PAGES; page++) {
+      const result = await this._request('tools/list', cursor !== undefined ? { cursor } : {});
+      tools.push(...(Array.isArray(result.tools) ? result.tools : []));
+      cursor = result.nextCursor;
+      if (cursor === undefined || cursor === null || cursor === '' || seen.has(cursor)) break;
+      seen.add(cursor);
     }
+    this.tools = tools;
+    return tools;
   }
 
   /**
-   * Get tool by name with full details
+   * Call a tool. Resolves with { content, structuredContent, isError, text } where text joins the text blocks;
+   * a protocol error (unknown tool, invalid params) rejects with a JsonRpcError.
    */
-  getTool(toolName) {
-    return this.tools.find(t => t.name === toolName) || null;
+  async callTool(name, args = {}, { timeout } = {}) {
+    if (!this.era) await this.connect();
+    const result = await this._request('tools/call', { name, arguments: args || {} }, { timeout });
+    const content = Array.isArray(result.content) ? result.content : [];
+    return {
+      content,
+      structuredContent: result.structuredContent,
+      isError: Boolean(result.isError),
+      text: content
+        .filter((block) => block && block.type === 'text' && typeof block.text === 'string')
+        .map((block) => block.text)
+        .join('\n'),
+    };
   }
 
-  /**
-   * Get all tool names
-   */
-  getToolNames() {
-    return this.tools.map(t => t.name);
-  }
-
-  /**
-   * Check if a tool exists
-   */
-  hasTool(toolName) {
-    return this.tools.some(t => t.name === toolName);
-  }
-
-  /**
-   * List tools with descriptions
-   */
-  listTools() {
-    return this.tools.map(tool => ({
-      name: tool.name,
-      description: tool.description || 'No description available',
-      inputSchema: tool.inputSchema || {}
+  /** Cached tools in the chat-completions tool format understood by the IntelliNode chat inputs. */
+  toChatTools() {
+    return this.tools.map((tool) => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description || tool.title || '',
+        parameters: tool.inputSchema || { type: 'object', properties: {} },
+      },
     }));
+  }
+
+  getTools() {
+    return this.tools;
+  }
+
+  getTool(toolName) {
+    return this.tools.find((tool) => tool.name === toolName) || null;
+  }
+
+  getToolNames() {
+    return this.tools.map((tool) => tool.name);
+  }
+
+  hasTool(toolName) {
+    return this.tools.some((tool) => tool.name === toolName);
+  }
+
+  // ---------------------------------------------------------------------
+  // Era detection
+  // ---------------------------------------------------------------------
+
+  // Send server/discover; { kind: 'modern', result, version } or { kind: 'legacy', reason }.
+  async _probe(version, allowRetry = true) {
+    const message = rpc.request(this._nextId(), 'server/discover', { _meta: this._meta(version) });
+    let outcome;
+    if (this.transport === 'stdio') {
+      let reply;
+      try {
+        reply = await this._sendStdio(message, this.probeTimeout, false);
+      } catch (error) {
+        if (error instanceof MCPTimeoutError) return { kind: 'legacy', reason: 'no answer to server/discover' };
+        throw error;
+      }
+      outcome = this._classify(reply, null);
+    } else {
+      const reply = await this._postHttp(message, this._modernHeaders(message, version), this.timeout);
+      outcome = this._classify(reply.message, reply.status);
+    }
+
+    if (outcome.kind === 'retry') {
+      const supported = Array.isArray(outcome.supported) ? outcome.supported : [];
+      const mutual = MODERN_VERSIONS.find((candidate) => supported.includes(candidate));
+      if (!mutual || !allowRetry) {
+        throw new Error(`No mutually supported MCP protocol version: server supports ${supported.join(', ') || 'none'}, client supports ${MODERN_VERSIONS.join(', ')}`);
+      }
+      return this._probe(mutual, false);
+    }
+    return outcome.kind === 'modern' ? { ...outcome, version } : outcome;
+  }
+
+  // Modern servers answer with a DiscoverResult or a recognised modern error; anything else is legacy.
+  _classify(message, status) {
+    if (!message) return { kind: 'legacy', reason: status ? `HTTP ${status} without a JSON-RPC body` : 'empty reply' };
+    if ('result' in message) return { kind: 'modern', result: message.result };
+    const error = message.error || {};
+    if (error.code === ERROR_CODES.UNSUPPORTED_PROTOCOL_VERSION) {
+      return { kind: 'retry', supported: error.data && error.data.supported };
+    }
+    if (MODERN_ERROR_CODES.has(error.code)) throw rpc.errorFromResponse(message);
+    // a modern server without server/discover (spec violation) still answers 404 + method not found
+    if (status !== null && status >= 400 && status < 500 && error.code === ERROR_CODES.METHOD_NOT_FOUND) {
+      return { kind: 'modern', result: {} };
+    }
+    return { kind: 'legacy', reason: `server/discover answered ${error.code}: ${error.message}` };
+  }
+
+  _applyDiscover(result, version) {
+    const supported = Array.isArray(result.supportedVersions) ? result.supportedVersions : [version];
+    this.era = 'modern';
+    this.protocolVersion = supported.includes(version) ? version : (MODERN_VERSIONS.find((v) => supported.includes(v)) || version);
+    this.capabilities = result.capabilities || {};
+    this.serverInfo = (result._meta && result._meta[META_KEYS.serverInfo]) || null;
+    this.instructions = result.instructions || null;
+  }
+
+  async _initializeLegacy() {
+    this.era = 'legacy';
+    this.protocolVersion = LATEST_LEGACY_VERSION;
+    this.sessionId = null;
+    const params = { protocolVersion: LATEST_LEGACY_VERSION, capabilities: {}, clientInfo: this.clientInfo };
+    let result;
+    try {
+      result = await this._request('initialize', params, { legacyInit: true });
+    } catch (error) {
+      // a modern-only server names its versions when rejecting initialize; take the hint instead of failing
+      const supported = error && error.data && Array.isArray(error.data.supported) ? error.data.supported : [];
+      const mutual = MODERN_VERSIONS.find((candidate) => supported.includes(candidate));
+      if (!mutual) throw error;
+      this.era = null;
+      const probe = await this._probe(mutual, false);
+      if (probe.kind !== 'modern') throw error;
+      this._applyDiscover(probe.result, mutual);
+      return;
+    }
+    if (result.protocolVersion) this.protocolVersion = String(result.protocolVersion);
+    this.capabilities = result.capabilities || {};
+    this.serverInfo = result.serverInfo || null;
+    this.instructions = result.instructions || null;
+    await this._notify('notifications/initialized');
+  }
+
+  // ---------------------------------------------------------------------
+  // Requests
+  // ---------------------------------------------------------------------
+
+  _nextId() {
+    this.requestId += 1;
+    return this.requestId;
+  }
+
+  _meta(version) {
+    return {
+      [META_KEYS.protocolVersion]: version,
+      [META_KEYS.clientInfo]: this.clientInfo,
+      [META_KEYS.clientCapabilities]: {},
+    };
+  }
+
+  _withMeta(params) {
+    const base = params && typeof params === 'object' ? params : {};
+    return { ...base, _meta: { ...(base._meta || {}), ...this._meta(this.protocolVersion) } };
+  }
+
+  async _request(method, params = {}, { timeout, legacyInit = false } = {}) {
+    const wait = timeout || this.timeout;
+    const modern = this.era === 'modern';
+    const message = rpc.request(this._nextId(), method, modern ? this._withMeta(params) : params);
+
+    if (this.transport === 'stdio') {
+      const reply = await this._sendStdio(message, wait, true);
+      if (reply.error) throw rpc.errorFromResponse(reply);
+      return reply.result;
+    }
+
+    const headers = modern ? this._modernHeaders(message, this.protocolVersion) : this._legacyHeaders(legacyInit);
+    let reply = await this._postHttp(message, headers, wait);
+    // a legacy server that dropped the session answers 404: start a new one and retry once
+    if (!modern && !legacyInit && reply.status === 404 && this.sessionId) {
+      this._log('session expired; re-initializing');
+      await this._initializeLegacy();
+      reply = await this._postHttp(message, this._legacyHeaders(), wait);
+    }
+    if (legacyInit) {
+      const sessionId = reply.headers && reply.headers.get && reply.headers.get('mcp-session-id');
+      if (sessionId) this.sessionId = sessionId;
+    }
+    if (reply.message) {
+      if (reply.message.error) throw rpc.errorFromResponse(reply.message);
+      return reply.message.result;
+    }
+    throw new Error(`MCP request '${method}' failed: HTTP ${reply.status}${reply.text ? ` ${reply.text.slice(0, 200)}` : ''}`);
+  }
+
+  async _notify(method, params) {
+    const message = rpc.notification(method, this.era === 'modern' ? this._withMeta(params) : params);
+    if (this.transport === 'stdio') {
+      await this._writeStdio(message);
+      return;
+    }
+    const headers = this.era === 'modern' ? this._modernHeaders(message, this.protocolVersion) : this._legacyHeaders();
+    const reply = await this._postHttp(message, headers, this.timeout);
+    if (reply.status >= 400) {
+      throw new Error(`MCP notification '${method}' rejected: HTTP ${reply.status}`);
+    }
+  }
+
+  _emitNotification(message) {
+    if (this.onNotification) {
+      try {
+        this.onNotification(message);
+      } catch (error) {
+        this._log(`onNotification failed: ${error.message}`);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Streamable HTTP transport
+  // ---------------------------------------------------------------------
+
+  _modernHeaders(message, version) {
+    const headers = {
+      Accept: 'application/json, text/event-stream',
+      'Content-Type': 'application/json',
+      'MCP-Protocol-Version': version,
+      'Mcp-Method': message.method,
+    };
+    const field = NAME_HEADER_FIELDS[message.method];
+    if (field && message.params && message.params[field] !== undefined && message.params[field] !== null) {
+      headers['Mcp-Name'] = rpc.encodeHeaderValue(message.params[field]);
+    }
+    return headers;
+  }
+
+  _legacyHeaders(isInitialize = false) {
+    const headers = {
+      Accept: 'application/json, text/event-stream',
+      'Content-Type': 'application/json',
+    };
+    // the version header is only defined once a version has been negotiated
+    if (!isInitialize && this.protocolVersion) headers['MCP-Protocol-Version'] = this.protocolVersion;
+    if (!isInitialize && this.sessionId) headers['Mcp-Session-Id'] = this.sessionId;
+    return headers;
+  }
+
+  async _fetch(init, timeout) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      return await fetch(this.url, { ...init, headers: { ...this.headers, ...(init.headers || {}) }, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // POST one message; { status, headers, message (the matching JSON-RPC response or null), text }.
+  async _postHttp(message, headers, timeout) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(this.url, {
+        method: 'POST',
+        headers: { ...this.headers, ...headers },
+        body: rpc.serialize(message),
+        signal: controller.signal,
+      });
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      const reply = { status: response.status, headers: response.headers, message: null, text: '' };
+      if (response.status === 202 || response.status === 204) return reply;
+
+      if (contentType.includes('text/event-stream')) {
+        for await (const item of rpc.readSSEMessages(response.body, (data) => this._log(`ignored SSE data: ${data}`))) {
+          if (rpc.isResponse(item) && rpc.isRequest(message) && String(item.id) === String(message.id)) {
+            reply.message = item;
+            break;
+          }
+          if (rpc.isNotification(item)) this._emitNotification(item);
+        }
+        return reply;
+      }
+
+      reply.text = await response.text();
+      if (reply.text) {
+        try {
+          const parsed = JSON.parse(reply.text);
+          const candidates = Array.isArray(parsed) ? parsed : [parsed];
+          reply.message = candidates.find((item) => rpc.isResponse(item)
+            && (!rpc.isRequest(message) || item.id === null || String(item.id) === String(message.id))) || null;
+        } catch (error) {
+          this._log(`non-JSON body (HTTP ${response.status})`);
+        }
+      }
+      return reply;
+    } catch (error) {
+      if (controller.signal.aborted) throw new MCPTimeoutError(message.method, timeout);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // stdio transport
+  // ---------------------------------------------------------------------
+
+  async _spawn() {
+    if (this.process) return;
+    // required lazily: the browser bundle maps child_process and readline to empty modules
+    const { spawn } = require('child_process');
+    const readline = require('readline');
+
+    this.exitError = null;
+    const child = spawn(this.command, this.args, {
+      cwd: this.cwd || undefined,
+      env: this.env ? { ...process.env, ...this.env } : process.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    this.process = child;
+
+    // a child that was already replaced by close() + connect() must not fail the new one
+    const current = () => !this.process || this.process === child;
+    child.on('error', (error) => {
+      if (!current()) return;
+      this.exitError = new Error(`Failed to start MCP server '${this.command}': ${error.message}`);
+      this._failAll(this.exitError);
+    });
+    child.on('exit', (code, signal) => {
+      if (!current()) return;
+      const reason = signal ? `signal ${signal}` : `code ${code}`;
+      this.exitError = new Error(`MCP server process '${this.command}' exited (${reason})`);
+      this._failAll(this.exitError);
+    });
+    child.stdin.on('error', (error) => this._failAll(new Error(`MCP server stdin closed: ${error.message}`)));
+    child.stderr.on('data', (chunk) => {
+      if (this.debug) process.stderr.write(`[mcp:${this.command}] ${chunk}`);
+    });
+    readline.createInterface({ input: child.stdout, crlfDelay: Infinity, terminal: false })
+      .on('line', (line) => this._onLine(line));
+  }
+
+  _onLine(line) {
+    if (!line.trim()) return;
+    let message;
+    try {
+      message = rpc.parseMessage(line);
+    } catch (error) {
+      this._log(`ignored stdout line: ${line.slice(0, 200)}`);
+      return;
+    }
+    if (rpc.isResponse(message)) {
+      const entry = this.pending.get(String(message.id));
+      if (!entry) return;
+      this.pending.delete(String(message.id));
+      clearTimeout(entry.timer);
+      entry.resolve(message);
+    } else if (rpc.isNotification(message)) {
+      this._emitNotification(message);
+    } else if (rpc.isRequest(message)) {
+      // legacy servers may ask for roots or sampling; this client offers neither
+      this._writeStdio(rpc.errorResponse(message.id, ERROR_CODES.METHOD_NOT_FOUND, `Method not supported by client: ${message.method}`)).catch(() => {});
+    }
+  }
+
+  _writeStdio(message) {
+    return new Promise((resolve, reject) => {
+      if (this.exitError) return reject(this.exitError);
+      if (!this.process || !this.process.stdin.writable) return reject(new Error('MCP server process is not running'));
+      try {
+        this.process.stdin.write(`${rpc.serialize(message)}\n`, (error) => (error ? reject(error) : resolve()));
+      } catch (error) {
+        reject(error);
+      }
+      return undefined;
+    });
+  }
+
+  _sendStdio(message, timeout, cancelOnTimeout) {
+    const key = String(message.id);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(key);
+        if (cancelOnTimeout) {
+          this._notify('notifications/cancelled', { requestId: message.id, reason: 'timeout' }).catch(() => {});
+        }
+        reject(new MCPTimeoutError(message.method, timeout));
+      }, timeout);
+      this.pending.set(key, { resolve, reject, timer });
+      this._writeStdio(message).catch((error) => {
+        if (this.pending.delete(key)) {
+          clearTimeout(timer);
+          reject(error);
+        }
+      });
+    });
+  }
+
+  _failAll(error) {
+    for (const [key, entry] of this.pending) {
+      this.pending.delete(key);
+      clearTimeout(entry.timer);
+      entry.reject(error);
+    }
+  }
+
+  // Close stdin, wait, then escalate to SIGTERM and SIGKILL.
+  async _stopProcess() {
+    const child = this.process;
+    if (!child) return;
+    this.process = null;
+    this._failAll(new Error('MCP client closed'));
+
+    const exited = new Promise((resolve) => {
+      if (child.exitCode !== null || child.signalCode !== null) resolve(true);
+      else child.once('exit', () => resolve(true));
+    });
+    const wait = (ms) => Promise.race([exited, new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), ms);
+      if (timer.unref) timer.unref();
+    })]);
+
+    try {
+      child.stdin.end();
+    } catch (error) {
+      // already closed
+    }
+    if (await wait(SHUTDOWN_GRACE)) return;
+    child.kill('SIGTERM');
+    if (await wait(SHUTDOWN_GRACE)) return;
+    child.kill('SIGKILL');
+    await wait(SHUTDOWN_GRACE);
+  }
+
+  _log(text) {
+    if (this.debug) process.stderr.write(`[MCPClient] ${text}\n`);
   }
 }
 
+MCPClient.MCPTimeoutError = MCPTimeoutError;
+MCPClient.JsonRpcError = JsonRpcError;
+
 module.exports = MCPClient;
 
-},{"./ConnHelper":31,"cross-fetch":23}],36:[function(require,module,exports){
+}).call(this)}).call(this,require('_process'))
+},{"../mcp/jsonrpc":13,"../package.json":30,"_process":29,"child_process":23,"cross-fetch":25,"readline":23}],39:[function(require,module,exports){
 /*
 Apache License
 
@@ -7908,7 +9488,7 @@ class MatchHelpers {
 }
 
 module.exports = MatchHelpers;
-},{}],37:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 class ModelEvaluation {
 
   constructor() {}
@@ -7917,7 +9497,7 @@ class ModelEvaluation {
 module.exports = {
   ModelEvaluation
 };
-},{}],38:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 /*
 Apache License
 
@@ -7997,13 +9577,18 @@ function claudeRejectsSamplingParams(model) {
 
 // Tools can be written in chat-completions format ({type:'function', function:{...}}) or the flat
 // Responses format ({type:'function', name, parameters}); these helpers convert to what each API expects.
+// Accepts chat-completions tools ({ type, function }), Responses tools ({ type, name, parameters }) and plain
+// definitions ({ name, description, parameters | input_schema }); returns the chat-completions shape.
 function toChatTools(tools) {
   if (!Array.isArray(tools)) return tools;
   return tools.map((tool) => {
-    if (tool && tool.type === 'function' && !tool.function && tool.name) {
-      const { type, name, description, parameters, strict } = tool;
+    if (!tool || typeof tool !== 'object' || tool.function) return tool;
+    const plain = !tool.type && tool.name && (tool.parameters || tool.input_schema || tool.description);
+    if ((tool.type === 'function' || plain) && tool.name) {
+      const { name, description, strict } = tool;
+      const parameters = tool.parameters !== undefined ? tool.parameters : tool.input_schema;
       return {
-        type,
+        type: 'function',
         function: {
           name,
           ...(description !== undefined && { description }),
@@ -8018,12 +9603,12 @@ function toChatTools(tools) {
 
 function toResponsesTools(tools) {
   if (!Array.isArray(tools)) return tools;
-  return tools.map((tool) => (tool && tool.type === 'function' && tool.function ? { type: 'function', ...tool.function } : tool));
+  return toChatTools(tools).map((tool) => (tool && tool.type === 'function' && tool.function ? { type: 'function', ...tool.function } : tool));
 }
 
 function toAnthropicTools(tools) {
   if (!Array.isArray(tools)) return tools;
-  return tools.map((tool) => {
+  return toChatTools(tools).map((tool) => {
     if (tool && tool.type === 'function') {
       const fn = tool.function || tool;
       return {
@@ -8090,7 +9675,7 @@ module.exports = {
   functionCallToToolChoice,
 };
 
-},{}],39:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 /*
 Apache License
 
@@ -8439,7 +10024,7 @@ function extractSvg(text) {
 
 module.exports = { stripThinking, extractBlocks, extractCode, extractMarkdown, repairJson, parseJson, extractSvg };
 
-},{}],40:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 const FileHelper = require('./FileHelper')
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
@@ -8493,7 +10078,7 @@ class Prompt {
 
 module.exports = Prompt;
 
-},{"../config.json":1,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../utils/SystemHelper":43,"./FileHelper":33,"./ModelHelper":38}],41:[function(require,module,exports){
+},{"../config.json":1,"../function/Chatbot":7,"../model/input/ChatModelInput":14,"../utils/SystemHelper":46,"./FileHelper":36,"./ModelHelper":41}],44:[function(require,module,exports){
 const config = require('../config.json');
 
 
@@ -8701,7 +10286,7 @@ ProxyHelper.API_VERSION = '2023-12-01-preview'
 
 module.exports = ProxyHelper;
 
-},{"../config.json":1}],42:[function(require,module,exports){
+},{"../config.json":1}],45:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -8956,7 +10541,7 @@ module.exports = {
 };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":22}],43:[function(require,module,exports){
+},{"buffer":24}],46:[function(require,module,exports){
 (function (__dirname){(function (){
 const FileHelper = require('./FileHelper')
 const path = require("path");
@@ -9014,7 +10599,7 @@ class SystemHelper {
 module.exports = SystemHelper;
 
 }).call(this)}).call(this,"/utils")
-},{"../resource/templates/templates":28,"./FileHelper":33,"path":26}],44:[function(require,module,exports){
+},{"../resource/templates/templates":31,"./FileHelper":36,"path":28}],47:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 
 class AWSEndpointWrapper {
@@ -9047,7 +10632,7 @@ class AWSEndpointWrapper {
 
 module.exports = AWSEndpointWrapper;
 
-},{"../utils/FetchClient":32}],45:[function(require,module,exports){
+},{"../utils/FetchClient":35}],48:[function(require,module,exports){
 /*
 Apache License
 
@@ -9115,7 +10700,7 @@ class AnthropicWrapper {
 
 module.exports = AnthropicWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],46:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],49:[function(require,module,exports){
 /*
 Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
@@ -9172,7 +10757,7 @@ class CohereAIWrapper {
 module.exports = CohereAIWrapper;
 
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],47:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],50:[function(require,module,exports){
 const config = require('../config.json');
 const { readFileSync } = require('fs');
 const connHelper = require('../utils/ConnHelper');
@@ -9265,7 +10850,7 @@ class GeminiAIWrapper {
 
 module.exports = GeminiAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"fs":21}],48:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"fs":23}],51:[function(require,module,exports){
 /*
 Apache License
 */
@@ -9330,7 +10915,7 @@ class GoogleAIWrapper {
 
 module.exports = GoogleAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],49:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],52:[function(require,module,exports){
 (function (Buffer){(function (){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
@@ -9383,7 +10968,7 @@ class HuggingWrapper {
 module.exports = HuggingWrapper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"buffer":22}],50:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"buffer":24}],53:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const FormData = require('form-data');
@@ -9433,7 +11018,7 @@ class IntellicloudWrapper {
 
 module.exports = IntellicloudWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"form-data":24}],51:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"form-data":26}],54:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -9476,7 +11061,7 @@ class MistralAIWrapper {
 
 module.exports = MistralAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],52:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],55:[function(require,module,exports){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
@@ -9555,7 +11140,104 @@ class NvidiaWrapper {
 
 module.exports = NvidiaWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],53:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],56:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const config = require('../config.json');
+const connHelper = require('../utils/ConnHelper');
+const FetchClient = require('../utils/FetchClient');
+
+const compatible = config.url.openai_compatible;
+
+/**
+ * One wrapper for every service that speaks the OpenAI chat-completions API: OpenRouter, Groq, DeepSeek, xAI,
+ * Together, Ollama, LM Studio, vLLM servers and any other base URL.
+ *
+ * new OpenAICompatibleWrapper(apiKey, { preset: 'openrouter' })
+ * new OpenAICompatibleWrapper(apiKey, { baseUrl: 'https://host/v1', headers: { 'X-Title': 'My app' } })
+ */
+class OpenAICompatibleWrapper {
+  constructor(apiKey, options = {}) {
+    const preset = options.preset ? OpenAICompatibleWrapper.getPreset(options.preset) : null;
+    const baseUrl = options.baseUrl || (preset && preset.base);
+    if (!baseUrl) {
+      throw new Error(`OpenAICompatibleWrapper needs a baseUrl or one of the presets: ${Object.keys(compatible.presets).join(', ')}`);
+    }
+    this.preset = options.preset || null;
+    this.API_BASE_URL = String(baseUrl).replace(/\/+$/, '');
+    this.API_KEY = apiKey;
+    this.defaultModel = options.model || (preset && preset.chat_model) || null;
+    this.defaultEmbedModel = (preset && preset.embed_model) || null;
+
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json', ...(options.headers || {}) };
+    // local runtimes ignore the key; a placeholder keeps proxies that require the header happy
+    const key = apiKey || (preset && preset.local ? 'not-needed' : null);
+    if (key) headers.Authorization = `Bearer ${key}`;
+
+    this.client = new FetchClient({ baseURL: this.API_BASE_URL, headers });
+  }
+
+  static getPreset(name) {
+    const preset = compatible.presets[name];
+    if (!preset) {
+      throw new Error(`Unknown OpenAI-compatible preset '${name}'. Use one of: ${Object.keys(compatible.presets).join(', ')}`);
+    }
+    return preset;
+  }
+
+  static presets() {
+    return Object.keys(compatible.presets);
+  }
+
+  // Fill in the preset's default model; a preset without one needs the model in the request.
+  withModel(params) {
+    if (params.model) return params;
+    if (!this.defaultModel) {
+      const hint = this.preset ? `Call listModels() to see the models available on ${this.preset}.` : 'Call listModels() to see the available models.';
+      throw new Error(`No model set for the OpenAI-compatible request. Pass a model name. ${hint}`);
+    }
+    return { ...params, model: this.defaultModel };
+  }
+
+  async generateChatText(params) {
+    try {
+      const payload = this.withModel(params);
+      const extraConfig = payload.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(compatible.chat, payload, extraConfig);
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  async getEmbeddings(params) {
+    try {
+      const payload = params.model || !this.defaultEmbedModel ? params : { ...params, model: this.defaultEmbedModel };
+      if (!payload.model) throw new Error('No embedding model set. Pass a model name in the request.');
+      return await this.client.post(compatible.embeddings, payload);
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  /** The model ids served by the endpoint (GET /models). */
+  async listModels() {
+    try {
+      const response = await this.client.get(compatible.models);
+      return (response.data || []).map((model) => model.id);
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+}
+
+module.exports = OpenAICompatibleWrapper;
+
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],57:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const ProxyHelper = require('../utils/ProxyHelper');
@@ -9740,7 +11422,7 @@ class OpenAIWrapper {
 
 module.exports = OpenAIWrapper;
 
-},{"../utils/ConnHelper":31,"../utils/FetchClient":32,"../utils/ProxyHelper":41}],54:[function(require,module,exports){
+},{"../utils/ConnHelper":34,"../utils/FetchClient":35,"../utils/ProxyHelper":44}],58:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -9783,7 +11465,7 @@ class ReplicateWrapper {
 
 module.exports = ReplicateWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],55:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],59:[function(require,module,exports){
 // wrappers/StabilityAIWrapper.js
 
 const FormData = require('form-data');
@@ -10208,7 +11890,7 @@ class StabilityAIWrapper {
 }
 
 module.exports = StabilityAIWrapper;
-},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"form-data":24,"fs":21}],56:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"form-data":26,"fs":23}],60:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 const connHelper = require('../utils/ConnHelper');
 
@@ -10253,5 +11935,5 @@ class VLLMWrapper {
 }
 
 module.exports = VLLMWrapper;
-},{"../utils/ConnHelper":31,"../utils/FetchClient":32}]},{},[12])(12)
+},{"../utils/ConnHelper":34,"../utils/FetchClient":35}]},{},[12])(12)
 });

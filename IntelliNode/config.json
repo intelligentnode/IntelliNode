@@ -106,6 +106,50 @@
         "opus": "claude-opus-5",
         "haiku": "claude-haiku-4-5"
       }
+    },
+    "openai_compatible": {
+      "chat": "/chat/completions",
+      "embeddings": "/embeddings",
+      "models": "/models",
+      "presets": {
+        "openrouter": {
+          "base": "https://openrouter.ai/api/v1",
+          "chat_model": "openai/gpt-5.5",
+          "embed_model": "openai/text-embedding-3-small"
+        },
+        "groq": {
+          "base": "https://api.groq.com/openai/v1",
+          "chat_model": null,
+          "embed_model": null
+        },
+        "deepseek": {
+          "base": "https://api.deepseek.com",
+          "chat_model": "deepseek-chat",
+          "embed_model": null
+        },
+        "xai": {
+          "base": "https://api.x.ai/v1",
+          "chat_model": null,
+          "embed_model": null
+        },
+        "together": {
+          "base": "https://api.together.xyz/v1",
+          "chat_model": null,
+          "embed_model": null
+        },
+        "ollama": {
+          "base": "http://localhost:11434/v1",
+          "chat_model": null,
+          "embed_model": null,
+          "local": true
+        },
+        "lmstudio": {
+          "base": "http://localhost:1234/v1",
+          "chat_model": null,
+          "embed_model": null,
+          "local": true
+        }
+      }
     }
   },
   "nvidia": {

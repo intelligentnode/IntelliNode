@@ -5,6 +5,7 @@ const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const EmbedInput = require('../model/input/EmbedInput');
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
 const NvidiaWrapper = require('../wrappers/NvidiaWrapper');
+const OpenAICompatibleWrapper = require('../wrappers/OpenAICompatibleWrapper');
 
 const SupportedEmbedModels = {
   OPENAI: 'openai',
@@ -12,8 +13,19 @@ const SupportedEmbedModels = {
   REPLICATE: 'replicate',
   GEMINI: 'gemini',
   NVIDIA: 'nvidia',
-  VLLM: "vllm"
+  VLLM: "vllm",
+  // any service with an OpenAI embeddings API (needs { baseUrl } as the third argument)
+  OPENAI_COMPATIBLE: 'openai_compatible',
+  OPENROUTER: 'openrouter',
+  TOGETHER: 'together',
+  OLLAMA: 'ollama',
+  LMSTUDIO: 'lmstudio'
 };
+
+const COMPATIBLE_PROVIDERS = new Set([
+  SupportedEmbedModels.OPENAI_COMPATIBLE, SupportedEmbedModels.OPENROUTER, SupportedEmbedModels.TOGETHER,
+  SupportedEmbedModels.OLLAMA, SupportedEmbedModels.LMSTUDIO
+]);
 
 class RemoteEmbedModel {
   constructor(keyValue, provider, customProxyHelper = null) {
@@ -47,6 +59,16 @@ class RemoteEmbedModel {
     } else if (keyType === SupportedEmbedModels.VLLM) {
       const baseUrl = customProxyHelper.baseUrl;
       this.vllmWrapper = new VLLMWrapper(baseUrl);
+    } else if (COMPATIBLE_PROVIDERS.has(keyType)) {
+      const options = customProxyHelper || {};
+      if (keyType === SupportedEmbedModels.OPENAI_COMPATIBLE && !options.baseUrl) {
+        throw new Error("The openai_compatible provider requires { baseUrl } as the third argument.");
+      }
+      this.compatibleWrapper = new OpenAICompatibleWrapper(keyValue, {
+        preset: keyType === SupportedEmbedModels.OPENAI_COMPATIBLE ? null : keyType,
+        baseUrl: options.baseUrl,
+        headers: options.headers,
+      });
     } else {
       throw new Error('Invalid provider name');
     }
@@ -72,6 +94,8 @@ class RemoteEmbedModel {
         inputs = embedInput.getNvidiaInputs();
       } else if (this.keyType === SupportedEmbedModels.VLLM) {
         inputs = embedInput.getVLLMInputs();
+      } else if (COMPATIBLE_PROVIDERS.has(this.keyType)) {
+        inputs = embedInput.getOpenAIInputs();
      } else {
         throw new Error('The keyType is not supported');
       }
@@ -139,7 +163,10 @@ class RemoteEmbedModel {
         index: index,
         embedding: embedding
       }));
-    }else {
+    } else if (COMPATIBLE_PROVIDERS.has(this.keyType)) {
+      const results = await this.compatibleWrapper.getEmbeddings(inputs);
+      return results.data;
+    } else {
       throw new Error('The keyType is not supported');
     }
   }

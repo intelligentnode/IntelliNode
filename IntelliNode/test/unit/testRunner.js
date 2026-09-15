@@ -10,6 +10,9 @@ const testStreamParser = require('./StreamParser.test');
 const testInputDefaults = require('./InputDefaults.test');
 const testGen = require('./Gen.test');
 const testGenReview = require('./GenReview.test');
+const testToolLoop = require('./ToolLoop.test');
+const testFetchClient = require('./FetchClient.test');
+const testMCP = require('./MCP.test');
 const IntelliNode = require('../../index');
 
 (async () => {
@@ -52,6 +55,15 @@ const IntelliNode = require('../../index');
 
   console.log('Running Gen review regression tests...');
   await testGenReview();
+
+  console.log('Running tool loop and OpenAI-compatible tests...');
+  await testToolLoop();
+
+  console.log('Running FetchClient tests...');
+  await testFetchClient();
+
+  console.log('Running MCP unit tests...');
+  await testMCP();
 
   console.log('All unit tests passed.');
 })().catch((error) => {
