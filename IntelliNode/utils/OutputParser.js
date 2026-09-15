@@ -242,11 +242,12 @@ function findBalancedJson(text, kind) {
   let start = 0;
   while (start < text.length) {
     const open = text[start];
-    const wanted = (open === '{' && kind !== 'array') || (open === '[' && kind !== 'object');
-    if (!wanted) {
+    if (open !== '{' && open !== '[') {
       start++;
       continue;
     }
+    // a balanced value of the other kind is still skipped as a whole, so nothing nested inside it is returned
+    const wanted = (open === '{' && kind !== 'array') || (open === '[' && kind !== 'object');
     const close = open === '{' ? '}' : ']';
     let depth = 0;
     let inString = false;
@@ -274,7 +275,7 @@ function findBalancedJson(text, kind) {
       start++;
       continue;
     }
-    const parsed = tryParse(text.slice(start, end + 1), kind);
+    const parsed = wanted ? tryParse(text.slice(start, end + 1), kind) : null;
     if (parsed) return parsed.value;
     start = end + 1;
   }

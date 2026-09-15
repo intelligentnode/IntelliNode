@@ -42,6 +42,9 @@ const CHAT_INPUTS = {
   [SupportedChatModels.VLLM]: VLLMInput,
 };
 
+// Providers whose models (e.g. DeepSeek) return <think> reasoning inline; the other providers separate it already.
+const INLINE_REASONING_PROVIDERS = new Set([SupportedChatModels.NVIDIA, SupportedChatModels.VLLM]);
+
 // Output token budgets for the generation use cases (ignored for OpenAI reasoning models).
 const TOKENS = { short: 1200, medium: 4000, long: 8000, page: 12000 };
 
@@ -71,14 +74,12 @@ function buildChatInput(provider, system, options) {
   return new InputClass(system, inputOptions);
 }
 
-// The legacy functions take an OpenAI model name positionally; other providers only use it when it is theirs.
+// The legacy functions take an OpenAI model name positionally. Released versions always used the default NVIDIA
+// model (the name only picked the token budget), and an OpenAI model name is never sent to another provider.
 function resolveLegacyModel(provider, modelName) {
-  if (!modelName || modelName === DEFAULT_OPENAI_MODEL) {
-    return provider === SupportedChatModels.OPENAI ? modelName : null;
-  }
-  if (provider === SupportedChatModels.NVIDIA && !modelName.includes('/')) {
-    return null;
-  }
+  if (provider === SupportedChatModels.OPENAI) return modelName || null;
+  if (provider === SupportedChatModels.NVIDIA) return null;
+  if (!modelName || /^(gpt-|o\d|chatgpt-)/i.test(modelName)) return null;
   return modelName;
 }
 
@@ -91,6 +92,21 @@ function legacyTokenSize(modelName, base) {
   return 8000;
 }
 
+// The released page functions parsed with JSON.parse, so an unusable answer still rejects with a SyntaxError.
+function parseLegacyPage(text, allowArray) {
+  let value;
+  try {
+    value = parseJson(text, allowArray ? null : 'object');
+  } catch (error) {
+    throw new SyntaxError(error.message);
+  }
+  const page = Array.isArray(value) ? value[0] : value;
+  if (!page || typeof page !== 'object' || typeof page.html !== 'string') {
+    throw new SyntaxError(`The model response is not a JSON object with an html field: ${String(text).trim().slice(0, 200)}`);
+  }
+  return value;
+}
+
 function quoteBlock(title, content, language = '') {
   return content ? `${title}\n\`\`\`${language}\n${content}\n\`\`\`\n` : '';
 }
@@ -98,6 +114,11 @@ function quoteBlock(title, content, language = '') {
 function escapeHtml(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Scalar meta values; an array (e.g. several og:image URLs) becomes one tag per value.
+function metaValues(content) {
+  return (Array.isArray(content) ? content : [content]).filter((value) => value != null && typeof value !== 'object');
 }
 
 // Render <title>, <meta> and JSON-LD tags from the parsed SEO fields (safer than asking the model for HTML inside JSON).
@@ -108,10 +129,14 @@ function renderSeoHtml(meta) {
     lines.push(`<meta name="keywords" content="${escapeHtml(meta.keywords.join(', '))}">`);
   }
   for (const [property, content] of Object.entries(meta.openGraph || {})) {
-    lines.push(`<meta property="${escapeHtml(property)}" content="${escapeHtml(content)}">`);
+    for (const value of metaValues(content)) {
+      lines.push(`<meta property="${escapeHtml(property)}" content="${escapeHtml(value)}">`);
+    }
   }
   for (const [name, content] of Object.entries(meta.twitter || {})) {
-    lines.push(`<meta name="${escapeHtml(name)}" content="${escapeHtml(content)}">`);
+    for (const value of metaValues(content)) {
+      lines.push(`<meta name="${escapeHtml(name)}" content="${escapeHtml(value)}">`);
+    }
   }
   if (meta.jsonLd) {
     lines.push(`<script type="application/ld+json">${JSON.stringify(meta.jsonLd).replace(/</g, '\\u003c')}</script>`);
@@ -119,22 +144,31 @@ function renderSeoHtml(meta) {
   return lines.join('\n');
 }
 
-// "code block + json block" answers: the main block is the longest non-json block, the json block carries the details.
-function parseCodeWithDetails(text, codeKey, language = null) {
+/**
+ * "code block + json block" answers. The details block is the last json block whose content has the expected shape
+ * (so fixed code that is itself JSON is not mistaken for it); the code is the block tagged `language`, otherwise
+ * the longest remaining block.
+ */
+function parseCodeWithDetails(text, codeKey, language, isDetails) {
   const blocks = extractBlocks(text);
-  const jsonBlock = blocks.find((block) => block.lang === 'json');
-  const codeBlocks = blocks.filter((block) => block !== jsonBlock && block.code.trim());
-  const preferred = language ? codeBlocks.find((block) => block.lang === String(language).toLowerCase()) : null;
-  const codeBlock = preferred || codeBlocks.reduce((best, block) => (!best || block.code.length > best.code.length ? block : best), null);
-  let details = {};
-  if (jsonBlock) {
+  let detailsBlock = null;
+  let details = null;
+  for (const block of blocks.filter((candidate) => candidate.lang === 'json').reverse()) {
     try {
-      details = parseJson(jsonBlock.code);
+      const parsed = parseJson(block.code);
+      if (isDetails(parsed)) {
+        detailsBlock = block;
+        details = parsed;
+        break;
+      }
     } catch (error) {
-      details = {};
+      // not the details block
     }
   }
-  return { [codeKey]: codeBlock ? codeBlock.code : extractCode(text, language), details };
+  const codeBlocks = blocks.filter((block) => block !== detailsBlock);
+  const preferred = language ? codeBlocks.find((block) => block.lang === language) : null;
+  const codeBlock = preferred || codeBlocks.reduce((best, block) => (!best || block.code.length > best.code.length ? block : best), null);
+  return { [codeKey]: codeBlock ? codeBlock.code : extractCode(text, language), details: details || {} };
 }
 
 const FRAMEWORK_LABELS = {
@@ -150,6 +184,9 @@ const STYLE_FORMATS = {
   scss: 'SCSS',
   tailwind: 'HTML markup styled with Tailwind CSS utility classes (return the markup with the classes applied)',
 };
+
+const PYTHON_FRAMEWORKS = /^(flask|fastapi|django|pytest|unittest)/i;
+const JAVASCRIPT_REGEX_ENGINES = /^(javascript|js|typescript|ts|node(\.?js)?)$/i;
 
 // ---------------------------------------------------------------------
 // OpenAPI normalisation
@@ -184,7 +221,8 @@ function normalizeOpenApi(doc, options = {}) {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc) || !doc.paths || typeof doc.paths !== 'object') {
     throw new Error('Gen: the model did not return an OpenAPI document with paths.');
   }
-  const basePath = options.basePath ? `/${String(options.basePath).replace(/^\/+|\/+$/g, '')}` : '';
+  const trimmedBase = options.basePath ? String(options.basePath).replace(/^\/+|\/+$/g, '') : '';
+  const basePath = trimmedBase ? `/${trimmedBase}` : '';
   const info = doc.info || {};
   const result = {
     ...doc,
@@ -194,36 +232,55 @@ function normalizeOpenApi(doc, options = {}) {
   };
   if (options.serverUrl) result.servers = [{ url: options.serverUrl }];
 
+  // a { $ref } parameter is resolved so its name and location count as declared
+  const parameterInfo = (param) => {
+    if (param && typeof param.$ref === 'string') {
+      const target = param.$ref.startsWith('#/') ? resolveRef(doc, param.$ref) : undefined;
+      return target && typeof target === 'object' ? target : null;
+    }
+    return param && typeof param === 'object' ? param : null;
+  };
+
   const usedIds = new Set();
   for (const [rawPath, rawItem] of Object.entries(doc.paths)) {
-    let pathKey = `/${String(rawPath).trim().replace(/^\/+/, '')}`.replace(/:([A-Za-z_][A-Za-z0-9_]*)/g, '{$1}');
+    if (!rawItem || typeof rawItem !== 'object') continue;
+    // Express ":param" segments become "{param}"; a colon after a brace (custom methods such as {name}:cancel) is kept
+    let pathKey = `/${String(rawPath).trim().replace(/^\/+/, '')}`.replace(/(^|\/):([A-Za-z_][A-Za-z0-9_]*)/g, '$1{$2}');
     if (basePath && pathKey !== basePath && !pathKey.startsWith(`${basePath}/`)) {
       pathKey = pathKey === '/' ? basePath : `${basePath}${pathKey}`;
     }
-    const item = { ...(result.paths[pathKey] || {}) };
-    const pathLevelParams = Array.isArray(rawItem && rawItem.parameters) ? rawItem.parameters : [];
-    for (const [key, value] of Object.entries(rawItem || {})) {
-      if (!HTTP_METHODS.includes(key.toLowerCase())) item[key] = value;
-    }
     const templateParams = [...pathKey.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]);
+    // inline path parameters must match a template segment and are always required
+    const fixParameters = (parameters) => (Array.isArray(parameters) ? parameters : [])
+      .filter((param) => !(param && !param.$ref && param.in === 'path' && !templateParams.includes(param.name)))
+      .map((param) => (param && !param.$ref && param.in === 'path' ? { ...param, required: true } : param));
 
-    for (const [key, value] of Object.entries(rawItem || {})) {
+    // when two raw keys normalise to the same path, the first definition of each field and method wins
+    const item = { ...(result.paths[pathKey] || {}) };
+    for (const [key, value] of Object.entries(rawItem)) {
+      if (!HTTP_METHODS.includes(key.toLowerCase()) && !(key in item)) item[key] = value;
+    }
+    if (Array.isArray(item.parameters)) item.parameters = fixParameters(item.parameters);
+    const pathLevelParams = Array.isArray(item.parameters) ? item.parameters : [];
+
+    for (const [key, value] of Object.entries(rawItem)) {
       const method = key.toLowerCase();
-      if (!HTTP_METHODS.includes(method) || !value || typeof value !== 'object') continue;
+      if (!HTTP_METHODS.includes(method) || !value || typeof value !== 'object' || item[method]) continue;
       const operation = { ...value };
       if (method === 'get' || method === 'delete') delete operation.requestBody;
       if (!operation.responses || typeof operation.responses !== 'object' || Object.keys(operation.responses).length === 0) {
         operation.responses = { 200: { description: 'Successful response' } };
       }
-      const parameters = (Array.isArray(operation.parameters) ? operation.parameters : [])
-        .map((param) => (param && param.in === 'path' ? { ...param, required: true } : param));
+      const parameters = fixParameters(operation.parameters);
       const declared = new Set([...pathLevelParams, ...parameters]
+        .map(parameterInfo)
         .filter((param) => param && param.in === 'path')
         .map((param) => param.name));
       for (const name of templateParams.filter((param) => !declared.has(param))) {
         parameters.push({ name, in: 'path', required: true, schema: { type: 'string' } });
       }
       if (parameters.length) operation.parameters = parameters;
+      else delete operation.parameters;
 
       const base = operation.operationId || operationIdFor(method, pathKey);
       let id = base;
@@ -271,7 +328,8 @@ const NAMED_COLORS = {
 };
 
 function toHex(red, green, blue) {
-  return `#${[red, green, blue].map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, '0')).join('')}`;
+  // the epsilon absorbs floating point error on exact .5 channels, so they round up like browsers do
+  return `#${[red, green, blue].map((channel) => Math.max(0, Math.min(255, Math.round(channel + 1e-9))).toString(16).padStart(2, '0')).join('')}`;
 }
 
 function hslToRgb(hue, saturation, lightness) {
@@ -293,19 +351,43 @@ function hslToRgb(hue, saturation, lightness) {
   return [channel(h + 1 / 3) * 255, channel(h) * 255, channel(h - 1 / 3) * 255];
 }
 
-// Normalise a color to a lowercase six digit hex; anything that cannot be converted exactly throws.
-function normalizeColor(value, key) {
+function parseAlpha(value) {
+  if (value === undefined) return 1;
+  const text = String(value).trim();
+  return text.endsWith('%') ? Number(text.slice(0, -1)) / 100 : Number(text);
+}
+
+/**
+ * Normalise a color to a lowercase six digit hex. Unsupported formats throw. Tokens are opaque, so a translucent
+ * color keeps its RGB value and a warning is added when a warnings list is given.
+ */
+function normalizeColor(value, key, warnings = null) {
   const text = String(value).trim().toLowerCase();
-  let match = /^#([0-9a-f]{3,4})$/.exec(text);
-  if (match) return `#${match[1].slice(0, 3).split('').map((digit) => digit + digit).join('')}`;
-  match = /^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/.exec(text);
-  if (match) return `#${match[1]}`;
-  match = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(text);
-  if (match) return toHex(Number(match[1]), Number(match[2]), Number(match[3]));
-  match = /^hsla?\(\s*([\d.]+)(?:deg)?[\s,]+([\d.]+)%[\s,]+([\d.]+)%/.exec(text);
-  if (match) return toHex(...hslToRgb(Number(match[1]), Number(match[2]), Number(match[3])));
-  if (NAMED_COLORS[text]) return NAMED_COLORS[text];
-  throw new Error(`Gen: unsupported color "${value}" at ${key}; expected a hex, rgb() or hsl() color.`);
+  let hex = null;
+  let alpha = 1;
+  let match;
+  if ((match = /^#([0-9a-f]{3})([0-9a-f])?$/.exec(text))) {
+    hex = `#${match[1].split('').map((digit) => digit + digit).join('')}`;
+    if (match[2]) alpha = parseInt(match[2] + match[2], 16) / 255;
+  } else if ((match = /^#([0-9a-f]{6})([0-9a-f]{2})?$/.exec(text))) {
+    hex = `#${match[1]}`;
+    if (match[2]) alpha = parseInt(match[2], 16) / 255;
+  } else if ((match = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+%?)\s*)?\)$/.exec(text))) {
+    hex = toHex(Number(match[1]), Number(match[2]), Number(match[3]));
+    alpha = parseAlpha(match[4]);
+  } else if ((match = /^hsla?\(\s*([\d.]+)(?:deg)?[\s,]+([\d.]+)%[\s,]+([\d.]+)%\s*(?:[,/]\s*([\d.]+%?)\s*)?\)$/.exec(text))) {
+    hex = toHex(...hslToRgb(Number(match[1]), Number(match[2]), Number(match[3])));
+    alpha = parseAlpha(match[4]);
+  } else if (NAMED_COLORS[text]) {
+    hex = NAMED_COLORS[text];
+  }
+  if (!hex) {
+    throw new Error(`Gen: unsupported color "${value}" at ${key}; expected a hex, rgb() or hsl() color.`);
+  }
+  if (alpha < 1 && warnings) {
+    warnings.push(`${key} was the translucent color ${value}; tokens are opaque, so the transparency was dropped (${hex}).`);
+  }
+  return hex;
 }
 
 function relativeLuminance(hex) {
@@ -334,7 +416,8 @@ function buildTokenCss(palette, semantic, radius, modes, prefix) {
     const entries = Object.entries(semantic[mode]);
     blocks.push(`[data-theme="${mode}"] {\n${declarations(entries)}\n}`);
     if (mode === 'dark') {
-      blocks.push(`@media (prefers-color-scheme: dark) {\n  :root:not([data-theme="light"]) {\n${declarations(entries, '    ')}\n  }\n}`);
+      // only when no theme is chosen explicitly, so a selected data-theme always wins
+      blocks.push(`@media (prefers-color-scheme: dark) {\n  :root:not([data-theme]) {\n${declarations(entries, '    ')}\n  }\n}`);
     }
   }
   return blocks.join('\n\n');
@@ -375,7 +458,7 @@ function normalizeDesignTokens(raw, options) {
       if (value == null || value === '') {
         missingSteps.push(`${scaleName}.${step}`);
       } else {
-        palette[scaleName][step] = normalizeColor(value, `palette.${scaleName}.${step}`);
+        palette[scaleName][step] = normalizeColor(value, `palette.${scaleName}.${step}`, warnings);
       }
     }
   }
@@ -396,7 +479,7 @@ function normalizeDesignTokens(raw, options) {
       const scaleSteps = palette[reference[1].toLowerCase()];
       if (scaleSteps && scaleSteps[reference[2]]) return scaleSteps[reference[2]];
     }
-    return normalizeColor(value, key);
+    return normalizeColor(value, key, warnings);
   };
 
   const semantic = {};
@@ -419,9 +502,11 @@ function normalizeDesignTokens(raw, options) {
   const contrast = [];
   for (const mode of modes) {
     for (const [foreground, background] of CONTRAST_PAIRS) {
-      const ratio = Math.round(contrastRatio(semantic[mode][foreground], semantic[mode][background]) * 100) / 100;
-      contrast.push({ mode, pair: `${foreground}/${background}`, ratio, aa: ratio >= 4.5 });
-      if (ratio < 4.5) {
+      const exact = contrastRatio(semantic[mode][foreground], semantic[mode][background]);
+      // WCAG compares the exact ratio; the reported value is truncated so it never looks like a pass when it is not
+      const ratio = Math.floor(exact * 100) / 100;
+      contrast.push({ mode, pair: `${foreground}/${background}`, ratio, aa: exact >= 4.5 });
+      if (exact < 4.5) {
         warnings.push(`${mode}: ${foreground} on ${background} has a contrast of ${ratio}:1, below WCAG AA (4.5:1).`);
       }
     }
@@ -446,7 +531,8 @@ function normalizeDesignTokens(raw, options) {
 
 class Gen {
   /**
-   * One call to any chat provider. Returns the model text with reasoning blocks removed.
+   * One call to any chat provider. Returns the model text; for providers that return reasoning inline
+   * (nvidia, vllm) the leading <think> block is removed.
    *
    * @param {string} prompt - the user message.
    * @param {string} apiKey - the provider key.
@@ -463,7 +549,7 @@ class Gen {
 
     const first = responses[0];
     const text = typeof first === 'string' ? first : (first && first.content) || '';
-    return stripThinking(text);
+    return INLINE_REASONING_PROVIDERS.has(provider) ? stripThinking(text) : String(text).trim();
   }
 
   // Fill a prompt template, call the provider and parse the output as text, markdown, code, json or svg.
@@ -488,7 +574,7 @@ class Gen {
       return settings.parse(text);
     }
     switch (settings.parse) {
-      case 'json': return parseJson(text);
+      case 'json': return parseJson(text, settings.kind || null);
       case 'code': return extractCode(text, settings.language || null);
       case 'markdown': return extractMarkdown(text);
       case 'svg': return extractSvg(text);
@@ -502,14 +588,22 @@ class Gen {
 
   // Marketing description generation
   static async get_marketing_desc(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    return Gen.generate_text(`Create a marketing description for the following: ${promptString}`, apiKey, provider,
-      { system: 'generate marketing description', maxTokens: budgetFor(provider, 800), customProxyHelper });
+    return Gen.generate_text(`Create a marketing description for the following: ${promptString}`, apiKey, provider, {
+      system: 'generate marketing description',
+      maxTokens: budgetFor(provider, 800),
+      ...(provider === SupportedChatModels.NVIDIA && { temperature: 0.6 }),
+      customProxyHelper,
+    });
   }
 
   // Blog post generation
   static async get_blog_post(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
-    return Gen.generate_text(`Write a blog post with section titles about ${promptString}`, apiKey, provider,
-      { system: 'generate blog post', maxTokens: budgetFor(provider, 1200), customProxyHelper });
+    return Gen.generate_text(`Write a blog post with section titles about ${promptString}`, apiKey, provider, {
+      system: 'generate blog post',
+      maxTokens: budgetFor(provider, 1200),
+      ...(provider === SupportedChatModels.NVIDIA && { temperature: 0.6 }),
+      customProxyHelper,
+    });
   }
 
   // Image description
@@ -548,7 +642,7 @@ class Gen {
       text: product,
       feature_count: options.featureCount || 3,
       tone: options.tone || 'professional',
-    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.medium } });
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.medium } });
   }
 
   /** FAQ list: [{ question, answer }]. options: { count, tone }. */
@@ -557,7 +651,7 @@ class Gen {
       text: topic,
       count: options.count || 5,
       tone: options.tone || 'friendly and professional',
-    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.medium } });
+    }, apiKey, provider, options, { parse: 'json', kind: 'array', defaults: { maxTokens: TOKENS.medium } });
   }
 
   /** SEO metadata: { title, description, keywords, openGraph, twitter, jsonLd, html }. options: { url, siteName }. */
@@ -566,7 +660,7 @@ class Gen {
       text: pageDescription,
       url: options.url || 'https://example.com/',
       site_name: options.siteName || 'the website',
-    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.medium } });
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.medium } });
     return { ...meta, html: renderSeoHtml(meta) };
   }
 
@@ -583,7 +677,7 @@ class Gen {
       text,
       source_language: options.sourceLanguage || 'the source language',
       target_language: options.targetLanguage,
-    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
   }
 
   /** Release notes in Markdown. options: { version }. */
@@ -612,7 +706,8 @@ class Gen {
       temperature: 0.8,
       customProxyHelper,
     }, {
-      parse: 'json',
+      parse: (answer) => parseLegacyPage(answer, false),
+      legacy: true,
       system: 'generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
     });
   }
@@ -636,7 +731,8 @@ class Gen {
       temperature: 0.3,
       customProxyHelper,
     }, {
-      parse: 'json',
+      parse: (answer) => parseLegacyPage(answer, true),
+      legacy: true,
       system: 'Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
     });
     return Array.isArray(result) ? result[0] : result;
@@ -651,7 +747,7 @@ class Gen {
     return Gen._generate('component', {
       text: description,
       framework: FRAMEWORK_LABELS[framework] || framework,
-      language: options.language || 'javascript',
+      language: options.language || (framework === 'angular' ? 'typescript' : 'javascript'),
       styling: options.styling || 'css',
     }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
   }
@@ -692,7 +788,8 @@ class Gen {
     return Gen._generate('accessibility', { text: html }, apiKey, provider, options, {
       defaults: { maxTokens: TOKENS.long, temperature: 0.1 },
       parse: (text) => {
-        const { html: fixed, details } = parseCodeWithDetails(text, 'html', 'html');
+        const isDetails = (value) => Array.isArray(value) || Boolean(value && Array.isArray(value.issues));
+        const { html: fixed, details } = parseCodeWithDetails(text, 'html', 'html', isDetails);
         return { html: fixed, issues: Array.isArray(details) ? details : (details.issues || []) };
       },
     });
@@ -716,19 +813,23 @@ class Gen {
   /** Color palette: { name, colors: [{ name, hex, usage }], css }. options: { count }. */
   static async generate_color_palette(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
     return Gen._generate('color_palette', { text: description, count: options.count || 6 }, apiKey, provider, options,
-      { parse: 'json', defaults: { maxTokens: TOKENS.short } });
+      { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.short } });
   }
 
   // ---------------------------------------------------------------------
   // Backend and developer workflow
   // ---------------------------------------------------------------------
 
-  /** API endpoint source. options: { framework: express|fastify|nextjs|koa|hono|flask|fastapi, language }. */
+  /**
+   * API endpoint source. options: { framework: express|fastify|nextjs|koa|hono|flask|fastapi, language }.
+   * The language defaults to python for flask, fastapi and django, otherwise javascript.
+   */
   static async generate_api_endpoint(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const framework = options.framework || 'Express';
     return Gen._generate('api_endpoint', {
       text: description,
-      framework: options.framework || 'Express',
-      language: options.language || 'javascript',
+      framework,
+      language: options.language || (PYTHON_FRAMEWORKS.test(framework) ? 'python' : 'javascript'),
     }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.medium, temperature: 0.2 } });
   }
 
@@ -744,7 +845,7 @@ class Gen {
   /** JSON Schema (draft 2020-12) object for a data description. */
   static async generate_json_schema(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
     return Gen._generate('json_schema', { text: description }, apiKey, provider, options,
-      { parse: 'json', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
+      { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
   }
 
   /** Realistic mock records as an array. options: { count }. */
@@ -757,37 +858,49 @@ class Gen {
 
   /**
    * Regular expression: { pattern, flags, explanation, matches, nonMatches, regex (RegExp), verified }.
-   * verified is true when the pattern compiles and behaves as the model's own examples claim. options: { language }.
+   * verified is true when the pattern behaves as the model's own examples claim, false when it does not (or there
+   * is no pattern or no example to check), and null when options.language is not JavaScript, since the check runs
+   * with JavaScript regex semantics. options: { language }.
    */
   static async generate_regex(description, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
-    const result = await Gen._generate('regex', { text: description, language: options.language || 'JavaScript' },
-      apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.short, temperature: 0.1 } });
+    const language = options.language || 'JavaScript';
+    const result = await Gen._generate('regex', { text: description, language },
+      apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.short, temperature: 0.1 } });
+    // a single-escaped \b is read by JSON as a backspace character; in a pattern it means a word boundary
+    result.pattern = typeof result.pattern === 'string' ? result.pattern.replace(/\x08/g, '\\b') : null;
     result.matches = Array.isArray(result.matches) ? result.matches : [];
     result.nonMatches = Array.isArray(result.nonMatches) ? result.nonMatches : [];
     try {
-      result.regex = new RegExp(result.pattern, (result.flags || '').replace('g', ''));
-      result.verified = result.matches.every((sample) => result.regex.test(sample))
-        && result.nonMatches.every((sample) => !result.regex.test(sample));
+      // g and y make test() stateful, so they are left out of the returned RegExp
+      result.regex = result.pattern ? new RegExp(result.pattern, String(result.flags || '').replace(/[gy]/g, '')) : null;
     } catch (error) {
       result.regex = null;
+    }
+    if (!result.regex || result.matches.length + result.nonMatches.length === 0) {
       result.verified = false;
+    } else if (!JAVASCRIPT_REGEX_ENGINES.test(String(language).trim())) {
+      result.verified = null;
+    } else {
+      result.verified = result.matches.every((sample) => result.regex.test(sample))
+        && result.nonMatches.every((sample) => !result.regex.test(sample));
     }
     return result;
   }
 
   /** Unit test file source. options: { framework: jest|vitest|mocha|pytest, modulePath }. */
   static async generate_unit_tests(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const framework = options.framework || 'Jest';
     return Gen._generate('unit_tests', {
       text: code,
-      framework: options.framework || 'Jest',
-      module_path: options.modulePath || './module',
+      framework,
+      module_path: options.modulePath || (PYTHON_FRAMEWORKS.test(framework) ? 'module' : './module'),
     }, apiKey, provider, options, { parse: 'code', defaults: { maxTokens: TOKENS.long, temperature: 0.2 } });
   }
 
   /** Code review: { summary, score, issues: [{ severity, title, description, suggestion }] }. options: { language }. */
   static async review_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
     return Gen._generate('code_review', { text: code, language: options.language || '' }, apiKey, provider, options,
-      { parse: 'json', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
+      { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.medium, temperature: 0.1 } });
   }
 
   /** Explain code in Markdown. options: { language, audience }. */
@@ -801,6 +914,7 @@ class Gen {
 
   /** Fix a bug: { code, explanation, changes }. options: { problem (error message or description), language }. */
   static async fix_code(code, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
+    const language = options.language ? String(options.language).trim().toLowerCase() : null;
     return Gen._generate('fix_code', {
       text: code,
       problem: options.problem || 'the code does not work as intended',
@@ -808,7 +922,9 @@ class Gen {
     }, apiKey, provider, options, {
       defaults: { maxTokens: TOKENS.long, temperature: 0.1 },
       parse: (text) => {
-        const { code: fixed, details } = parseCodeWithDetails(text, 'code');
+        const isDetails = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+          && ('explanation' in value || 'changes' in value);
+        const { code: fixed, details } = parseCodeWithDetails(text, 'code', language, isDetails);
         return { code: fixed, explanation: details.explanation || '', changes: Array.isArray(details.changes) ? details.changes : [] };
       },
     });
@@ -842,7 +958,7 @@ class Gen {
     const doc = await Gen._generate('openapi_spec', {
       text: input,
       openapi_version: options.openapiVersion || '3.1.0',
-    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.long, temperature: 0.1 } });
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.long, temperature: 0.1 } });
     return normalizeOpenApi(doc, options);
   }
 
@@ -853,10 +969,12 @@ class Gen {
    */
   static async generate_design_tokens(input, apiKey, provider = SupportedChatModels.OPENAI, options = {}) {
     const modes = Array.isArray(options.modes) && options.modes.length ? options.modes : ['light', 'dark'];
+    // validate the brand color before paying for a request, and give the model the normalised hex
+    const brandColor = options.brandColor ? normalizeColor(options.brandColor, 'options.brandColor') : null;
     const raw = await Gen._generate('design_tokens', {
       text: input,
-      brand_color_rule: options.brandColor
-        ? `Use ${options.brandColor} exactly as primary 500.`
+      brand_color_rule: brandColor
+        ? `Use ${brandColor} exactly as primary 500.`
         : 'Choose a primary 500 color that fits the brand.',
       modes: modes.join(', '),
       typography_rule: options.includeTypography === false
@@ -865,8 +983,8 @@ class Gen {
       spacing_rule: options.includeSpacing === false
         ? '- Set spacing to null.'
         : '- spacing maps 1, 2, 3, 4, 6, 8, 12 and 16 to rem strings.',
-    }, apiKey, provider, options, { parse: 'json', defaults: { maxTokens: TOKENS.long, temperature: 0.3 } });
-    return normalizeDesignTokens(raw, { ...options, modes });
+    }, apiKey, provider, options, { parse: 'json', kind: 'object', defaults: { maxTokens: TOKENS.long, temperature: 0.3 } });
+    return normalizeDesignTokens(raw, { ...options, brandColor, modes });
   }
 
   // Instruct update

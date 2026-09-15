@@ -11,7 +11,9 @@ function fakeReply(baseURL, endpoint, text) {
   if (baseURL.includes('generativelanguage')) return { candidates: [{ content: { parts: [{ text }] } }] };
   if (baseURL.includes('cohere')) return { text };
   if (endpoint.includes('/responses')) return { output: [{ type: 'reasoning', content: [] }, { type: 'message', content: [{ type: 'output_text', text }] }] };
-  return { choices: [{ message: { content: `<think>ignore me</think>${text}` } }] };
+  // only the inline-reasoning provider puts <think> blocks in the answer
+  if (baseURL.includes('nvidia')) return { choices: [{ message: { content: `<think>ignore me</think>${text}` } }] };
+  return { choices: [{ message: { content: text } }] };
 }
 
 async function withMockedProviders(replyText, run) {
@@ -41,7 +43,8 @@ function testOutputParser() {
   assert.strictEqual(stripThinking('<think>a</think>\nresult'), 'result');
   assert.deepStrictEqual(parseJson('```json\n{"a": 1}\n```'), { a: 1 });
   assert.deepStrictEqual(parseJson('Sure! {"html": "<p class=\\"x\\">{not json}</p>"} Enjoy.'), { html: '<p class="x">{not json}</p>' });
-  assert.deepStrictEqual(parseJson('<think>{"wrong": true}</think>[{"q": "a"}]'), [{ q: 'a' }]);
+  // parsers keep answers that mention think tags; reasoning is removed earlier, only for inline-reasoning providers
+  assert.deepStrictEqual(parseJson('{"pattern": "<think>[\\\\s\\\\S]*?</think>"}'), { pattern: '<think>[\\s\\S]*?</think>' });
   assert.deepStrictEqual(parseJson('use {placeholder} then {"ok": true}'), { ok: true });
   assert.throws(() => parseJson('no json here'), /not valid JSON/);
   // small syntax slips are repaired: trailing commas and raw newlines inside strings
@@ -153,12 +156,16 @@ async function testLegacyFunctionsKeepTheirContracts() {
   });
   await assert.rejects(Gen.generate_dashboard('a', 'b', 'key', 'gpt-4o', 5), /num_graphs/);
 
-  await withMockedProviders('  <think>plan</think> A marketing text ', async (calls) => {
+  await withMockedProviders('  A marketing text ', async (calls) => {
     assert.strictEqual(await Gen.get_marketing_desc('chair', 'key'), 'A marketing text');
     assert.strictEqual(calls[0].body.input[0].content, 'generate marketing description');
     assert.strictEqual(await Gen.get_marketing_desc('chair', 'key', 'cohere'), 'A marketing text');
     assert.strictEqual(calls[1].body.max_tokens, 800);
     assert.strictEqual(await Gen.instructUpdate('Title1', 'change to Title2', 'text', 'key'), 'A marketing text');
+    // nvidia answers carry inline reasoning, which is removed; released nvidia calls used temperature 0.6 and the default model
+    assert.strictEqual(await Gen.get_marketing_desc('chair', 'key', 'nvidia'), 'A marketing text');
+    assert.strictEqual(calls[3].body.temperature, 0.6);
+    assert.strictEqual(calls[3].body.model, config.nvidia.models.chat);
   });
 }
 

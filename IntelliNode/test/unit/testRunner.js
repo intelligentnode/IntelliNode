@@ -9,6 +9,7 @@ const testChatModelInput = require('./ChatModelInput.test');
 const testStreamParser = require('./StreamParser.test');
 const testInputDefaults = require('./InputDefaults.test');
 const testGen = require('./Gen.test');
+const testGenReview = require('./GenReview.test');
 const IntelliNode = require('../../index');
 
 (async () => {
@@ -48,6 +49,9 @@ const IntelliNode = require('../../index');
 
   console.log('Running Gen unit tests...');
   await testGen();
+
+  console.log('Running Gen review regression tests...');
+  await testGenReview();
 
   console.log('All unit tests passed.');
 })().catch((error) => {

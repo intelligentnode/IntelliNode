@@ -32,12 +32,12 @@
   },
   "homepage": "https://docs.intellinode.ai",
   "devDependencies": {
-    "browserify": "^17.0.0",
-    "uglify-js": "^3.17.0"
+    "browserify": "^17.0.1",
+    "uglify-js": "^3.19.3"
   },
   "dependencies": {
     "cross-fetch": "^4.1.0",
-    "dotenv": "^16.4.7",
-    "form-data": "^4.0.1"
+    "dotenv": "^17.4.2",
+    "form-data": "^4.0.6"
   }
 }
