@@ -48,7 +48,9 @@ class TextAnalyzer {
     modelInput.setDefaultModels(this.provider);
     const [sentiment] = await this.remoteLanguageModel.generateText(modelInput);
 
-    const sentiment_output = JSON.parse(sentiment.trim());
+    // chat models can wrap the JSON in a markdown code fence
+    const cleaned = sentiment.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const sentiment_output = JSON.parse(cleaned);
     return sentiment_output;
   }
 }

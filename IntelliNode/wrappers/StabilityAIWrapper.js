@@ -40,8 +40,9 @@ class StabilityAIWrapper {
             ]
           };
         } else {
-          // old v1 approach
-          return await this.generateTextToImage(inputs);
+          // v1 text-to-image: engine selects the endpoint and is not a request body field
+          const { engine, model, ...body } = inputs;
+          return await this.generateTextToImage(body, engine || undefined);
         }
       }
 

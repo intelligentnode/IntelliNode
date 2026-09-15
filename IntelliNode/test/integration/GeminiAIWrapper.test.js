@@ -49,7 +49,7 @@ async function testGetEmbeddings() {
     try {
         const text = "Write a story about a magic backpack.";
         const params = {
-            model: "models/embedding-001",
+            model: "models/gemini-embedding-001",
             content: {
                 parts: [{
                     text: text
@@ -69,7 +69,7 @@ async function testGetBatchEmbeddings() {
     try {
         const texts = ["Hello world", "Write a story about a magic backpack."];
         const requests = texts.map(text => ({
-            model: "models/embedding-001",
+            model: "models/gemini-embedding-001",
             content: {
                 parts: [{ text }]
             }

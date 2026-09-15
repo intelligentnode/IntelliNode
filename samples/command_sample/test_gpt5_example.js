@@ -1,8 +1,8 @@
 /**
- * ChatGPT-5 Example
+ * ChatGPT-5.5 Example
  * 
  * This example demonstrates how to use ChatGPT-5 with IntelliNode.
- * GPT-5 is now the default model with advanced reasoning capabilities.
+ * GPT-5.5 is the default model with advanced reasoning capabilities.
  * 
  * Prerequisites:
  * - Set OPENAI_API_KEY in .env file
@@ -26,16 +26,16 @@ if (!apiKey) {
 const bot = new Chatbot(apiKey, SupportedChatModels.OPENAI);
 
 // ============================================
-// Example 1: Default GPT-5 with Medium Effort
+// Example 1: Default GPT-5.5 with Low Effort
 // ============================================
 async function exampleDefaultGPT5() {
   try {
-    console.log('\n=== Example 1: Default GPT-5 (Medium Effort) ===\n');
+    console.log('\n=== Example 1: Default GPT-5.5 (Low Effort) ===\n');
     
     const input = new ChatGPTInput('You are a helpful assistant.');
     input.addUserMessage('What is the capital of France?');
     
-    console.log('Sending request to ChatGPT-5 (default)...');
+    console.log('Sending request to GPT-5.5 (default)...');
     const responses = await bot.chat(input);
     
     console.log('\n📝 Response:');
@@ -47,19 +47,19 @@ async function exampleDefaultGPT5() {
 }
 
 // ============================================
-// Example 2: Minimal Reasoning Effort (Fast)
+// Example 2: No Reasoning Effort (Fastest)
 // ============================================
 async function exampleMinimalEffort() {
   try {
-    console.log('\n=== Example 2: GPT-5 with Minimal Effort ===\n');
+    console.log('\n=== Example 2: GPT-5.5 with No Reasoning Effort ===\n');
     
     const input = new ChatGPTInput('You are a helpful assistant.', {
-      model: 'gpt-5',
-      effort: 'minimal'
+      model: 'gpt-5.5',
+      effort: 'none'
     });
     input.addUserMessage('What is 5 times 7?');
     
-    console.log('Sending request with minimal reasoning effort (fastest)...');
+    console.log('Sending request with no reasoning effort (fastest)...');
     const responses = await bot.chat(input);
     
     console.log('\n📝 Response:');
@@ -75,10 +75,10 @@ async function exampleMinimalEffort() {
 // ============================================
 async function exampleHighEffort() {
   try {
-    console.log('\n=== Example 3: GPT-5 with High Effort ===\n');
+    console.log('\n=== Example 3: GPT-5.5 with High Effort ===\n');
     
     const input = new ChatGPTInput('You are a helpful assistant.', {
-      model: 'gpt-5',
+      model: 'gpt-5.5',
       effort: 'high'
     });
     input.addUserMessage('Explain quantum computing in simple terms.');
@@ -125,7 +125,7 @@ async function exampleConversation() {
     console.log('\n=== Example 5: Multi-turn Conversation ===\n');
     
     const input = new ChatGPTInput('You are a helpful assistant.', {
-      model: 'gpt-5',
+      model: 'gpt-5.5',
       effort: 'medium'
     });
     
@@ -133,7 +133,7 @@ async function exampleConversation() {
     input.addAssistantMessage('The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones: 0, 1, 1, 2, 3, 5, 8, 13...');
     input.addUserMessage('Can you give me the first 10 numbers?');
     
-    console.log('Sending multi-turn conversation to ChatGPT-5...');
+    console.log('Sending multi-turn conversation to GPT-5.5...');
     const responses = await bot.chat(input);
     
     console.log('\n📝 Response:');
@@ -149,7 +149,7 @@ async function exampleConversation() {
 // ============================================
 (async () => {
   console.log('╔════════════════════════════════════════════════════╗');
-  console.log('║          ChatGPT-5 Examples with IntelliNode       ║');
+  console.log('║         GPT-5.5 Examples with IntelliNode          ║');
   console.log('╚════════════════════════════════════════════════════╝');
 
   try {

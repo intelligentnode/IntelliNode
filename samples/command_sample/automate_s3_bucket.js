@@ -11,7 +11,8 @@ const bot = new Chatbot(openApikey);
 const s3client = new S3Client();
 
 // initial variables
-const gpt_model = "gpt-3.5-turbo-0613"
+// legacy functions with role "function" history messages need a chat-completions model
+const gpt_model = "gpt-4.1"
 
 // define the functions details
 const functions_desc = [

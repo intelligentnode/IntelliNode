@@ -15,7 +15,14 @@
       "audiospeech": "/v1/audio/speech",
       "files": "/v1/files",
       "finetuning": "/v1/fine_tuning/jobs",
-      "organization": null
+      "organization": null,
+      "models": {
+        "chat": "gpt-5.5",
+        "completion": "gpt-3.5-turbo-instruct",
+        "image": "gpt-image-2",
+        "embed": "text-embedding-3-small",
+        "speech": "gpt-4o-mini-tts"
+      }
     },
     "azure_openai": {
       "base": "https://{resource-name}.openai.azure.com/openai",
@@ -32,8 +39,13 @@
     "cohere": {
       "base": "https://api.cohere.ai",
       "completions": "/generate",
+      "chat": "/chat",
       "embed": "/v1/embed",
-      "version": "2022-12-06"
+      "version": "2022-12-06",
+      "models": {
+        "chat": "command-a-03-2025",
+        "embed": "embed-v4.0"
+      }
     },
     "google": {
       "base": "https://{1}.googleapis.com/v1/",
@@ -67,26 +79,45 @@
     "mistral": {
       "base": "https://api.mistral.ai",
       "completions": "/v1/chat/completions",
-      "embed": "/v1/embeddings"
+      "embed": "/v1/embeddings",
+      "models": {
+        "chat": "mistral-medium-latest",
+        "embed": "mistral-embed"
+      }
     },
     "gemini": {
       "base": "https://generativelanguage.googleapis.com/v1beta/models/",
-      "contentEndpoint": "gemini-pro:generateContent",
-      "visionEndpoint": "gemini-pro-vision:generateContent",
-      "embeddingEndpoint": "embedding-001:embedContent",
-      "batchEmbeddingEndpoint": "embedding-001:batchEmbedContents"
+      "generateContent": ":generateContent",
+      "embedContent": ":embedContent",
+      "batchEmbedContents": ":batchEmbedContents",
+      "models": {
+        "chat": "gemini-3.6-flash",
+        "vision": "gemini-3.6-flash",
+        "embed": "gemini-embedding-001"
+      }
     },
     "anthropic": {
       "base": "https://api.anthropic.com",
       "messages": "/v1/messages",
-      "version": "2023-06-01"
+      "version": "2023-06-01",
+      "models": {
+        "chat": "claude-sonnet-5",
+        "sonnet": "claude-sonnet-5",
+        "opus": "claude-opus-5",
+        "haiku": "claude-haiku-4-5"
+      }
     }
   },
   "nvidia": {
     "base": "https://integrate.api.nvidia.com",
     "chat": "/v1/chat/completions",
+    "embeddings": "/v1/embeddings",
     "retrieval": "/v1/retrieval",
-    "version": "v1"
+    "version": "v1",
+    "models": {
+      "chat": "deepseek-ai/deepseek-v4-flash-0731",
+      "embed": "nvidia/llama-3.2-nv-embedqa-1b-v1"
+    }
   },
   "models": {
     "replicate": {

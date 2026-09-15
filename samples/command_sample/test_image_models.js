@@ -26,8 +26,8 @@ async function generateImages(apiKey, provider, imageInput) {
   const stabilityImageInput = new ImageModelInput({
     prompt: prompt,
     numberOfImages: 1,
-    width: 512,
-    height: 512
+    width: 1024,
+    height: 1024
   });
 
   await generateImages(stabilityKey, SupportedImageModels.STABILITY, stabilityImageInput);

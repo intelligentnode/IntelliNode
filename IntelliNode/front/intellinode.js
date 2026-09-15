@@ -16,7 +16,14 @@ module.exports={
       "audiospeech": "/v1/audio/speech",
       "files": "/v1/files",
       "finetuning": "/v1/fine_tuning/jobs",
-      "organization": null
+      "organization": null,
+      "models": {
+        "chat": "gpt-5.5",
+        "completion": "gpt-3.5-turbo-instruct",
+        "image": "gpt-image-2",
+        "embed": "text-embedding-3-small",
+        "speech": "gpt-4o-mini-tts"
+      }
     },
     "azure_openai": {
       "base": "https://{resource-name}.openai.azure.com/openai",
@@ -33,8 +40,13 @@ module.exports={
     "cohere": {
       "base": "https://api.cohere.ai",
       "completions": "/generate",
+      "chat": "/chat",
       "embed": "/v1/embed",
-      "version": "2022-12-06"
+      "version": "2022-12-06",
+      "models": {
+        "chat": "command-a-03-2025",
+        "embed": "embed-v4.0"
+      }
     },
     "google": {
       "base": "https://{1}.googleapis.com/v1/",
@@ -68,26 +80,45 @@ module.exports={
     "mistral": {
       "base": "https://api.mistral.ai",
       "completions": "/v1/chat/completions",
-      "embed": "/v1/embeddings"
+      "embed": "/v1/embeddings",
+      "models": {
+        "chat": "mistral-medium-latest",
+        "embed": "mistral-embed"
+      }
     },
     "gemini": {
       "base": "https://generativelanguage.googleapis.com/v1beta/models/",
-      "contentEndpoint": "gemini-pro:generateContent",
-      "visionEndpoint": "gemini-pro-vision:generateContent",
-      "embeddingEndpoint": "embedding-001:embedContent",
-      "batchEmbeddingEndpoint": "embedding-001:batchEmbedContents"
+      "generateContent": ":generateContent",
+      "embedContent": ":embedContent",
+      "batchEmbedContents": ":batchEmbedContents",
+      "models": {
+        "chat": "gemini-3.6-flash",
+        "vision": "gemini-3.6-flash",
+        "embed": "gemini-embedding-001"
+      }
     },
     "anthropic": {
       "base": "https://api.anthropic.com",
       "messages": "/v1/messages",
-      "version": "2023-06-01"
+      "version": "2023-06-01",
+      "models": {
+        "chat": "claude-sonnet-5",
+        "sonnet": "claude-sonnet-5",
+        "opus": "claude-opus-5",
+        "haiku": "claude-haiku-4-5"
+      }
     }
   },
   "nvidia": {
     "base": "https://integrate.api.nvidia.com",
     "chat": "/v1/chat/completions",
+    "embeddings": "/v1/embeddings",
     "retrieval": "/v1/retrieval",
-    "version": "v1"
+    "version": "v1",
+    "models": {
+      "chat": "deepseek-ai/deepseek-v4-flash-0731",
+      "embed": "nvidia/llama-3.2-nv-embedqa-1b-v1"
+    }
   },
   "models": {
     "replicate": {
@@ -117,6 +148,7 @@ const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const EmbedInput = require('../model/input/EmbedInput');
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
+const NvidiaWrapper = require('../wrappers/NvidiaWrapper');
 
 const SupportedEmbedModels = {
   OPENAI: 'openai',
@@ -243,7 +275,7 @@ class RemoteEmbedModel {
       return await this.geminiWrapper.getEmbeddings(inputs);
     } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
       const result = await this.nvidiaWrapper.generateRetrieval(inputs);
-      return Array.isArray(result) ? result : [];
+      return Array.isArray(result) ? result : (result.data || []);
     } else if (this.keyType === SupportedEmbedModels.VLLM) {
       const results = await this.vllmWrapper.getEmbeddings(inputs.texts);
       return results.embeddings.map((embedding, index) => ({
@@ -261,7 +293,7 @@ module.exports = {
   RemoteEmbedModel,
   SupportedEmbedModels,
 };
-},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":43,"../wrappers/GeminiAIWrapper":44,"../wrappers/OpenAIWrapper":50,"../wrappers/ReplicateWrapper":51,"../wrappers/VLLMWrapper":53}],3:[function(require,module,exports){
+},{"../model/input/EmbedInput":14,"../wrappers/CohereAIWrapper":45,"../wrappers/GeminiAIWrapper":46,"../wrappers/NvidiaWrapper":51,"../wrappers/OpenAIWrapper":52,"../wrappers/ReplicateWrapper":53,"../wrappers/VLLMWrapper":55}],3:[function(require,module,exports){
 /*
 Apache License
 
@@ -347,7 +379,7 @@ module.exports = {
     SupportedFineTuneModels,
 };
 
-},{"../model/input/FineTuneInput":15,"../wrappers/OpenAIWrapper":50}],4:[function(require,module,exports){
+},{"../model/input/FineTuneInput":15,"../wrappers/OpenAIWrapper":52}],4:[function(require,module,exports){
 /*
 Apache License
 
@@ -408,7 +440,9 @@ class RemoteImageModel {
         throw new Error("The keyType is not supported");
       }
     } else if (typeof imageInput === "object") {
-      inputs = imageInput;
+      inputs = this.keyType === SupportedImageModels.OPENAI
+        ? ImageModelInput.normalizeOpenAIParams(imageInput)
+        : imageInput;
     } else {
       throw new Error(
         "Invalid input: Must be an instance of ImageModelInput or a dictionary"
@@ -446,7 +480,7 @@ module.exports = {
   RemoteImageModel,
   SupportedImageModels,
 };
-},{"../model/input/ImageModelInput":17,"../wrappers/OpenAIWrapper":50,"../wrappers/StabilityAIWrapper":52}],5:[function(require,module,exports){
+},{"../model/input/ImageModelInput":17,"../wrappers/OpenAIWrapper":52,"../wrappers/StabilityAIWrapper":54}],5:[function(require,module,exports){
 /*
 Apache License
 
@@ -457,6 +491,7 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const LanguageModelInput = require('../model/input/LanguageModelInput');
+const config = require('../config.json');
 
 const SupportedLangModels = {
   OPENAI: 'openai',
@@ -517,8 +552,20 @@ class RemoteLanguageModel {
       const results = await this.openaiWrapper.generateText(inputs);
       return results.choices.map((choice) => choice.text);
     } else if (this.keyType === SupportedLangModels.COHERE) {
-      const results = await this.cohereWrapper.generateText(inputs);
-      return results.generations.map((generation) => generation.text);
+      // Cohere removed the Generate API, so completions are served through the Chat API.
+      const chatParams = {
+        model: inputs.model || config.url.cohere.models.chat,
+        message: inputs.prompt,
+        ...(inputs.temperature != null && { temperature: inputs.temperature }),
+        ...(inputs.max_tokens != null && { max_tokens: inputs.max_tokens }),
+      };
+      const results = [];
+      const generations = Math.max(1, inputs.num_generations || 1);
+      for (let i = 0; i < generations; i++) {
+        const response = await this.cohereWrapper.generateChatText(chatParams);
+        results.push(response.text);
+      }
+      return results;
     } else {
       throw new Error('The keyType is not supported');
     }
@@ -529,7 +576,7 @@ module.exports = {
   RemoteLanguageModel,
   SupportedLangModels,
 };
-},{"../model/input/LanguageModelInput":18,"../wrappers/CohereAIWrapper":43,"../wrappers/OpenAIWrapper":50}],6:[function(require,module,exports){
+},{"../config.json":1,"../model/input/LanguageModelInput":18,"../wrappers/CohereAIWrapper":45,"../wrappers/OpenAIWrapper":52}],6:[function(require,module,exports){
 /*
 Apache License
 
@@ -616,7 +663,7 @@ module.exports = {
   SupportedSpeechModels,
 };
 
-},{"../model/input/Text2SpeechInput":19,"../wrappers/GoogleAIWrapper":45,"../wrappers/OpenAIWrapper":50}],7:[function(require,module,exports){
+},{"../model/input/Text2SpeechInput":19,"../wrappers/GoogleAIWrapper":47,"../wrappers/OpenAIWrapper":52}],7:[function(require,module,exports){
 /*
 Apache License
 
@@ -627,7 +674,13 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('../wrappers/AWSEndpointWrapper');
-const { GPTStreamParser, CohereStreamParser, VLLMStreamParser } = require('../utils/StreamParser');
+const {
+    GPTStreamParser,
+    CohereStreamParser,
+    VLLMStreamParser,
+    AnthropicStreamParser,
+    readStreamChunks
+} = require('../utils/StreamParser');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const IntellicloudWrapper = require("../wrappers/IntellicloudWrapper");
 const MistralAIWrapper = require('../wrappers/MistralAIWrapper');
@@ -636,6 +689,13 @@ const AnthropicWrapper = require('../wrappers/AnthropicWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
+const {
+    isReasoningModel,
+    functionsToTools,
+    functionCallToToolChoice,
+    toResponsesTools,
+    toResponsesToolChoice
+} = require('../utils/ModelHelper');
 
 const {
     ChatGPTInput,
@@ -774,6 +834,10 @@ class Chatbot {
 
         if (this.provider === SupportedChatModels.OPENAI) {
             yield* this._chatGPTStream(modelInput);
+        } else if (this.provider === SupportedChatModels.ANTHROPIC) {
+            yield* this._streamAnthropic(modelInput);
+        } else if (this.provider === SupportedChatModels.MISTRAL) {
+            yield* this._streamMistral(modelInput);
         } else if (this.provider === SupportedChatModels.COHERE) {
             yield* this._streamCohere(modelInput)
         } else if (this.provider === SupportedChatModels.NVIDIA) {
@@ -781,7 +845,7 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.VLLM) {
             yield* this._streamVLLM(modelInput);
         } else {
-            throw new Error("The stream function support only chatGPT, for other providers use chat function.");
+            throw new Error("The stream function supports openai, anthropic, mistral, cohere, nvidia and vllm; for other providers use the chat function.");
         }
     }
 
@@ -816,8 +880,7 @@ class Chatbot {
       const streamParser = new VLLMStreamParser();
 
       // Process the streaming response
-      for await (const chunk of stream) {
-        const chunkText = chunk.toString('utf8');
+      for await (const chunkText of readStreamChunks(stream)) {
         yield* streamParser.feed(chunkText);
       }
     }
@@ -921,35 +984,33 @@ class Chatbot {
       }
     }
 
+    // gpt-5+ inputs go to the Responses API; plain request objects are routed by their shape.
+    _isResponsesRequest(modelInput, params) {
+        if (modelInput instanceof ChatModelInput) {
+            return isReasoningModel(modelInput.model);
+        }
+        return params.input !== undefined && params.messages === undefined;
+    }
+
     async *_chatGPTStream(modelInput) {
         let params;
 
         if (modelInput instanceof ChatModelInput) {
             params = modelInput.getChatInput();
-            params.stream = true;
         } else if (typeof modelInput === "object") {
-            params = modelInput;
-            params.stream = true;
+            params = { ...modelInput };
         } else {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
+        params.stream = true;
 
-        // Check if this is GPT-5
-        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
-        
-        if (isGPT5) {
-            // GPT-5 doesn't support streaming in the same way
-            // For now, throw an error or handle as non-streaming
-            throw new Error("GPT-5 streaming is not yet supported. Please use the chat() method instead.");
-        }
+        const stream = this._isResponsesRequest(modelInput, params)
+            ? await this.openaiWrapper.generateGPT5Response(params)
+            : await this.openaiWrapper.generateChatText(params);
 
+        // the parser understands both chat completions and Responses API events
         const streamParser = new GPTStreamParser();
-
-        const stream = await this.openaiWrapper.generateChatText(params);
-
-        // Collect data from the stream
-        for await (const chunk of stream) {
-            const chunkText = chunk.toString('utf8');
+        for await (const chunkText of readStreamChunks(stream)) {
             yield* streamParser.feed(chunkText);
         }
     }
@@ -966,42 +1027,80 @@ class Chatbot {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
 
-        // Check if this is GPT-5
-        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
-        
-        if (isGPT5) {
-            // GPT-5 uses different endpoint and response format
+        if (this._isResponsesRequest(modelInput, params)) {
+            const legacyFunctions = functions != null;
+            if (legacyFunctions) {
+                // the Responses API has no `functions` field, so send them as tools
+                params = {
+                    ...params,
+                    tools: [...(params.tools || []), ...toResponsesTools(functionsToTools(functions))],
+                    ...(function_call != null && { tool_choice: toResponsesToolChoice(functionCallToToolChoice(function_call)) }),
+                };
+            }
             const results = await this.openaiWrapper.generateGPT5Response(params);
-            // GPT-5 response format: { output: [ {type: 'reasoning'}, {type: 'message', content: [...]} ] }
-            if (results.output && Array.isArray(results.output)) {
-                // Extract text from the message content
-                const messageObjects = results.output.filter(item => item.type === 'message');
-                const responses = messageObjects.map(msg => {
-                    if (msg.content && Array.isArray(msg.content)) {
-                        return msg.content.map(c => c.text || c).join('');
-                    }
-                    return msg.content || '';
-                });
-                return responses.length > 0 ? responses : [''];
-            } else if (results.choices && results.choices.length > 0) {
-                // Fallback to choices format if available
+            return this._parseResponsesOutput(results, legacyFunctions);
+        }
+
+        const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
+        return this._parseChatChoices(results);
+    }
+
+    // Chat-completions choices: text, or { content, function_call } / { content, tool_calls }.
+    _parseChatChoices(results) {
+        return (results.choices || []).map((choice) => {
+            const message = choice.message || {};
+            if (message.function_call) {
+                return {
+                    content: message.content,
+                    function_call: message.function_call
+                };
+            }
+            if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+                return {
+                    content: message.content,
+                    tool_calls: message.tool_calls
+                };
+            }
+            return message.content;
+        });
+    }
+
+    // Responses API output: { output: [ {type: 'reasoning'}, {type: 'message', content: [...]}, {type: 'function_call'} ] }
+    _parseResponsesOutput(results, legacyFunctions = false) {
+        if (!Array.isArray(results.output)) {
+            if (results.choices && results.choices.length > 0) {
                 return results.choices.map(choice => choice.output || choice.text || choice.message?.content);
             }
             return [''];
-        } else {
-            // Standard chat completion for GPT-4 and others
-            const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
-            return results.choices.map((choice) => {
-                if (choice.finish_reason === 'function_call' && choice.message.function_call) {
-                    return {
-                        content: choice.message.content,
-                        function_call: choice.message.function_call
-                    };
-                } else {
-                    return choice.message.content;
-                }
-            });
         }
+
+        const texts = [];
+        const toolCalls = [];
+        for (const item of results.output) {
+            if (item.type === 'message') {
+                const content = Array.isArray(item.content)
+                    ? item.content.map((part) => part.text ?? part.refusal ?? '').join('')
+                    : (item.content || '');
+                texts.push(content);
+            } else if (item.type === 'function_call') {
+                toolCalls.push({
+                    id: item.call_id || item.id,
+                    type: 'function',
+                    function: { name: item.name, arguments: item.arguments }
+                });
+            }
+        }
+
+        if (toolCalls.length > 0) {
+            const content = texts.join('') || null;
+            if (legacyFunctions) {
+                return toolCalls.map((call) => ({ content, function_call: call.function }));
+            }
+            return [{ content, tool_calls: toolCalls }];
+        }
+
+        // an incomplete response (e.g. max_output_tokens spent on reasoning) keeps returning ['']
+        return texts.length > 0 ? texts : [''];
     }
 
     async _chatReplicateLLama(modelInput, debugMode) {
@@ -1095,84 +1194,126 @@ class Chatbot {
 
         if (modelInput instanceof CohereInput) {
             params = modelInput.getChatInput();
-            params.stream = true;
         } else if (typeof modelInput === "object") {
-            params = modelInput;
-            params.stream = true;
+            params = { ...modelInput };
         } else {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
+        params.stream = true;
 
         const streamParser = new CohereStreamParser();
 
         const stream = await this.cohereWrapper.generateChatText(params);
 
-        // Collect data from the stream
-        for await (const chunk of stream) {
-            const chunkText = chunk.toString('utf8');
+        for await (const chunkText of readStreamChunks(stream)) {
             yield* streamParser.feed(chunkText);
         }
     }
 
-    async _chatMistral(modelInput) {
-        let params;
-
-        if (modelInput instanceof MistralInput) {
-            params = modelInput.getChatInput();
-        } if (modelInput instanceof ChatGPTInput) {
-            params = modelInput.getChatInput();
+    _getMistralParams(modelInput) {
+        if (modelInput instanceof MistralInput || modelInput instanceof ChatGPTInput) {
+            return modelInput.getChatInput();
         } else if (typeof modelInput === "object") {
-            params = modelInput;
-        } else {
-            throw new Error("Invalid input: Must be an instance of MistralInput or an object");
+            return { ...modelInput };
         }
+        throw new Error("Invalid input: Must be an instance of MistralInput or an object");
+    }
+
+    async _chatMistral(modelInput) {
+        const params = this._getMistralParams(modelInput);
 
         const results = await this.mistralWrapper.generateText(params);
 
-        return results.choices.map(choice => choice.message.content);
+        return this._parseChatChoices(results);
+    }
+
+    async *_streamMistral(modelInput) {
+        const params = this._getMistralParams(modelInput);
+        params.stream = true;
+
+        const streamParser = new GPTStreamParser();
+        const stream = await this.mistralWrapper.generateText(params);
+
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
+        }
     }
 
     async _chatGemini(modelInput) {
         let params;
+        let model = null;
 
         if (modelInput instanceof GeminiInput) {
             params = modelInput.getChatInput();
+            model = modelInput.model;
         } else if (typeof modelInput === "object") {
+            // an optional `model` key selects the model; the wrapper removes it from the body
             params = modelInput;
         } else {
             throw new Error("Invalid input: Must be an instance of GeminiInput");
         }
 
         // call Gemini
-        const result = await this.geminiWrapper.generateContent(params);
+        const result = await this.geminiWrapper.generateContent(params, false, model);
 
         if (!Array.isArray(result.candidates) || result.candidates.length === 0) {
-            throw new Error("Invalid response from Gemini API: Expected 'candidates' array with content");
+            const feedback = result.promptFeedback ? ` Prompt feedback: ${JSON.stringify(result.promptFeedback)}` : '';
+            throw new Error(`Invalid response from Gemini API: Expected 'candidates' array with content.${feedback}`);
         }
 
-        // iterate over all the candidates
-        const responses = result.candidates.map(candidate => {
-            // combine text from all parts
-            return candidate.content.parts
+        // a candidate can have no parts, e.g. when thinking used the whole output budget
+        return result.candidates.map(candidate => {
+            const parts = (candidate.content && candidate.content.parts) || [];
+            return parts
+                .filter(part => typeof part.text === 'string' && !part.thought)
                 .map(part => part.text)
-                .join(' ');
+                .join('');
         });
+    }
 
-        return responses;
+    _getAnthropicParams(modelInput) {
+        if (modelInput instanceof AnthropicInput) {
+            return modelInput.getChatInput();
+        } else if (modelInput && typeof modelInput === "object" && !(modelInput instanceof ChatModelInput)) {
+            return { ...modelInput };
+        }
+        throw new Error("Invalid input: Must be an instance of AnthropicInput or a Messages API object");
     }
 
     async _chatAnthropic(modelInput) {
-        let params;
-    
-        if (modelInput instanceof AnthropicInput) {
-            params = modelInput.getChatInput();
-        } else {
-            throw new Error("Invalid input: Must be an instance of AnthropicInput");
-        }
-    
+        const params = this._getAnthropicParams(modelInput);
+
         const results = await this.anthropicWrapper.generateText(params);
-        
-        return results.content.map(choice => choice.text);
+
+        // Claude 5 models can return thinking blocks before the answer; keep the text blocks only
+        const blocks = Array.isArray(results.content) ? results.content : [];
+        const texts = blocks.filter(block => block.type === 'text').map(block => block.text);
+        const toolUses = blocks.filter(block => block.type === 'tool_use');
+
+        if (toolUses.length > 0) {
+            return [{
+                content: texts.join('') || null,
+                tool_calls: toolUses.map(block => ({
+                    id: block.id,
+                    type: 'function',
+                    function: { name: block.name, arguments: JSON.stringify(block.input || {}) }
+                }))
+            }];
+        }
+
+        // e.g. max_tokens spent on thinking: keep the string array shape
+        return texts.length > 0 ? texts : [''];
+    }
+
+    async *_streamAnthropic(modelInput) {
+        const params = this._getAnthropicParams(modelInput);
+
+        const streamParser = new AnthropicStreamParser();
+        const stream = await this.anthropicWrapper.streamText(params);
+
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
+        }
     }
 
     async _chatNvidia(modelInput) {
@@ -1183,28 +1324,13 @@ class Chatbot {
     }
 
     async *_streamNvidia(modelInput) {
-        let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
+        let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : { ...modelInput };
         params.stream = true;
         const stream = await this.nvidiaWrapper.generateTextStream(params);
-        let buffer = '';
-        for await (const chunk of stream) {
-          const lines = chunk.toString('utf8').split('\n');
-          for (let line of lines) {
-            line = line.trim();
-            if (!line) continue;
-            if (line.startsWith('data: [DONE]')) {
-              yield buffer;
-              return;
-            }
-            if (line.startsWith('data: ')) {
-              try {
-                let parsed = JSON.parse(line.replace('data: ', ''));
-                let content = parsed.choices?.[0]?.delta?.content || '';
-                buffer += content;
-                yield content;
-              } catch(e) {}
-            }
-          }
+
+        const streamParser = new GPTStreamParser();
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
         }
     }
 
@@ -1214,7 +1340,8 @@ module.exports = {
     Chatbot,
     SupportedChatModels,
 };
-},{"../model/input/ChatModelInput":13,"../utils/StreamParser":39,"../utils/SystemHelper":40,"../wrappers/AWSEndpointWrapper":41,"../wrappers/AnthropicWrapper":42,"../wrappers/CohereAIWrapper":43,"../wrappers/GeminiAIWrapper":44,"../wrappers/IntellicloudWrapper":47,"../wrappers/MistralAIWrapper":48,"../wrappers/NvidiaWrapper":49,"../wrappers/OpenAIWrapper":50,"../wrappers/ReplicateWrapper":51,"../wrappers/VLLMWrapper":53}],8:[function(require,module,exports){
+
+},{"../model/input/ChatModelInput":13,"../utils/ModelHelper":38,"../utils/StreamParser":41,"../utils/SystemHelper":42,"../wrappers/AWSEndpointWrapper":43,"../wrappers/AnthropicWrapper":44,"../wrappers/CohereAIWrapper":45,"../wrappers/GeminiAIWrapper":46,"../wrappers/IntellicloudWrapper":49,"../wrappers/MistralAIWrapper":50,"../wrappers/NvidiaWrapper":51,"../wrappers/OpenAIWrapper":52,"../wrappers/ReplicateWrapper":53,"../wrappers/VLLMWrapper":55}],8:[function(require,module,exports){
 (function (Buffer){(function (){
 // Gen.js
 const { RemoteLanguageModel } = require("../controller/RemoteLanguageModel");
@@ -1230,6 +1357,18 @@ const SystemHelper = require("../utils/SystemHelper");
 const Prompt = require("../utils/Prompt");
 const FileHelper = require("../utils/FileHelper");
 const path = require('path');
+const config = require('../config.json');
+const { isReasoningModel } = require('../utils/ModelHelper');
+
+const DEFAULT_OPENAI_MODEL = config.url.openai.models.chat;
+
+// Reasoning models (gpt-5+) spend output tokens on thinking, so only cap older chat models.
+function openaiInputOptions(model, maxTokens, temperature = null) {
+  if (isReasoningModel(model)) {
+    return { model };
+  }
+  return { model, maxTokens, ...(temperature !== null && { temperature }) };
+}
 
 function stripThinking(text) {
   /** emove any <think>...</think> block from NVIDIA responses. */
@@ -1241,7 +1380,7 @@ class Gen {
   static async get_marketing_desc(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     if (provider === SupportedLangModels.OPENAI) {
       const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      const input = new ChatGPTInput("generate marketing description", { maxTokens: 800 });
+      const input = new ChatGPTInput("generate marketing description", openaiInputOptions(DEFAULT_OPENAI_MODEL, 800));
       input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
       const responses = await chatbot.chat(input);
       return responses[0].trim();
@@ -1253,7 +1392,7 @@ class Gen {
       return responses[0].trim();
     } else if (provider === SupportedChatModels.NVIDIA) {
       const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      const input = new NvidiaInput("generate marketing description", { maxTokens: 800, model: 'deepseek-ai/deepseek-r1', temperature: 0.6 });
+      const input = new NvidiaInput("generate marketing description", { maxTokens: 800, temperature: 0.6 });
       input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
       const responses = await chatbot.chat(input);
       let text = responses[0].trim();
@@ -1268,7 +1407,7 @@ class Gen {
   static async get_blog_post(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     if (provider === SupportedLangModels.OPENAI) {
       const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      const input = new ChatGPTInput("generate blog post", { maxTokens: 1200 });
+      const input = new ChatGPTInput("generate blog post", openaiInputOptions(DEFAULT_OPENAI_MODEL, 1200));
       input.addUserMessage(`Write a blog post about ${promptString}`);
       const responses = await chatbot.chat(input);
       return responses[0].trim();
@@ -1280,7 +1419,7 @@ class Gen {
       return responses[0].trim();
     } else if (provider === SupportedChatModels.NVIDIA) {
       const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      const input = new NvidiaInput("generate blog post", { maxTokens: 1200, model: 'deepseek-ai/deepseek-r1', temperature: 0.6 });
+      const input = new NvidiaInput("generate blog post", { maxTokens: 1200, temperature: 0.6 });
       input.addUserMessage(`Write a blog post about ${promptString}`);
       const responses = await chatbot.chat(input);
       let text = responses[0].trim();
@@ -1325,7 +1464,7 @@ class Gen {
   }
 
   // Generate HTML page
-  static async generate_html_page(text, apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async generate_html_page(text, apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     const template = new SystemHelper().loadPrompt("html_page");
     const promptTemp = new Prompt(template);
     let tokenSize = 8000;
@@ -1342,11 +1481,11 @@ class Gen {
     if (provider === SupportedLangModels.OPENAI) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
       input = new ChatGPTInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
-        { maxTokens: tokenSize, model: model_name, temperature: 0.8 });
+        openaiInputOptions(model_name, tokenSize, 0.8));
     } else if (provider === SupportedChatModels.NVIDIA) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
       input = new NvidiaInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
-        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.8 });
+        { maxTokens: tokenSize, temperature: 0.8 });
     } else {
       throw new Error("Unsupported provider for generate_html_page.");
     }
@@ -1363,7 +1502,7 @@ class Gen {
   }
 
   // Save HTML page (calls generate_html_page)
-  static async save_html_page(text, folder, file_name, apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async save_html_page(text, folder, file_name, apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     const htmlCode = await Gen.generate_html_page(text, apiKey, model_name, provider, customProxyHelper);
     const folderPath = path.join(folder, file_name + '.html');
     FileHelper.writeDataToFile(folderPath, htmlCode['html']);
@@ -1371,7 +1510,7 @@ class Gen {
   }
 
   // Generate dashboard
-  static async generate_dashboard(csvStrData, topic, apiKey, model_name = 'gpt-4o', num_graphs = 1, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async generate_dashboard(csvStrData, topic, apiKey, model_name = DEFAULT_OPENAI_MODEL, num_graphs = 1, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     if (num_graphs < 1 || num_graphs > 4) {
       throw new Error('num_graphs must be between 1 and 4.');
     }
@@ -1391,11 +1530,11 @@ class Gen {
     if (provider === SupportedLangModels.OPENAI) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
       input = new ChatGPTInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
-        { maxTokens: tokenSize, model: model_name, temperature: 0.3 });
+        openaiInputOptions(model_name, tokenSize, 0.3));
     } else if (provider === SupportedChatModels.NVIDIA) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
       input = new NvidiaInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
-        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.3 });
+        { maxTokens: tokenSize, temperature: 0.3 });
     } else {
       throw new Error("Unsupported provider for generate_dashboard.");
     }
@@ -1412,7 +1551,7 @@ class Gen {
   }
 
   // Instruct update
-  static async instructUpdate(modelOutput, userInstruction, type = '', apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async instructUpdate(modelOutput, userInstruction, type = '', apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     const template = new SystemHelper().loadPrompt("instruct_update");
     const promptTemp = new Prompt(template);
     let tokenSize = 2000;
@@ -1423,11 +1562,11 @@ class Gen {
     if (provider === SupportedLangModels.OPENAI) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
       input = new ChatGPTInput('Update the model message based on user feedback while maintaining format.',
-        { maxTokens: tokenSize, model: model_name, temperature: 0.2 });
+        openaiInputOptions(model_name, tokenSize, 0.2));
     } else if (provider === SupportedChatModels.NVIDIA) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
       input = new NvidiaInput('Update the model message based on user feedback while maintaining format.',
-        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.2 });
+        { maxTokens: tokenSize, temperature: 0.2 });
     } else {
       throw new Error("Unsupported provider for instructUpdate.");
     }
@@ -1444,7 +1583,7 @@ class Gen {
 module.exports = { Gen };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/ImageModelInput":17,"../model/input/LanguageModelInput":18,"../model/input/Text2SpeechInput":19,"../utils/FileHelper":32,"../utils/Prompt":37,"../utils/SystemHelper":40,"buffer":22,"path":26}],9:[function(require,module,exports){
+},{"../config.json":1,"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/ImageModelInput":17,"../model/input/LanguageModelInput":18,"../model/input/Text2SpeechInput":19,"../utils/FileHelper":33,"../utils/ModelHelper":38,"../utils/Prompt":39,"../utils/SystemHelper":42,"buffer":22,"path":26}],9:[function(require,module,exports){
 /*
 Apache License
 
@@ -1526,7 +1665,7 @@ class SemanticSearch {
 
 module.exports = { SemanticSearch };
 
-},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":14,"../utils/MatchHelpers":35}],10:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":14,"../utils/MatchHelpers":36}],10:[function(require,module,exports){
 const { SemanticSearch } = require('./SemanticSearch'); // assuming path
 
 class SemanticSearchPaging extends SemanticSearch {
@@ -1615,13 +1754,15 @@ class TextAnalyzer {
     modelInput.setDefaultModels(this.provider);
     const [sentiment] = await this.remoteLanguageModel.generateText(modelInput);
 
-    const sentiment_output = JSON.parse(sentiment.trim());
+    // chat models can wrap the JSON in a markdown code fence
+    const cleaned = sentiment.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const sentiment_output = JSON.parse(cleaned);
     return sentiment_output;
   }
 }
 
 module.exports = { TextAnalyzer };
-},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":18,"../utils/SystemHelper":40}],12:[function(require,module,exports){
+},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":18,"../utils/SystemHelper":42}],12:[function(require,module,exports){
 // controllers
 const {
   RemoteLanguageModel,
@@ -1697,7 +1838,8 @@ const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
-const { GPTStreamParser, CohereStreamParser, VLLMStreamParser} = require('./utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser, VLLMStreamParser, AnthropicStreamParser } = require('./utils/StreamParser');
+const ModelHelper = require('./utils/ModelHelper');
 const ChatContext = require('./utils/ChatContext');
 const MCPClient = require('./utils/MCPClient');
 
@@ -1759,10 +1901,12 @@ module.exports = {
   VLLMWrapper,
   VLLMInput,
   VLLMStreamParser,
+  AnthropicStreamParser,
+  ModelHelper,
   MCPClient
 };
 
-},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":28,"./utils/ChatContext":29,"./utils/ConnHelper":30,"./utils/LLMEvaluation":33,"./utils/MCPClient":34,"./utils/MatchHelpers":35,"./utils/Prompt":37,"./utils/ProxyHelper":38,"./utils/StreamParser":39,"./utils/SystemHelper":40,"./wrappers/AWSEndpointWrapper":41,"./wrappers/AnthropicWrapper":42,"./wrappers/CohereAIWrapper":43,"./wrappers/GeminiAIWrapper":44,"./wrappers/GoogleAIWrapper":45,"./wrappers/HuggingWrapper":46,"./wrappers/IntellicloudWrapper":47,"./wrappers/MistralAIWrapper":48,"./wrappers/NvidiaWrapper":49,"./wrappers/OpenAIWrapper":50,"./wrappers/ReplicateWrapper":51,"./wrappers/StabilityAIWrapper":52,"./wrappers/VLLMWrapper":53}],13:[function(require,module,exports){
+},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./model/input/ChatModelInput":13,"./model/input/EmbedInput":14,"./model/input/FineTuneInput":15,"./model/input/FunctionModelInput":16,"./model/input/ImageModelInput":17,"./model/input/LanguageModelInput":18,"./model/input/Text2SpeechInput":19,"./utils/AudioHelper":29,"./utils/ChatContext":30,"./utils/ConnHelper":31,"./utils/LLMEvaluation":34,"./utils/MCPClient":35,"./utils/MatchHelpers":36,"./utils/ModelHelper":38,"./utils/Prompt":39,"./utils/ProxyHelper":40,"./utils/StreamParser":41,"./utils/SystemHelper":42,"./wrappers/AWSEndpointWrapper":43,"./wrappers/AnthropicWrapper":44,"./wrappers/CohereAIWrapper":45,"./wrappers/GeminiAIWrapper":46,"./wrappers/GoogleAIWrapper":47,"./wrappers/HuggingWrapper":48,"./wrappers/IntellicloudWrapper":49,"./wrappers/MistralAIWrapper":50,"./wrappers/NvidiaWrapper":51,"./wrappers/OpenAIWrapper":52,"./wrappers/ReplicateWrapper":53,"./wrappers/StabilityAIWrapper":54,"./wrappers/VLLMWrapper":55}],13:[function(require,module,exports){
 /*
 Apache License
 
@@ -1771,6 +1915,21 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 const config = require('../../config.json');
+const {
+  isReasoningModel,
+  isReasoningChatModel,
+  stripRouteOverride,
+  defaultReasoningEffort,
+  claudeRejectsSamplingParams,
+  toChatTools,
+  toResponsesTools,
+  toAnthropicTools,
+  toChatToolChoice,
+  toResponsesToolChoice,
+  toAnthropicToolChoice,
+} = require('../../utils/ModelHelper');
+
+let cohereWebWarningShown = false;
 
 class ChatGPTMessage {
   constructor(content, role, name = null) {
@@ -1795,6 +1954,22 @@ class ChatModelInput {
   }
 }
 
+// Convert chat-completions content parts into the Responses API part types.
+function toResponsesContent(content, role) {
+  if (!Array.isArray(content)) return content;
+  const textType = role === 'assistant' ? 'output_text' : 'input_text';
+  return content.map((part) => {
+    if (!part || typeof part !== 'object') return part;
+    if (part.type === 'text') return { type: textType, text: part.text };
+    if (part.type === 'image_url') {
+      const image = part.image_url;
+      const url = typeof image === 'string' ? image : image && image.url;
+      return { type: 'input_image', image_url: url, ...(image && image.detail && { detail: image.detail }) };
+    }
+    return part;
+  });
+}
+
 class ChatGPTInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super(options);
@@ -1810,11 +1985,18 @@ class ChatGPTInput extends ChatModelInput {
         'The input type should be system to define the chatbot theme or instructions.'
       );
     }
-    this.model = options.model || 'gpt-5';
-    this.temperature = options.temperature || 1;
+    this.model = options.model || config.url.openai.models.chat;
+    this.temperature = options.temperature ?? 1;
     this.maxTokens = options.maxTokens || null;
     this.numberOfOutputs = 1;
-    this.effort = options.effort || 'low'; // GPT-5 reasoning effort: minimal, low, medium, high
+    // gpt-5+ reasoning effort: none, low, medium, high, xhigh (the original gpt-5 also accepts minimal).
+    // Defaults to low, or medium for the *-pro models that reject low.
+    this.effort = options.effort || options.reasoningEffort || defaultReasoningEffort(this.model);
+    // gpt-5+ answer length: low, medium, high.
+    this.verbosity = options.verbosity || null;
+    // Function tools in chat-completions or Responses format; converted for the target endpoint.
+    this.tools = options.tools || null;
+    this.toolChoice = options.toolChoice ?? null;
   }
 
   addMessage(message) {
@@ -1855,6 +2037,11 @@ class ChatGPTInput extends ChatModelInput {
   }
 
   getChatInput() {
+    // gpt-5 and newer use the Responses API (a ":chat" model suffix keeps chat completions).
+    if (isReasoningModel(this.model)) {
+      return this.getResponsesInput();
+    }
+
     const messages = this.messages.map((message) => {
       if (message.name) {
         return {
@@ -1870,34 +2057,37 @@ class ChatGPTInput extends ChatModelInput {
       }
     });
 
-    // Check if this is GPT-5
-    const isGPT5 = this.model && this.model.toLowerCase().includes('gpt-5');
-    
-    if (isGPT5) {
-      // GPT-5 uses different format: input instead of messages
-      // Combine messages into a single input string
-      const input = messages
-        .map(msg => `${msg.role}: ${msg.content}`)
-        .join('\n');
-      
-      const params = {
-        model: this.model,
-        input: input,
-        reasoning: { effort: this.effort },
-        ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
-      };
-      return params;
-    } else {
-      // Standard chat completion format for GPT-4 and others
-      const params = {
-        model: this.model,
-        messages: messages,
-        ...(this.temperature && { temperature: this.temperature }),
-        ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
-        ...(this.maxTokens && { max_tokens: this.maxTokens }),
-      };
-      return params;
-    }
+    // o-series and gpt-5+ on chat completions reject max_tokens and custom temperature.
+    const reasoningChat = isReasoningChatModel(this.model);
+
+    return {
+      model: stripRouteOverride(this.model),
+      messages: messages,
+      ...(!reasoningChat && this.temperature != null && { temperature: this.temperature }),
+      ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
+      ...(this.maxTokens && (reasoningChat ? { max_completion_tokens: this.maxTokens } : { max_tokens: this.maxTokens })),
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+    };
+  }
+
+  // Request body for the Responses API (/v1/responses).
+  getResponsesInput() {
+    // Responses input messages accept role and content only (no name field).
+    const input = this.messages.map((message) => ({
+      role: message.role,
+      content: toResponsesContent(message.content, message.role),
+    }));
+
+    return {
+      model: stripRouteOverride(this.model),
+      input: input,
+      reasoning: { effort: this.effort || defaultReasoningEffort(this.model) },
+      ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
+      ...(this.verbosity && { text: { verbosity: this.verbosity } }),
+      ...(this.tools && { tools: toResponsesTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toResponsesToolChoice(this.toolChoice) }),
+    };
   }
 }
 
@@ -1905,7 +2095,8 @@ class CohereInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
     this.web = options.web || false;
-    this.model = options.model || 'command-r';
+    this.model = options.model || config.url.cohere.models.chat;
+    this.temperature = options.temperature ?? null;
   }
 
   addUserMessage(prompt) {
@@ -1925,6 +2116,11 @@ class CohereInput extends ChatGPTInput {
         throw new Error("At least one message is required for Cohere API");
     }
 
+    if (this.web && !cohereWebWarningShown) {
+        cohereWebWarningShown = true;
+        console.warn("CohereInput: the 'web' option is ignored because Cohere removed connectors from the Chat API.");
+    }
+
     const chatHistory = [];
     const latestMessage = this.messages[this.messages.length - 1];
 
@@ -1941,7 +2137,8 @@ class CohereInput extends ChatGPTInput {
         'model': this.model,
         'message': latestMessage.content,
         'chat_history': chatHistory,
-        ...(this.web && {'connectors': [{id: 'web-search'}]}),
+        ...(this.temperature != null && { 'temperature': this.temperature }),
+        ...(this.maxTokens && { 'max_tokens': this.maxTokens }),
     };
 
     return params;
@@ -1953,8 +2150,8 @@ class MistralInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
     
-    this.model = options.model || 'mistral-medium'; 
-
+    this.model = options.model || config.url.mistral.models.chat;
+    this.temperature = options.temperature ?? null;
   }
 
   getChatInput() {
@@ -1968,6 +2165,10 @@ class MistralInput extends ChatGPTInput {
     const params = {
       model: this.model,
       messages: messages,
+      ...(this.temperature != null && { temperature: this.temperature }),
+      ...(this.maxTokens && { max_tokens: this.maxTokens }),
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
     };
 
     return params;
@@ -1978,8 +2179,11 @@ class GeminiInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super(options);
     this.messages = [];
+    // the bare 'gemini' placeholder from older examples maps to the default model
+    this.model = options.model && options.model !== 'gemini' ? options.model : config.url.gemini.models.chat;
     this.maxOutputTokens = options.maxTokens
     this.temperature = options.temperature
+    this.tools = options.tools || null;
 
     if (systemMessage && typeof systemMessage === 'string') {
       this.addUserMessage(systemMessage);
@@ -2005,13 +2209,15 @@ class GeminiInput extends ChatModelInput {
     this.addModelMessage(text);
   }
 
+  // The model is part of the endpoint URL, so it is not included in the body.
   getChatInput() {
     return {
       contents: this.messages,
       generationConfig: { 
-        ...(this.temperature && { temperature: this.temperature }),
+        ...(this.temperature != null && { temperature: this.temperature }),
         ...(this.maxOutputTokens && { maxOutputTokens: this.maxOutputTokens }),
-      }
+      },
+      ...(this.tools && { tools: this.tools }),
     };
   }
 
@@ -2034,9 +2240,15 @@ class AnthropicInput extends ChatModelInput {
   constructor(system, options = {}) {
       super(options);
       this.system = system;
-      this.model = options.model || 'claude-3-sonnet-20240229'; 
-      this.maxTokens = options.maxTokens  || 800;
-      this.temperature = options.temperature || 1.0;
+      this.model = options.model || config.url.anthropic.models.chat;
+      // Claude 5 models think adaptively and thinking counts toward max_tokens.
+      this.maxTokens = options.maxTokens || 2048;
+      // Sent only when set; Opus 4.7+ and Claude 5 models reject sampling parameters.
+      this.temperature = options.temperature ?? null;
+      // Tools in Anthropic format or OpenAI function format.
+      this.tools = options.tools || null;
+      // 'auto' | 'any' | 'required' | 'none', or an Anthropic tool_choice object.
+      this.toolChoice = options.toolChoice ?? null;
       this.messages = [];
   }
 
@@ -2054,13 +2266,29 @@ class AnthropicInput extends ChatModelInput {
       });
   }
 
+  cleanMessages() {
+      this.messages = [];
+  }
+
+  deleteLastMessage(message) {
+      for (let i = this.messages.length - 1; i >= 0; i--) {
+          if (this.messages[i].role === message.role && this.messages[i].content === message.content) {
+              this.messages.splice(i, 1);
+              return true;
+          }
+      }
+      return false;
+  }
+
   getChatInput() {
       return {
-          system: this.system,
+          ...(this.system && { system: this.system }),
           model: this.model,
           messages: this.messages,
           max_tokens: this.maxTokens,
-          temperature: this.temperature,
+          ...(this.temperature != null && !claudeRejectsSamplingParams(this.model) && { temperature: this.temperature }),
+          ...(this.tools && { tools: toAnthropicTools(this.tools) }),
+          ...(this.toolChoice != null && { tool_choice: toAnthropicToolChoice(this.toolChoice) }),
       };
   }
 }
@@ -2259,12 +2487,12 @@ class NvidiaInput extends ChatModelInput {
     } else {
       this.messages = [];
     }
-    this.model = options.model || 'deepseek-ai/deepseek-r1';
-    this.temperature = options.temperature || 0.7;
+    this.model = options.model || config.nvidia.models.chat;
+    this.temperature = options.temperature ?? 0.7;
     this.maxTokens = options.maxTokens || 1024;
-    this.topP = options.topP || 1.0;
-    this.presencePenalty = options.presencePenalty || 0;
-    this.frequencyPenalty = options.frequencyPenalty || 0;
+    this.topP = options.topP ?? 1.0;
+    this.presencePenalty = options.presencePenalty ?? 0;
+    this.frequencyPenalty = options.frequencyPenalty ?? 0;
     this.stream = options.stream || false;
   }
 
@@ -2308,8 +2536,8 @@ class VLLMInput extends ChatGPTInput {
     super(systemMessage, options);
     this.model = options.model || 'Qwen/Qwen2.5-1.5B-Instruct';
     this.maxTokens = options.maxTokens || 1024;
-    this.temperature = options.temperature || 0.7;
-    this.top_p = options.top_p || 1.0;
+    this.temperature = options.temperature ?? 0.7;
+    this.top_p = options.top_p ?? 1.0;
   }
 
   getChatInput() {
@@ -2344,22 +2572,27 @@ module.exports = {
   VLLMInput
 };
 
-},{"../../config.json":1}],14:[function(require,module,exports){
+},{"../../config.json":1,"../../utils/ModelHelper":38}],14:[function(require,module,exports){
 const config = require('../../config.json');
 
 class EmbedInput {
   constructor({
     texts,
     model = null,
+    inputType = null,
   }) {
     this.texts = texts;
     this.model = model;
+    // Cohere: search_document, search_query, classification or clustering. NVIDIA: query or passage.
+    this.inputType = inputType;
   }
 
   getCohereInputs() {
     const inputs = {
       texts: this.texts,
       ...this.model && { model: this.model },
+      // Cohere embed v3 and newer require an input type.
+      input_type: this.inputType || 'search_document',
     };
 
     return inputs;
@@ -2396,8 +2629,8 @@ class EmbedInput {
   getNvidiaInputs(input_type="query") {
     return {
       input: this.texts,
-      model: this.model,
-      input_type: input_type,
+      model: this.model || config.nvidia.models.embed,
+      input_type: this.inputType || input_type,
       encoding_format: "float",
       truncate: "NONE"
     };
@@ -2411,13 +2644,15 @@ class EmbedInput {
 
   setDefaultValues(provider) {
     if (provider === "openai") {
-      this.model = "text-embedding-3-small";
+      this.model = config.url.openai.models.embed;
     } else if (provider === "cohere") {
-      this.model = "embed-multilingual-v2.0";
+      this.model = config.url.cohere.models.embed;
     } else if (provider === "replicate") {
         this.model = config.models.replicate.llama['llama-2-13b-embeddings-version'];
     } else if (provider === "gemini") {
-        this.model = "models/embedding-001";
+        this.model = `models/${config.url.gemini.models.embed}`;
+    } else if (provider === "nvidia") {
+        this.model = config.nvidia.models.embed;
     } else if (provider === "vllm") {
         this.model = null;
     } else {
@@ -2427,6 +2662,7 @@ class EmbedInput {
 }
 
 module.exports = EmbedInput;
+
 },{"../../config.json":1}],15:[function(require,module,exports){
 /*
 Apache License
@@ -2495,6 +2731,11 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+const config = require('../../config.json');
+
+// gpt-image models only accept low/medium/high/auto quality.
+const GPT_IMAGE_QUALITY = { standard: 'medium', hd: 'high' };
+
 class ImageModelInput {
   constructor({
     prompt,
@@ -2507,6 +2748,7 @@ class ImageModelInput {
     diffusion_style_preset = null,
     engine = null,
     model = null,
+    quality = null,
   }) {
     this.prompt = prompt;
     this.numberOfImages = numberOfImages;
@@ -2518,6 +2760,7 @@ class ImageModelInput {
     this.diffusion_style_preset = diffusion_style_preset;
     this.engine = engine;
     this.model = model;
+    this.quality = quality;
     if (width != null && height != null && imageSize == null) {
         this.imageSize = width+'x'+height;
     } else if (width == null && height == null && imageSize != null) {
@@ -2534,10 +2777,27 @@ class ImageModelInput {
       ...this.numberOfImages && { n: this.numberOfImages },
       ...this.imageSize && { size: this.imageSize },
       ...this.responseFormat && { response_format: this.responseFormat },
+      ...this.quality && { quality: this.quality },
       ...this.model && { model: this.model }
     };
 
-    return inputs;
+    return ImageModelInput.normalizeOpenAIParams(inputs);
+  }
+
+  /**
+   * The images API now requires a model, and gpt-image models always return base64 and
+   * reject the dall-e era response_format/style parameters, so translate them.
+   */
+  static normalizeOpenAIParams(params) {
+    const normalized = { ...params, model: params.model || config.url.openai.models.image };
+    if (String(normalized.model).startsWith('gpt-image')) {
+      delete normalized.response_format;
+      delete normalized.style;
+      if (normalized.quality) {
+        normalized.quality = GPT_IMAGE_QUALITY[normalized.quality] || normalized.quality;
+      }
+    }
+    return normalized;
   }
 
   getStabilityInputs() {
@@ -2558,11 +2818,12 @@ class ImageModelInput {
     if (provider === "openai") {
       this.numberOfImages = 1;
       this.imageSize = '1024x1024';
+      this.model = this.model || config.url.openai.models.image;
     } else if (provider === "stability") {
       this.numberOfImages = 1;
-      this.height = 512;
-      this.width = 512;
-      this.engine = 'stable-diffusion-xl-beta-v2-2-2';
+      this.height = 1024;
+      this.width = 1024;
+      this.engine = 'stable-diffusion-xl-1024-v1-0';
     } else {
       throw new Error("Invalid provider name");
     }
@@ -2570,7 +2831,8 @@ class ImageModelInput {
 }
 
 module.exports = ImageModelInput;
-},{}],18:[function(require,module,exports){
+
+},{"../../config.json":1}],18:[function(require,module,exports){
 /*
 Apache License
 
@@ -2578,6 +2840,8 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+const config = require('../../config.json');
+
 class LanguageModelInput {
   constructor({
     prompt,
@@ -2635,9 +2899,11 @@ class LanguageModelInput {
 
   setDefaultModels(provider) {
     if (provider === "openai") {
-      this.model = "gpt-3.5-turbo-instruct";
+      // the completions endpoint only serves instruct models
+      this.model = config.url.openai.models.completion;
     } else if (provider === "cohere") {
-      this.model = "command";
+      // Cohere text generation now runs on the Chat API
+      this.model = config.url.cohere.models.chat;
     } else {
       throw new Error("Invalid provider name");
     }
@@ -2645,7 +2911,8 @@ class LanguageModelInput {
 }
 
 module.exports = LanguageModelInput;
-},{}],19:[function(require,module,exports){
+
+},{"../../config.json":1}],19:[function(require,module,exports){
 /*
 Apache License
 
@@ -2653,8 +2920,10 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+const config = require('../../config.json');
+
 class Text2SpeechInput {
-  constructor({ text, language = "en-gb", gender = "FEMALE", voice, model = 'tts-1', stream = true }) {
+  constructor({ text, language = "en-gb", gender = "FEMALE", voice, model = config.url.openai.models.speech, stream = true }) {
     this.text = text;
     this.language = language.toLowerCase();
     this.gender = gender;
@@ -2709,7 +2978,7 @@ Text2SpeechInput.Gender = {
 
 module.exports = Text2SpeechInput;
 
-},{}],20:[function(require,module,exports){
+},{"../../config.json":1}],20:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -6143,6 +6412,18 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],28:[function(require,module,exports){
+// Generated by scripts/build-templates.js from resource/templates/*.in - do not edit.
+module.exports = {
+  "augmented_chatbot.in": "Using the provided context, craft a  cohesive response that directly addresses the user's query. If the context lacks relevance or is absent, focus on generating a knowledgeable and accurate answer based on the user's question alone. Aim for clarity and conciseness in your reply.\nContext:\n${semantic_search}\n---------------------------------\nUser's Question:\n${user_query}",
+  "graph_dashboard_prompt.in": "Generate an HTML dashboard using chart.js with ${count} graphs about the ${topic} topic from the provided data. Each graph should showcase the relationships between selected columns, ensuring the graphs are relevant to the topic.\n\nOutput example:\n[{\n  \"html\": \"<!DOCTYPE html><html><head>[Insert required styles and scripts for Chart.js]</head><body>[Include code for all the ${count} graphs]</body></html>\", \n  \"message\": \"the page ready to render\"\n}]\n\nFollow these instructions:\n---\n1. Return a single JSON response in the style shown in the output example.\n2. Use Chart.js for generating the graphs wherever possible.\n3. Use \\\" before any generated double quotation marks to ensure a valid JSON response.\n4. Design elegant, modern dashboard charts based on the provided data.\n5. Make sure the response is a valid JSON containing the complete HTML content.\n6. Ensure the response will not truncate in any circumstance.\n7. Select sample of the data based on the user instructions ensuring it fit in one page.\n8. Reply only with generated code.\n\nUser data: ###${text}###",
+  "html_page_prompt.in": "Generate website, javascript and css in one page based on the user request.\n\nOutput format:\n{\"html\": \"<!DOCTYPE html><html><head>[generated head content]</head><body>[generated body content]</body></html>\", \"message\"\":\"the page ready for render\"}\n\nEnsure the page is compatible with screen sizes and use ready bootstrap component when needed.\n\nIf an image generated, add a clear image description in the alt to use for image generation:\n<img src=\"<image name and format>\" alt=\"<image description>\" width=\"<size or percentage>\" height=\"<size or percentage>\">\n\nuser request: ${text}\n\noutput:",
+  "instruct_update.in": "Update the model output and make sure to maintain the format. Don't use the example content with the user message.\nReturn all the model generated after applying the instructions.\n\nExample:\nthe model generated json html output: ###{\"html\": \"<!DOCTYPE html><html><body><h1>Title1</h1></body></html>\"}###\nthe user update instructions: ###change to Title2###\noutput: {\"html\": \"<!DOCTYPE html><html><body><h1>Title2</h1></body></html>\"}\n----\nthe model generated text output: ###Text1 example bla bla###\nthe user update instructions: ###change to text2###\noutput: Text2 example  bla bla\n===\nUser message:\nthe model generated ${type} output: ###${model_output}###\nthe user update instructions:  ###${user_instruction}###\noutput:",
+  "prompt_example.in": "Example of good prompt engineering response:\n\nUser: Create a prompt: to {query} from {context}.\n\nAssistant: Given the following context:\n\ncontext:\n---------\n${context}\n\nExtract the specific information denoted by the query: ${query} from the provided context.",
+  "sentiment_prompt.in": "Outputs sentiment analysis results in a standardized JSON format with sentiment values 'positive', 'negative', or 'neutral'. The format of the output should follow json and you can add muti sentiments i needed. output format should be always {\"results\": {\"positive\": 0 or 1, \"negative\": 0 or 1, \"neutral\": 0 or 1}}}}",
+  "summary_prompt.in": "Provide a short summary of the following text:\\n\\n${text}\\n\\nSummary:"
+};
+
+},{}],29:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -6183,7 +6464,7 @@ class AudioHelper {
 module.exports = AudioHelper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./FileHelper":32,"buffer":22}],29:[function(require,module,exports){
+},{"./FileHelper":33,"buffer":22}],30:[function(require,module,exports){
 /* Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode */
 const { SemanticSearch } = require('../function/SemanticSearch');
@@ -6267,7 +6548,7 @@ class ChatContext {
 }
 
 module.exports = ChatContext;
-},{"../controller/RemoteEmbedModel":2,"../function/SemanticSearch":9}],30:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../function/SemanticSearch":9}],31:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -6350,7 +6631,7 @@ class ConnHelper {
 module.exports = ConnHelper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":22}],31:[function(require,module,exports){
+},{"buffer":22}],32:[function(require,module,exports){
 const fetch = require('cross-fetch');
 const FormData = require('form-data');
 
@@ -6457,7 +6738,7 @@ class FetchClient {
 
 module.exports = FetchClient;
 
-},{"cross-fetch":23,"form-data":24}],32:[function(require,module,exports){
+},{"cross-fetch":23,"form-data":24}],33:[function(require,module,exports){
 const fs = require('fs');
 
 
@@ -6479,7 +6760,7 @@ class FileHelper {
 
 module.exports = FileHelper
 
-},{"fs":21}],33:[function(require,module,exports){
+},{"fs":21}],34:[function(require,module,exports){
 const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/RemoteEmbedModel');
 const LanguageModelInput = require('../model/input/LanguageModelInput');
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
@@ -6488,6 +6769,8 @@ const { ChatGPTInput, LLamaReplicateInput, LLamaSageInput, GeminiInput, CohereIn
 const MatchHelpers = require('../utils/MatchHelpers');
 const EmbedInput = require('../model/input/EmbedInput');
 const { ModelEvaluation } = require('./ModelEvaluation');
+const config = require('../config.json');
+const { isReasoningModel } = require('./ModelHelper');
 
 class LLMEvaluation extends ModelEvaluation {
 
@@ -6523,15 +6806,18 @@ class LLMEvaluation extends ModelEvaluation {
       } else if (SupportedChatModels.SAGEMAKER == provider.toLowerCase()) {
         input = new LLamaSageInput("provide direct answer", { maxTokens: maxTokens });
       } else if (SupportedChatModels.GEMINI == provider.toLowerCase()) {
-        input = new GeminiInput("provide direct answer", { maxTokens: maxTokens });
+        input = new GeminiInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.COHERE == provider.toLowerCase()) {
-        input = new CohereInput("provide direct answer", { maxTokens: maxTokens });
+        input = new CohereInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.MISTRAL == provider.toLowerCase()) {
         input = new MistralInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.ANTHROPIC == provider.toLowerCase()) {
         input = new AnthropicInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else {
-        input = new ChatGPTInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
+        const openaiModel = modelName || config.url.openai.models.chat;
+        // reasoning models (gpt-5+) spend output tokens on thinking, so only cap older models
+        input = new ChatGPTInput("provide direct answer",
+          isReasoningModel(openaiModel) ? { model: openaiModel } : { model: openaiModel, maxTokens: maxTokens });
       }
 
       input.addUserMessage(inputString);
@@ -6636,7 +6922,7 @@ class LLMEvaluation extends ModelEvaluation {
 module.exports = {
   LLMEvaluation
 };
-},{"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/EmbedInput":14,"../model/input/LanguageModelInput":18,"../utils/MatchHelpers":35,"./ModelEvaluation":36}],34:[function(require,module,exports){
+},{"../config.json":1,"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../model/input/EmbedInput":14,"../model/input/LanguageModelInput":18,"../utils/MatchHelpers":36,"./ModelEvaluation":37,"./ModelHelper":38}],35:[function(require,module,exports){
 /*
 Apache License
 
@@ -6780,7 +7066,7 @@ class MCPClient {
 
 module.exports = MCPClient;
 
-},{"./ConnHelper":30,"cross-fetch":23}],35:[function(require,module,exports){
+},{"./ConnHelper":31,"cross-fetch":23}],36:[function(require,module,exports){
 /*
 Apache License
 
@@ -6826,7 +7112,7 @@ class MatchHelpers {
 }
 
 module.exports = MatchHelpers;
-},{}],36:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 class ModelEvaluation {
 
   constructor() {}
@@ -6835,11 +7121,186 @@ class ModelEvaluation {
 module.exports = {
   ModelEvaluation
 };
-},{}],37:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+
+// Trailing tokens that force a gpt-5+ model onto /v1/chat/completions instead of /v1/responses.
+const CHAT_ROUTE_OVERRIDE_SUFFIXES = [':chat', '#chat', '|chat'];
+
+// "<family>-<major>[-<minor>]" inside a Claude id, e.g. claude-opus-4-8 -> (opus, 4, 8).
+// The trailing (?!\d) keeps date suffixes (-20251001) and legacy "claude-3-7-sonnet-..." ids out.
+const CLAUDE_VERSION_RE = /(opus|sonnet|haiku|fable|mythos)-(\d{1,2})(?:-(\d{1,2}))?(?!\d)/;
+
+function hasRouteOverride(model) {
+  if (!model) return false;
+  const lowered = String(model).toLowerCase().trim();
+  return CHAT_ROUTE_OVERRIDE_SUFFIXES.some((suffix) => lowered.endsWith(suffix));
+}
+
+/** Remove a trailing :chat / #chat / |chat token so the API receives a clean model id. */
+function stripRouteOverride(model) {
+  if (!hasRouteOverride(model)) return model;
+  const trimmed = String(model).trim();
+  const suffix = CHAT_ROUTE_OVERRIDE_SUFFIXES.find((s) => trimmed.toLowerCase().endsWith(s));
+  return trimmed.slice(0, -suffix.length);
+}
+
+// Matches "gpt-<major>" anywhere in the name, as earlier releases routed any name containing
+// "gpt-5" (e.g. Azure deployments like "prod-gpt-5") to the Responses API.
+function gptMajorVersion(model) {
+  const match = /gpt-(\d+)/.exec(String(model || '').toLowerCase().trim());
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * True for OpenAI gpt-5 and newer models, which use the /v1/responses endpoint.
+ * A ":chat" suffix keeps a gpt-5+ model or deployment on chat completions.
+ */
+function isReasoningModel(model) {
+  if (!model || hasRouteOverride(model)) return false;
+  const major = gptMajorVersion(model);
+  return major !== null && major >= 5;
+}
+
+/** True for chat-completions models that need max_completion_tokens and reject custom temperature (o-series, gpt-5+). */
+function isReasoningChatModel(model) {
+  const cleaned = String(stripRouteOverride(model) || '').toLowerCase().trim();
+  if (/^o\d+(?:-|$)/.test(cleaned)) return true;
+  const major = gptMajorVersion(cleaned);
+  return major !== null && major >= 5;
+}
+
+/** The *-pro reasoning models only accept medium/high/xhigh effort. */
+function defaultReasoningEffort(model) {
+  return String(model || '').toLowerCase().includes('-pro') ? 'medium' : 'low';
+}
+
+/**
+ * True for Claude models that reject temperature/top_p/top_k (Opus 4.7+ and the Claude 5 family).
+ * Sonnet 4.x, Opus <= 4.6 and Haiku 4.5 still accept them.
+ */
+function claudeRejectsSamplingParams(model) {
+  if (!model) return false;
+  const lowered = String(model).toLowerCase();
+  if (lowered.includes('mythos-preview')) return true;
+
+  const match = CLAUDE_VERSION_RE.exec(lowered);
+  if (!match) return false;
+  const family = match[1];
+  const major = parseInt(match[2], 10);
+  const minor = match[3] !== undefined ? parseInt(match[3], 10) : null;
+  if (major >= 5) return true;
+  return family === 'opus' && major === 4 && minor !== null && minor >= 7;
+}
+
+// Tools can be written in chat-completions format ({type:'function', function:{...}}) or the flat
+// Responses format ({type:'function', name, parameters}); these helpers convert to what each API expects.
+function toChatTools(tools) {
+  if (!Array.isArray(tools)) return tools;
+  return tools.map((tool) => {
+    if (tool && tool.type === 'function' && !tool.function && tool.name) {
+      const { type, name, description, parameters, strict } = tool;
+      return {
+        type,
+        function: {
+          name,
+          ...(description !== undefined && { description }),
+          ...(parameters !== undefined && { parameters }),
+          ...(strict !== undefined && { strict }),
+        },
+      };
+    }
+    return tool;
+  });
+}
+
+function toResponsesTools(tools) {
+  if (!Array.isArray(tools)) return tools;
+  return tools.map((tool) => (tool && tool.type === 'function' && tool.function ? { type: 'function', ...tool.function } : tool));
+}
+
+function toAnthropicTools(tools) {
+  if (!Array.isArray(tools)) return tools;
+  return tools.map((tool) => {
+    if (tool && tool.type === 'function') {
+      const fn = tool.function || tool;
+      return {
+        name: fn.name,
+        ...(fn.description !== undefined && { description: fn.description }),
+        input_schema: fn.parameters || { type: 'object', properties: {} },
+      };
+    }
+    return tool;
+  });
+}
+
+function toChatToolChoice(choice) {
+  if (choice && typeof choice === 'object' && choice.type === 'function' && !choice.function && choice.name) {
+    return { type: 'function', function: { name: choice.name } };
+  }
+  return choice;
+}
+
+function toResponsesToolChoice(choice) {
+  if (choice && typeof choice === 'object' && choice.type === 'function' && choice.function) {
+    return { type: 'function', name: choice.function.name };
+  }
+  return choice;
+}
+
+function toAnthropicToolChoice(choice) {
+  if (typeof choice === 'string') {
+    const mapped = { auto: { type: 'auto' }, any: { type: 'any' }, required: { type: 'any' }, none: { type: 'none' } };
+    return mapped[choice] || choice;
+  }
+  if (choice && typeof choice === 'object' && choice.type === 'function') {
+    return { type: 'tool', name: choice.function ? choice.function.name : choice.name };
+  }
+  return choice;
+}
+
+/** Convert legacy chat-completions `functions` / `function_call` into tools / tool_choice. */
+function functionsToTools(functions) {
+  if (!Array.isArray(functions)) return functions;
+  return functions.map((fn) => ({ type: 'function', function: fn }));
+}
+
+function functionCallToToolChoice(functionCall) {
+  if (functionCall && typeof functionCall === 'object' && functionCall.name) {
+    return { type: 'function', function: { name: functionCall.name } };
+  }
+  return functionCall;
+}
+
+module.exports = {
+  stripRouteOverride,
+  isReasoningModel,
+  isReasoningChatModel,
+  defaultReasoningEffort,
+  claudeRejectsSamplingParams,
+  toChatTools,
+  toResponsesTools,
+  toAnthropicTools,
+  toChatToolChoice,
+  toResponsesToolChoice,
+  toAnthropicToolChoice,
+  functionsToTools,
+  functionCallToToolChoice,
+};
+
+},{}],39:[function(require,module,exports){
 const FileHelper = require('./FileHelper')
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
 const SystemHelper = require("../utils/SystemHelper");
+const config = require('../config.json');
+const { isReasoningModel } = require('./ModelHelper');
 
 class Prompt {
   constructor(template) {
@@ -6874,14 +7335,15 @@ class Prompt {
     return new Prompt(template);
   }
 
-  static async fromChatGPT(promptTopic, apiKey, customProxyHelper=null, model='gpt-4') {
+  static async fromChatGPT(promptTopic, apiKey, customProxyHelper=null, model=config.url.openai.models.chat) {
 
     const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
 
     const promptExample = new SystemHelper().loadPrompt("prompt_example");
 
-    const input = new ChatGPTInput("generate a prompt text, following prompt engineering best practices", 
-                              { maxTokens: 800, model: model, temperature: 0.7 });
+    // reasoning models (gpt-5+) spend output tokens on thinking, so only cap older models
+    const options = isReasoningModel(model) ? { model: model } : { maxTokens: 800, model: model, temperature: 0.7 };
+    const input = new ChatGPTInput("generate a prompt text, following prompt engineering best practices", options);
     input.addUserMessage(promptExample);
     input.addUserMessage(`Create a prompt: ${promptTopic}`);
     
@@ -6892,7 +7354,8 @@ class Prompt {
 }
 
 module.exports = Prompt;
-},{"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../utils/SystemHelper":40,"./FileHelper":32}],38:[function(require,module,exports){
+
+},{"../config.json":1,"../function/Chatbot":7,"../model/input/ChatModelInput":13,"../utils/SystemHelper":42,"./FileHelper":33,"./ModelHelper":38}],40:[function(require,module,exports){
 const config = require('../config.json');
 
 
@@ -7100,7 +7563,8 @@ ProxyHelper.API_VERSION = '2023-12-01-preview'
 
 module.exports = ProxyHelper;
 
-},{"../config.json":1}],39:[function(require,module,exports){
+},{"../config.json":1}],41:[function(require,module,exports){
+(function (Buffer){(function (){
 /*
 Apache License
 
@@ -7108,7 +7572,155 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 
    Licensed under the Apache License, Version 2.0 (the "License");
 */
+
+/**
+ * Iterate a fetch response body as decoded text.
+ * Handles Node streams (Buffer chunks) and browser ReadableStreams (Uint8Array chunks),
+ * including browsers without async iteration on ReadableStream (Safari).
+ */
+async function* readStreamChunks(stream) {
+    const decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null;
+    const decode = (chunk) => {
+        if (typeof chunk === 'string') return chunk;
+        if (decoder) return decoder.decode(chunk, { stream: true });
+        return Buffer.from(chunk).toString('utf8');
+    };
+
+    if (stream && typeof stream.getReader === 'function') {
+        const reader = stream.getReader();
+        let finished = false;
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    finished = true;
+                    break;
+                }
+                yield decode(value);
+            }
+        } finally {
+            if (!finished) {
+                try { await reader.cancel(); } catch (error) { /* stream already closed */ }
+            }
+            reader.releaseLock();
+        }
+    } else {
+        for await (const chunk of stream) {
+            yield decode(chunk);
+        }
+    }
+
+    if (decoder) {
+        const tail = decoder.decode();
+        if (tail) yield tail;
+    }
+}
+
+// Split complete server-sent events from the buffer; returns [events, remainingBuffer].
+function splitEvents(buffer) {
+    const parts = buffer.replace(/\r\n/g, '\n').split('\n\n');
+    const rest = parts.pop();
+    return [parts, rest];
+}
+
+// Joined `data:` payload of one server-sent event, or null when the event has no data.
+function eventData(rawEvent) {
+    const lines = rawEvent.split('\n').filter((line) => line.startsWith('data:'));
+    if (lines.length === 0) return null;
+    return lines.map((line) => line.slice(5).replace(/^ /, '')).join('\n');
+}
+
+/** Parses OpenAI-compatible streams: chat completions and the Responses API (gpt-5+). */
 class GPTStreamParser {
+    constructor(isLog = false) {
+        this.buffer = '';
+        this.isLog = isLog;
+        this.done = false;
+    }
+
+    async * feed(data) {
+        if (this.done) return;
+        this.buffer += data;
+        const [events, rest] = splitEvents(this.buffer);
+        this.buffer = rest;
+
+        for (const rawEvent of events) {
+            const payload = eventData(rawEvent.trim());
+            if (payload === null) continue;
+
+            // look for the stop signal
+            if (payload.trim() === '[DONE]') {
+                this.done = true;
+                if (this.isLog) {
+                    console.log("Parsing finished.");
+                }
+                return;
+            }
+
+            let jsonData;
+            try {
+                jsonData = JSON.parse(payload);
+            } catch (error) {
+                console.error("Error parsing JSON in stream:", error);
+                continue;
+            }
+
+            // chat completions format
+            const contentText = jsonData.choices?.[0]?.delta?.content;
+            if (contentText) {
+                yield contentText;
+                continue;
+            }
+
+            // Responses API format
+            if ((jsonData.type === 'response.output_text.delta' || jsonData.type === 'response.refusal.delta') && jsonData.delta) {
+                yield jsonData.delta;
+            } else if (jsonData.type === 'error') {
+                throw new Error(`OpenAI stream error: ${jsonData.message || JSON.stringify(jsonData)}`);
+            } else if (jsonData.type === 'response.failed') {
+                throw new Error(`OpenAI response failed: ${jsonData.response?.error?.message || 'unknown error'}`);
+            }
+        }
+    }
+}
+
+/** Parses Anthropic Messages API streams, yielding answer text and skipping thinking deltas. */
+class AnthropicStreamParser {
+    constructor(isLog = false) {
+        this.buffer = '';
+        this.isLog = isLog;
+    }
+
+    async * feed(data) {
+        this.buffer += data;
+        const [events, rest] = splitEvents(this.buffer);
+        this.buffer = rest;
+
+        for (const rawEvent of events) {
+            const payload = eventData(rawEvent.trim());
+            if (payload === null) continue;
+
+            let jsonData;
+            try {
+                jsonData = JSON.parse(payload);
+            } catch (error) {
+                console.error("Error parsing JSON in stream:", error);
+                continue;
+            }
+
+            if (jsonData.type === 'content_block_delta' && jsonData.delta?.type === 'text_delta' && jsonData.delta.text) {
+                yield jsonData.delta.text;
+            } else if (jsonData.type === 'error') {
+                throw new Error(`Anthropic stream error: ${jsonData.error?.message || JSON.stringify(jsonData)}`);
+            } else if (jsonData.type === 'message_stop' && this.isLog) {
+                console.log("Parsing finished.");
+            }
+        }
+    }
+}
+
+/** Parses Cohere chat streams (newline-delimited JSON). */
+class CohereStreamParser {
     constructor(isLog = false) {
         this.buffer = '';
         this.isLog = isLog;
@@ -7117,62 +7729,26 @@ class GPTStreamParser {
     async * feed(data) {
         this.buffer += data;
 
-        // check if the buffer contains events
-        while (this.buffer.includes('\n\n')) {
-            // find the end of the first complete event
-            const eventEndIndex = this.buffer.indexOf('\n\n');
-            let rawData = this.buffer.slice(0, eventEndIndex).trim();
+        // a single chunk can carry several events, so drain every complete line
+        let eventEndIndex;
+        while ((eventEndIndex = this.buffer.indexOf('\n')) !== -1) {
+            const rawData = this.buffer.slice(0, eventEndIndex).trim();
+            this.buffer = this.buffer.slice(eventEndIndex + 1);
+            if (!rawData) continue;
 
-            // remove the processed event
-            this.buffer = this.buffer.slice(eventEndIndex + 2);
-
-            // look for the stop signal
-            if (rawData === "data: [DONE]") {
-                if (this.isLog) {
-                    console.log("Parsing finished.");
-                }
-                // stop processing if the stream is done
-                return;
-            }
-
-            // skip lines without "data: "
-            if (!rawData.startsWith("data: ")) {
+            let jsonData;
+            try {
+                jsonData = JSON.parse(rawData);
+            } catch (error) {
+                console.error("Error parsing JSON in stream:", error);
                 continue;
             }
 
-            try {
-                // parse the JSON
-                const jsonData = JSON.parse(rawData.substring(6));
-                const contentText = jsonData.choices?.[0]?.delta?.content;
-                if (contentText) {
-                    yield contentText;
-                }
-            } catch (error) {
-                console.error("Error parsing JSON in stream:", error);
+            // stream-end repeats the full text inside `response`; only text-generation carries new text
+            if (jsonData.event_type && jsonData.event_type !== 'text-generation') continue;
+            if (jsonData.text) {
+                yield jsonData.text;
             }
-        }
-    }
-}
-class CohereStreamParser {
-    constructor(isLog = false) {
-        this.buffer = '';
-        this.isLog = false;
-    }
-
-    async * feed(data) {
-        this.buffer += data;
-
-        if (this.buffer.includes('\n')) {
-            const eventEndIndex = this.buffer.indexOf('\n');
-            const rawData = this.buffer.slice(0, eventEndIndex + 1).trim();
-
-            // Convert the rawData into JSON format
-            const jsonData = JSON.parse(rawData);
-            const contentText = jsonData.text;
-            if (contentText) {
-                yield contentText;
-            }
-            this.buffer = this.buffer.slice(eventEndIndex + 1);
         }
     }
 }
@@ -7236,9 +7812,13 @@ class VLLMStreamParser {
 module.exports = {
     GPTStreamParser,
     CohereStreamParser,
-    VLLMStreamParser
+    VLLMStreamParser,
+    AnthropicStreamParser,
+    readStreamChunks
 };
-},{}],40:[function(require,module,exports){
+
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"buffer":22}],42:[function(require,module,exports){
 (function (__dirname){(function (){
 const FileHelper = require('./FileHelper')
 const path = require("path");
@@ -7265,18 +7845,24 @@ class SystemHelper {
     } else if (fileType === "augmented_chatbot") {
       promptPath = path.join(this.systemsPath, "augmented_chatbot.in");
     } else {
-      throw new Error(`File type '${file_type}' not supported`);
+      throw new Error(`File type '${fileType}' not supported`);
     }
 
     return promptPath;
   }
 
   loadPrompt(fileType) {
-    let promptPath = this.getPromptPath(fileType)
-    const promptTemplate = FileHelper.readData(promptPath, 'utf-8');
-
-    return promptTemplate;
-
+    const promptPath = this.getPromptPath(fileType);
+    try {
+      return FileHelper.readData(promptPath, 'utf-8');
+    } catch (error) {
+      // the browser bundle has no file system, so use the templates embedded at build time
+      const embedded = require('../resource/templates/templates')[path.basename(promptPath)];
+      if (embedded === undefined) {
+        throw error;
+      }
+      return embedded;
+    }
   }
 
   loadStaticPrompt(fileType) { 
@@ -7296,8 +7882,9 @@ class SystemHelper {
 }
 
 module.exports = SystemHelper;
+
 }).call(this)}).call(this,"/utils")
-},{"./FileHelper":32,"path":26}],41:[function(require,module,exports){
+},{"../resource/templates/templates":28,"./FileHelper":33,"path":26}],43:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 
 class AWSEndpointWrapper {
@@ -7330,7 +7917,7 @@ class AWSEndpointWrapper {
 
 module.exports = AWSEndpointWrapper;
 
-},{"../utils/FetchClient":31}],42:[function(require,module,exports){
+},{"../utils/FetchClient":32}],44:[function(require,module,exports){
 /*
 Apache License
 
@@ -7342,29 +7929,54 @@ const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
 
+// Anthropic rejects browser (CORS) requests unless this opt-in header is present.
+const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
 class AnthropicWrapper {
   constructor(apiKey) {
     this.API_BASE_URL = config.url.anthropic.base;
     this.API_VERSION = config.url.anthropic.version;
 
-    // Create our FetchClient instance
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': this.API_VERSION,
+    };
+    if (isBrowser) {
+      headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    }
+
     this.client = new FetchClient({
       baseURL: this.API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': this.API_VERSION,
-      },
+      headers,
     });
   }
 
-  async generateText(params) {
+  /**
+   * Call the Messages API.
+   * @param {object} params - Messages API request body.
+   * @param {object} [extraHeaders] - Optional per-request headers, e.g. { 'anthropic-beta': '<feature>' }.
+   */
+  async generateText(params, extraHeaders = null) {
     const endpoint = config.url.anthropic.messages;
 
     try {
-      // Use the client’s post method
-      return await this.client.post(endpoint, params);
+      return await this.client.post(endpoint, params, extraHeaders ? { headers: extraHeaders } : {});
+    } catch (error) {
+      throw new Error(connHelper.getErrorMessage(error));
+    }
+  }
+
+  /** Stream the Messages API; returns the raw server-sent events body. */
+  async streamText(params, extraHeaders = null) {
+    const endpoint = config.url.anthropic.messages;
+
+    try {
+      return await this.client.post(endpoint, { ...params, stream: true }, {
+        responseType: 'stream',
+        headers: { Accept: 'text/event-stream', ...(extraHeaders || {}) },
+      });
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
@@ -7373,7 +7985,7 @@ class AnthropicWrapper {
 
 module.exports = AnthropicWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],43:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],45:[function(require,module,exports){
 /*
 Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
@@ -7407,7 +8019,7 @@ class CohereAIWrapper {
   }
 
   async generateChatText(params) {
-    const endpoint = '/chat';
+    const endpoint = config.url.cohere.chat;
     try {
       // If stream is true, set responseType='stream'
       const extraConfig = params.stream ? { responseType: 'stream' } : {};
@@ -7430,7 +8042,7 @@ class CohereAIWrapper {
 module.exports = CohereAIWrapper;
 
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],44:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],46:[function(require,module,exports){
 const config = require('../config.json');
 const { readFileSync } = require('fs');
 const connHelper = require('../utils/ConnHelper');
@@ -7444,26 +8056,36 @@ class GeminiAIWrapper {
     this.client = new FetchClient({
       baseURL: this.API_BASE_URL,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
       }
     });
   }
 
-  async generateContent(params, vision = false) {
-    const endpoint = vision
-      ? config.url.gemini.visionEndpoint
-      : config.url.gemini.contentEndpoint;
+  // Accepts both 'gemini-3.6-flash' and 'models/gemini-3.6-flash'.
+  static getModelId(model) {
+    return String(model).replace(/^models\//, '');
+  }
+
+  /**
+   * @param {object} params - generateContent body; an optional `model` key selects the model and is not sent.
+   * @param {boolean} vision - use the configured vision model when no model is given.
+   * @param {string} modelOverride - model id that takes precedence over params.model.
+   */
+  async generateContent(params, vision = false, modelOverride = null) {
+    const { model: paramsModel, ...body } = params || {};
+    const defaultModel = vision ? config.url.gemini.models.vision : config.url.gemini.models.chat;
+    const model = GeminiAIWrapper.getModelId(modelOverride || paramsModel || defaultModel);
+    const endpoint = `${model}${config.url.gemini.generateContent}`;
 
     try {
-      return await this.client.post(endpoint, params, {
-        // If needed, you can specify { responseType: 'stream' } or 'arraybuffer'
-      });
+      return await this.client.post(endpoint, body);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
   }
 
-  async imageToText(userInput, filePath, extension) {
+  async imageToText(userInput, filePath, extension, modelOverride = null) {
     const imageData = readFileSync(filePath, { encoding: 'base64' });
     const params = {
       contents: [
@@ -7480,13 +8102,14 @@ class GeminiAIWrapper {
         }
       ]
     };
-    return this.generateContent(params, true);
+    return this.generateContent(params, true, modelOverride);
   }
 
   async getEmbeddings(params) {
-    const endpoint = config.url.gemini.embeddingEndpoint;
+    const model = GeminiAIWrapper.getModelId(params.model || config.url.gemini.models.embed);
+    const endpoint = `${model}${config.url.gemini.embedContent}`;
     try {
-      const response = await this.client.post(endpoint, params);
+      const response = await this.client.post(endpoint, { ...params, model: `models/${model}` });
       return response.embedding;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
@@ -7494,9 +8117,15 @@ class GeminiAIWrapper {
   }
 
   async getBatchEmbeddings(params) {
-    const endpoint = config.url.gemini.batchEmbeddingEndpoint;
+    const requests = params.requests || [];
+    const requestedModel = requests.length > 0 ? requests[0].model : null;
+    const model = GeminiAIWrapper.getModelId(requestedModel || config.url.gemini.models.embed);
+    const endpoint = `${model}${config.url.gemini.batchEmbedContents}`;
     try {
-      const response = await this.client.post(endpoint, params);
+      const response = await this.client.post(endpoint, {
+        ...params,
+        requests: requests.map((request) => ({ ...request, model: `models/${model}` }))
+      });
       return response.embeddings;
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
@@ -7506,7 +8135,7 @@ class GeminiAIWrapper {
 
 module.exports = GeminiAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"fs":21}],45:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"fs":21}],47:[function(require,module,exports){
 /*
 Apache License
 */
@@ -7571,7 +8200,7 @@ class GoogleAIWrapper {
 
 module.exports = GoogleAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],46:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],48:[function(require,module,exports){
 (function (Buffer){(function (){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
@@ -7624,7 +8253,7 @@ class HuggingWrapper {
 module.exports = HuggingWrapper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"buffer":22}],47:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"buffer":22}],49:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const FormData = require('form-data');
@@ -7674,7 +8303,7 @@ class IntellicloudWrapper {
 
 module.exports = IntellicloudWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24}],48:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"form-data":24}],50:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -7698,7 +8327,8 @@ class MistralAIWrapper {
   async generateText(params) {
     const endpoint = config.url.mistral.completions;
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
@@ -7716,7 +8346,7 @@ class MistralAIWrapper {
 
 module.exports = MistralAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],49:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],51:[function(require,module,exports){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
@@ -7772,32 +8402,30 @@ class NvidiaWrapper {
   }
 
   /**
-   * Generates embeddings using NVIDIA's embedding endpoint.
-   * Expects the user to pass a `model` field inside params so that the endpoint
-   * is constructed as:
-   *   {config.nvidia.embedding}/{model}/embeddings
+   * Generates embeddings using NVIDIA's OpenAI-compatible /v1/embeddings endpoint
+   * (the older /v1/retrieval/{model}/embeddings route no longer exists).
    *
-   * @param {object} params - Must include `model` and other required fields.
+   * @param {object} params - Must include `model`, e.g. nvidia/llama-3.2-nv-embedqa-1b-v1.
    */
   async generateRetrieval(params) {
     if (!params.model) {
       throw new Error("Missing 'model' parameter for embeddings");
     }
-    // use the embedding base endpoint from config and append the user-specified model name.
-    const baseEmbedding = config.nvidia.retrieval;
-    // model name example snowflake/arctic-embed
-    const embeddingEndpoint = `${baseEmbedding}/${params.model}/embeddings`;
     try {
-      return await this.client.post(embeddingEndpoint, params);
+      return await this.client.post(config.nvidia.embeddings, params);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
+  }
+
+  async getEmbeddings(params) {
+    return this.generateRetrieval(params);
   }
 }
 
 module.exports = NvidiaWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],50:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],52:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const ProxyHelper = require('../utils/ProxyHelper');
@@ -7943,7 +8571,7 @@ class OpenAIWrapper {
   }
 
   async imageToText(params, headers) {
-    const endpoint = this.proxyHelper.getOpenaiChat();
+    const endpoint = this.proxyHelper.getOpenaiChat(params.model);
     try {
       return await this.client.post(endpoint, params, { headers });
     } catch (error) {
@@ -7965,18 +8593,24 @@ class OpenAIWrapper {
 
   async generateGPT5Response(params) {
     const endpoint = this.proxyHelper.getOpenaiResponses(params.model);
-    
+
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
+  }
+
+  // Responses API (/v1/responses) used by gpt-5 and newer models.
+  async generateResponse(params) {
+    return this.generateGPT5Response(params);
   }
 }
 
 module.exports = OpenAIWrapper;
 
-},{"../utils/ConnHelper":30,"../utils/FetchClient":31,"../utils/ProxyHelper":38}],51:[function(require,module,exports){
+},{"../utils/ConnHelper":31,"../utils/FetchClient":32,"../utils/ProxyHelper":40}],53:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -8019,7 +8653,7 @@ class ReplicateWrapper {
 
 module.exports = ReplicateWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31}],52:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32}],54:[function(require,module,exports){
 // wrappers/StabilityAIWrapper.js
 
 const FormData = require('form-data');
@@ -8062,8 +8696,9 @@ class StabilityAIWrapper {
             ]
           };
         } else {
-          // old v1 approach
-          return await this.generateTextToImage(inputs);
+          // v1 text-to-image: engine selects the endpoint and is not a request body field
+          const { engine, model, ...body } = inputs;
+          return await this.generateTextToImage(body, engine || undefined);
         }
       }
 
@@ -8443,7 +9078,7 @@ class StabilityAIWrapper {
 }
 
 module.exports = StabilityAIWrapper;
-},{"../config.json":1,"../utils/ConnHelper":30,"../utils/FetchClient":31,"form-data":24,"fs":21}],53:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":31,"../utils/FetchClient":32,"form-data":24,"fs":21}],55:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 const connHelper = require('../utils/ConnHelper');
 
@@ -8488,5 +9123,5 @@ class VLLMWrapper {
 }
 
 module.exports = VLLMWrapper;
-},{"../utils/ConnHelper":30,"../utils/FetchClient":31}]},{},[12])(12)
+},{"../utils/ConnHelper":31,"../utils/FetchClient":32}]},{},[12])(12)
 });

@@ -12,7 +12,7 @@ This folder contains three interactive examples:
 
 2. **Stability Control Studio** (`style_studio.html`) - Image transformation tool with three control methods (Style, Sketch, Structure) and AI-powered prompt enhancement.
 
-3. **HTML Generator** (`html_generator.html`) - AI-powered HTML page generator using OpenAI GPT-5 and Cohere Command-A models. Features live preview, template examples, and download functionality.
+3. **HTML Generator** (`html_generator.html`) - AI-powered HTML page generator using OpenAI GPT-5.5 and Cohere Command-A models. Features live preview, template examples, and download functionality.
 
 ## Running Locally
 
@@ -32,7 +32,7 @@ Include the following CDN script in your HTML:
 ```
 *Alternative mirror link:*
 ```
-<script src="https://unpkg.com/intellinode@2.2.1/front/intellinode.min.js"></script>
+<script src="https://unpkg.com/intellinode@latest/front/intellinode.min.js"></script>
 ```
 
 check the [docs](https://docs.intellinode.ai/docs/npm/frontend) for more details.

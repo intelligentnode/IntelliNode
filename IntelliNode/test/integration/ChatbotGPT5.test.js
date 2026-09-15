@@ -250,27 +250,24 @@ async function testGPT4BackwardCompatibility() {
   }
 }
 
-async function testGPT5StreamingError() {
+async function testGPT5Streaming() {
   try {
-    console.log('\n=== GPT-5 Streaming Error Test ===\n');
+    console.log('\n=== GPT-5 Streaming Test ===\n');
     
     const bot = new Chatbot(apiKey, SupportedChatModels.OPENAI);
     
+    // GPT-5 models stream through the Responses API
     const input = new ChatGPTInput('You are a helpful assistant.', { model: 'gpt-5' });
-    input.addUserMessage('Test streaming');
+    input.addUserMessage('Count from 1 to 5 separated by commas.');
     
-    let errorOccurred = false;
-    try {
-      for await (const chunk of bot.stream(input)) {
-        console.log('Chunk:', chunk);
-      }
-    } catch (error) {
-      errorOccurred = true;
-      console.log('Expected error:', error.message);
+    let fullText = '';
+    for await (const chunk of bot.stream(input)) {
+      fullText += chunk;
     }
+    console.log('Streamed text:', fullText);
     
-    assert(errorOccurred, "Streaming should throw an error for GPT-5");
-    console.log('✓ Test passed: GPT-5 streaming correctly throws error\n');
+    assert(fullText.length > 0, "Streaming should return text for GPT-5");
+    console.log('✓ Test passed: GPT-5 streaming works\n');
   } catch (error) {
     console.error('✗ Test failed with exception:', error.message);
     throw error;
@@ -293,7 +290,7 @@ async function testGPT5StreamingError() {
     await testGPT5ChatbotWithMaxOutputTokens();
     await testGPT5ChatbotComplexReasoning();
     await testGPT4BackwardCompatibility();
-    await testGPT5StreamingError();
+    await testGPT5Streaming();
     
     console.log('\n╔════════════════════════════════════════╗');
     console.log('║   All Chatbot GPT-5 Tests Passed! ✓   ║');

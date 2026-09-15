@@ -143,7 +143,7 @@ class OpenAIWrapper {
   }
 
   async imageToText(params, headers) {
-    const endpoint = this.proxyHelper.getOpenaiChat();
+    const endpoint = this.proxyHelper.getOpenaiChat(params.model);
     try {
       return await this.client.post(endpoint, params, { headers });
     } catch (error) {
@@ -165,12 +165,18 @@ class OpenAIWrapper {
 
   async generateGPT5Response(params) {
     const endpoint = this.proxyHelper.getOpenaiResponses(params.model);
-    
+
     try {
-      return await this.client.post(endpoint, params);
+      const extraConfig = params.stream ? { responseType: 'stream' } : {};
+      return await this.client.post(endpoint, params, extraConfig);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
+  }
+
+  // Responses API (/v1/responses) used by gpt-5 and newer models.
+  async generateResponse(params) {
+    return this.generateGPT5Response(params);
   }
 }
 

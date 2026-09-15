@@ -23,18 +23,24 @@ class SystemHelper {
     } else if (fileType === "augmented_chatbot") {
       promptPath = path.join(this.systemsPath, "augmented_chatbot.in");
     } else {
-      throw new Error(`File type '${file_type}' not supported`);
+      throw new Error(`File type '${fileType}' not supported`);
     }
 
     return promptPath;
   }
 
   loadPrompt(fileType) {
-    let promptPath = this.getPromptPath(fileType)
-    const promptTemplate = FileHelper.readData(promptPath, 'utf-8');
-
-    return promptTemplate;
-
+    const promptPath = this.getPromptPath(fileType);
+    try {
+      return FileHelper.readData(promptPath, 'utf-8');
+    } catch (error) {
+      // the browser bundle has no file system, so use the templates embedded at build time
+      const embedded = require('../resource/templates/templates')[path.basename(promptPath)];
+      if (embedded === undefined) {
+        throw error;
+      }
+      return embedded;
+    }
   }
 
   loadStaticPrompt(fileType) { 

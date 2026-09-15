@@ -53,26 +53,24 @@ class NvidiaWrapper {
   }
 
   /**
-   * Generates embeddings using NVIDIA's embedding endpoint.
-   * Expects the user to pass a `model` field inside params so that the endpoint
-   * is constructed as:
-   *   {config.nvidia.embedding}/{model}/embeddings
+   * Generates embeddings using NVIDIA's OpenAI-compatible /v1/embeddings endpoint
+   * (the older /v1/retrieval/{model}/embeddings route no longer exists).
    *
-   * @param {object} params - Must include `model` and other required fields.
+   * @param {object} params - Must include `model`, e.g. nvidia/llama-3.2-nv-embedqa-1b-v1.
    */
   async generateRetrieval(params) {
     if (!params.model) {
       throw new Error("Missing 'model' parameter for embeddings");
     }
-    // use the embedding base endpoint from config and append the user-specified model name.
-    const baseEmbedding = config.nvidia.retrieval;
-    // model name example snowflake/arctic-embed
-    const embeddingEndpoint = `${baseEmbedding}/${params.model}/embeddings`;
     try {
-      return await this.client.post(embeddingEndpoint, params);
+      return await this.client.post(config.nvidia.embeddings, params);
     } catch (error) {
       throw new Error(connHelper.getErrorMessage(error));
     }
+  }
+
+  async getEmbeddings(params) {
+    return this.generateRetrieval(params);
   }
 }
 

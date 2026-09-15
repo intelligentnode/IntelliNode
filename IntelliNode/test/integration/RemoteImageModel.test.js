@@ -45,7 +45,8 @@ async function testBase64IOpenaimageRemoteModel() {
 
     if (openaiKey === "") return;
 
-    const images = await wrapper.generateImages({ prompt: prompt, n: 1, response_format: 'b64_json', size: '256x256' });
+    // response_format is dropped automatically for gpt-image models, which always return base64
+    const images = await wrapper.generateImages({ prompt: prompt, n: 1, response_format: 'b64_json', size: '1024x1024', quality: 'low' });
 
     for (const image of images) {
       console.log("- ", image, "\n");
@@ -108,9 +109,11 @@ async function testOpenaiDallE3() {
 
     if (openaiKey === "") return;
 
+    // dall-e-3 was retired; gpt-image-2 is the current OpenAI image model
     const images = await wrapper.generateImages(new ImageModelInput({
       prompt,
-      model: 'dall-e-3'
+      model: 'gpt-image-2',
+      quality: 'low'
     }));
 
     for (const image of images) {

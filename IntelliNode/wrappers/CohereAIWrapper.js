@@ -31,7 +31,7 @@ class CohereAIWrapper {
   }
 
   async generateChatText(params) {
-    const endpoint = '/chat';
+    const endpoint = config.url.cohere.chat;
     try {
       // If stream is true, set responseType='stream'
       const extraConfig = params.stream ? { responseType: 'stream' } : {};

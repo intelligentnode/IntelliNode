@@ -12,6 +12,18 @@ const SystemHelper = require("../utils/SystemHelper");
 const Prompt = require("../utils/Prompt");
 const FileHelper = require("../utils/FileHelper");
 const path = require('path');
+const config = require('../config.json');
+const { isReasoningModel } = require('../utils/ModelHelper');
+
+const DEFAULT_OPENAI_MODEL = config.url.openai.models.chat;
+
+// Reasoning models (gpt-5+) spend output tokens on thinking, so only cap older chat models.
+function openaiInputOptions(model, maxTokens, temperature = null) {
+  if (isReasoningModel(model)) {
+    return { model };
+  }
+  return { model, maxTokens, ...(temperature !== null && { temperature }) };
+}
 
 function stripThinking(text) {
   /** emove any <think>...</think> block from NVIDIA responses. */
@@ -23,7 +35,7 @@ class Gen {
   static async get_marketing_desc(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     if (provider === SupportedLangModels.OPENAI) {
       const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      const input = new ChatGPTInput("generate marketing description", { maxTokens: 800 });
+      const input = new ChatGPTInput("generate marketing description", openaiInputOptions(DEFAULT_OPENAI_MODEL, 800));
       input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
       const responses = await chatbot.chat(input);
       return responses[0].trim();
@@ -35,7 +47,7 @@ class Gen {
       return responses[0].trim();
     } else if (provider === SupportedChatModels.NVIDIA) {
       const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      const input = new NvidiaInput("generate marketing description", { maxTokens: 800, model: 'deepseek-ai/deepseek-r1', temperature: 0.6 });
+      const input = new NvidiaInput("generate marketing description", { maxTokens: 800, temperature: 0.6 });
       input.addUserMessage(`Create a marketing description for the following: ${promptString}`);
       const responses = await chatbot.chat(input);
       let text = responses[0].trim();
@@ -50,7 +62,7 @@ class Gen {
   static async get_blog_post(promptString, apiKey, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     if (provider === SupportedLangModels.OPENAI) {
       const chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
-      const input = new ChatGPTInput("generate blog post", { maxTokens: 1200 });
+      const input = new ChatGPTInput("generate blog post", openaiInputOptions(DEFAULT_OPENAI_MODEL, 1200));
       input.addUserMessage(`Write a blog post about ${promptString}`);
       const responses = await chatbot.chat(input);
       return responses[0].trim();
@@ -62,7 +74,7 @@ class Gen {
       return responses[0].trim();
     } else if (provider === SupportedChatModels.NVIDIA) {
       const chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
-      const input = new NvidiaInput("generate blog post", { maxTokens: 1200, model: 'deepseek-ai/deepseek-r1', temperature: 0.6 });
+      const input = new NvidiaInput("generate blog post", { maxTokens: 1200, temperature: 0.6 });
       input.addUserMessage(`Write a blog post about ${promptString}`);
       const responses = await chatbot.chat(input);
       let text = responses[0].trim();
@@ -107,7 +119,7 @@ class Gen {
   }
 
   // Generate HTML page
-  static async generate_html_page(text, apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async generate_html_page(text, apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     const template = new SystemHelper().loadPrompt("html_page");
     const promptTemp = new Prompt(template);
     let tokenSize = 8000;
@@ -124,11 +136,11 @@ class Gen {
     if (provider === SupportedLangModels.OPENAI) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
       input = new ChatGPTInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
-        { maxTokens: tokenSize, model: model_name, temperature: 0.8 });
+        openaiInputOptions(model_name, tokenSize, 0.8));
     } else if (provider === SupportedChatModels.NVIDIA) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
       input = new NvidiaInput('generate html, css and javascript. Follow this template: {"html": "<code>", "message":"<text>"}',
-        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.8 });
+        { maxTokens: tokenSize, temperature: 0.8 });
     } else {
       throw new Error("Unsupported provider for generate_html_page.");
     }
@@ -145,7 +157,7 @@ class Gen {
   }
 
   // Save HTML page (calls generate_html_page)
-  static async save_html_page(text, folder, file_name, apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async save_html_page(text, folder, file_name, apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     const htmlCode = await Gen.generate_html_page(text, apiKey, model_name, provider, customProxyHelper);
     const folderPath = path.join(folder, file_name + '.html');
     FileHelper.writeDataToFile(folderPath, htmlCode['html']);
@@ -153,7 +165,7 @@ class Gen {
   }
 
   // Generate dashboard
-  static async generate_dashboard(csvStrData, topic, apiKey, model_name = 'gpt-4o', num_graphs = 1, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async generate_dashboard(csvStrData, topic, apiKey, model_name = DEFAULT_OPENAI_MODEL, num_graphs = 1, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     if (num_graphs < 1 || num_graphs > 4) {
       throw new Error('num_graphs must be between 1 and 4.');
     }
@@ -173,11 +185,11 @@ class Gen {
     if (provider === SupportedLangModels.OPENAI) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
       input = new ChatGPTInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
-        { maxTokens: tokenSize, model: model_name, temperature: 0.3 });
+        openaiInputOptions(model_name, tokenSize, 0.3));
     } else if (provider === SupportedChatModels.NVIDIA) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
       input = new NvidiaInput('Generate HTML graphs from CSV data. Response must be valid JSON with full HTML code.',
-        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.3 });
+        { maxTokens: tokenSize, temperature: 0.3 });
     } else {
       throw new Error("Unsupported provider for generate_dashboard.");
     }
@@ -194,7 +206,7 @@ class Gen {
   }
 
   // Instruct update
-  static async instructUpdate(modelOutput, userInstruction, type = '', apiKey, model_name = 'gpt-4o', provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
+  static async instructUpdate(modelOutput, userInstruction, type = '', apiKey, model_name = DEFAULT_OPENAI_MODEL, provider = SupportedLangModels.OPENAI, customProxyHelper = null) {
     const template = new SystemHelper().loadPrompt("instruct_update");
     const promptTemp = new Prompt(template);
     let tokenSize = 2000;
@@ -205,11 +217,11 @@ class Gen {
     if (provider === SupportedLangModels.OPENAI) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.OPENAI, customProxyHelper);
       input = new ChatGPTInput('Update the model message based on user feedback while maintaining format.',
-        { maxTokens: tokenSize, model: model_name, temperature: 0.2 });
+        openaiInputOptions(model_name, tokenSize, 0.2));
     } else if (provider === SupportedChatModels.NVIDIA) {
       chatbot = new Chatbot(apiKey, SupportedChatModels.NVIDIA, customProxyHelper);
       input = new NvidiaInput('Update the model message based on user feedback while maintaining format.',
-        { maxTokens: tokenSize, model: 'deepseek-ai/deepseek-r1', temperature: 0.2 });
+        { maxTokens: tokenSize, temperature: 0.2 });
     } else {
       throw new Error("Unsupported provider for instructUpdate.");
     }

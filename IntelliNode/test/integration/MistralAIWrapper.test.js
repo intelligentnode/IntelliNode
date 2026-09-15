@@ -6,7 +6,7 @@ const mistral = new MistralAIWrapper(process.env.MISTRAL_API_KEY);
 async function testMistralGenerateModel() {
   try {
     const params = {
-      model: 'mistral-tiny',
+      model: 'mistral-small-latest',
       messages: [{"role": "user", "content": "Who is the most renowned French painter?"}]
     };
 

@@ -50,7 +50,7 @@ async function main() {
 }
 
 async function generateProductDescription(textInput, apiKey, modelBackend) {
-  const modelName = (modelBackend === SupportedLangModels.OPENAI) ? 'gpt-3.5-turbo-instruct' : 'command';
+  const modelName = (modelBackend === SupportedLangModels.OPENAI) ? 'gpt-3.5-turbo-instruct' : 'command-a-03-2025';
   const langModel = new RemoteLanguageModel(apiKey, modelBackend);
   const results = await langModel.generateText(new LanguageModelInput({
     prompt: textInput,

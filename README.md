@@ -52,7 +52,7 @@ const { Gen } = require('intellinode');
 ```
 call:
 ```js
-// one line to generate html page code (openai gpt4 is default)
+// one line to generate html page code (openai gpt-5.5 is default)
 text = 'a registration page with flat modern theme.'
 await Gen.save_html_page(text, folder, file_name, openaiKey);
 ```
@@ -66,7 +66,7 @@ import:
 ```js
 const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
-call GPT-5 (default):
+call GPT-5.5 (default):
 ```js
 // set chatGPT system mode and the user message.
 const input = new ChatGPTInput('You are a helpful assistant.');
@@ -75,6 +75,25 @@ input.addUserMessage('What is the distance between the Earth and the Moon?');
 // get chatGPT responses.
 const chatbot = new Chatbot(OPENAI_API_KEY, 'openai');
 const responses = await chatbot.chat(input);
+```
+stream the response (OpenAI, Anthropic, Mistral, Cohere, NVIDIA and vLLM):
+```js
+for await (const chunk of chatbot.stream(input)) {
+  process.stdout.write(chunk);
+}
+```
+### Anthropic Claude Chatbot
+1. imports:
+```js
+const { Chatbot, AnthropicInput, SupportedChatModels } = require('intellinode');
+```
+2. call (Claude Sonnet 5 is default, use `claude-opus-5` for Opus):
+```js
+const input = new AnthropicInput('You are a helpful assistant.');
+input.addUserMessage('Who painted the Mona Lisa?');
+
+const claudeBot = new Chatbot(anthropicKey, SupportedChatModels.ANTHROPIC);
+const responses = await claudeBot.chat(input);
 ```
 ### Gemini Chatbot
 IntelliNode enable effortless swapping between AI models.
@@ -100,7 +119,7 @@ const { Chatbot, NvidiaInput, SupportedChatModels } = require("intellinode");
 
 2. Call:
 ```js
-const input = new NvidiaInput("You are an insightful assistant.", {model: 'deepseek-ai/deepseek-r1'});
+const input = new NvidiaInput("You are an insightful assistant.", {model: 'deepseek-ai/deepseek-v4-flash-0731'});
 input.addUserMessage("What's the summary of the Inception movie?");
 
 // visit build.nvidia.com to get your key.
@@ -139,7 +158,7 @@ const { RemoteLanguageModel, LanguageModelInput } = require('intellinode');
 call openai model:
 ```js
 const langModel = new RemoteLanguageModel('openai-key', 'openai');
-model_name = 'gpt-4o'
+model_name = 'gpt-3.5-turbo-instruct'
 
 const results = await langModel.generateText(new LanguageModelInput({
   prompt: 'Write a product description for smart plug that works with voice assistant.',
@@ -153,7 +172,7 @@ change to call cohere models:
 
 ```js
 const langModel = new RemoteLanguageModel('cohere-key', 'cohere');
-model_name = 'command-xlarge-20221108'
+model_name = 'command-a-03-2025'
 // ... same code
 ```
 
@@ -164,7 +183,7 @@ import:
 const { RemoteImageModel, SupportedImageModels, ImageModelInput } = require('intellinode');
 ```
 
-call DALL·E:
+call OpenAI (gpt-image-2 is default):
 ```js
 provider=SupportedImageModels.OPENAI;
 
@@ -238,6 +257,18 @@ HUGGING_API_KEY=<key_value>
 
 5. run the chatBot test cases:
 `node test/integration/Chatbot.test.js`
+
+6. run the latest provider features (GPT-5.5, Claude, Mistral, Cohere):
+`node test/integration/ChatbotOpenAILatest.test.js`
+`node test/integration/ChatbotAnthropic.test.js`
+`node test/integration/ChatbotMistral.test.js`
+`node test/integration/CohereLatest.test.js`
+
+7. build and check the frontend bundle:
+`npm run build && node test/integration/FrontBundle.test.js`
+
+8. run the offline unit tests:
+`npm test`
 
 # :closed_book: Documentation
 - [IntelliNode Wiki](https://github.com/Barqawiz/IntelliNode/wiki): Check the wiki page for indepeth instructions and practical use cases.

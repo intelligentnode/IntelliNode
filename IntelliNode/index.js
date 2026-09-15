@@ -73,7 +73,8 @@ const MatchHelpers = require('./utils/MatchHelpers');
 const SystemHelper = require('./utils/SystemHelper');
 const Prompt = require('./utils/Prompt');
 const ProxyHelper = require('./utils/ProxyHelper');
-const { GPTStreamParser, CohereStreamParser, VLLMStreamParser} = require('./utils/StreamParser');
+const { GPTStreamParser, CohereStreamParser, VLLMStreamParser, AnthropicStreamParser } = require('./utils/StreamParser');
+const ModelHelper = require('./utils/ModelHelper');
 const ChatContext = require('./utils/ChatContext');
 const MCPClient = require('./utils/MCPClient');
 
@@ -135,5 +136,7 @@ module.exports = {
   VLLMWrapper,
   VLLMInput,
   VLLMStreamParser,
+  AnthropicStreamParser,
+  ModelHelper,
   MCPClient
 };

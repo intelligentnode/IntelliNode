@@ -6,6 +6,8 @@ const { ChatGPTInput, LLamaReplicateInput, LLamaSageInput, GeminiInput, CohereIn
 const MatchHelpers = require('../utils/MatchHelpers');
 const EmbedInput = require('../model/input/EmbedInput');
 const { ModelEvaluation } = require('./ModelEvaluation');
+const config = require('../config.json');
+const { isReasoningModel } = require('./ModelHelper');
 
 class LLMEvaluation extends ModelEvaluation {
 
@@ -41,15 +43,18 @@ class LLMEvaluation extends ModelEvaluation {
       } else if (SupportedChatModels.SAGEMAKER == provider.toLowerCase()) {
         input = new LLamaSageInput("provide direct answer", { maxTokens: maxTokens });
       } else if (SupportedChatModels.GEMINI == provider.toLowerCase()) {
-        input = new GeminiInput("provide direct answer", { maxTokens: maxTokens });
+        input = new GeminiInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.COHERE == provider.toLowerCase()) {
-        input = new CohereInput("provide direct answer", { maxTokens: maxTokens });
+        input = new CohereInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.MISTRAL == provider.toLowerCase()) {
         input = new MistralInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.ANTHROPIC == provider.toLowerCase()) {
         input = new AnthropicInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else {
-        input = new ChatGPTInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
+        const openaiModel = modelName || config.url.openai.models.chat;
+        // reasoning models (gpt-5+) spend output tokens on thinking, so only cap older models
+        input = new ChatGPTInput("provide direct answer",
+          isReasoningModel(openaiModel) ? { model: openaiModel } : { model: openaiModel, maxTokens: maxTokens });
       }
 
       input.addUserMessage(inputString);

@@ -8,7 +8,7 @@ async function callChatbot(apiKey, provider) {
 
   const system = 'You are a knowledgeable assistant about AI and technology.';
   const input = new NvidiaInput(system, {
-    model: 'deepseek-ai/deepseek-r1',
+    model: 'deepseek-ai/deepseek-v4-flash-0731',
     maxTokens: 512,
     temperature: 0.7
   });
@@ -26,7 +26,7 @@ async function callChatbotStream(apiKey, provider) {
 
   const system = 'You are a poetic assistant.';
   const input = new NvidiaInput(system, {
-    model: 'deepseek-ai/deepseek-r1',
+    model: 'deepseek-ai/deepseek-v4-flash-0731',
     maxTokens: 512,
     temperature: 0.5,
     stream: true

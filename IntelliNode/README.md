@@ -18,6 +18,9 @@
 Integrate your data with the latest language models and deep learning frameworks using intellinode **javascript**. The library provides intuitive functions for sending input to models like ChatGPT, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
+- Update the default models: GPT-5.5, Claude Sonnet 5, Gemini 3.6 Flash, Mistral Medium, Command A and gpt-image-2. 🚀
+- Add streaming for GPT-5+, Anthropic and Mistral, plus tool calling for OpenAI, Anthropic and Mistral.
+- Fix the frontend bundle: Anthropic browser access, streaming in browsers and Gen templates.
 - Add support for OpenAI GPT-5 with reasoning effort control. 🧠
 - Add support for self-hosted vLLM models.
 - Generate frontend version from intellinode.
@@ -40,27 +43,58 @@ Chat with your docs via Intellinode one key at [app.intellinode.ai](https://app.
 ```js
 const { Chatbot, ChatGPTInput } = require('intellinode');
 ```
-2. call with GPT-5 (default):
+2. call with GPT-5.5 (default):
 ```js
-// GPT-5 is now the default model with medium reasoning effort
+// GPT-5.5 is the default model (low reasoning effort unless set)
 const input = new ChatGPTInput('You are a helpful assistant.');
 input.addUserMessage('What is the distance between the Earth and the Moon?');
 
-// get GPT-5 responses.
+// get GPT-5.5 responses.
 const bot = new Chatbot(openaiKey);
 const responses = await bot.chat(input);
 ```
-3. control GPT-5 reasoning effort:
+3. control the reasoning effort:
 ```js
-// customize reasoning effort: minimal, low, medium, high
+// gpt-5.5 effort: none, low, medium, high, xhigh (gpt-5 also accepts minimal)
 const input = new ChatGPTInput('You are a helpful assistant.', { 
-  model: 'gpt-5',
+  model: 'gpt-5.5',
   effort: 'high'
 });
 input.addUserMessage('Explain quantum computing');
 
 const bot = new Chatbot(openaiKey);
 const responses = await bot.chat(input);
+```
+
+4. stream the response (OpenAI, Anthropic, Mistral, Cohere, NVIDIA and vLLM):
+```js
+for await (const chunk of bot.stream(input)) {
+  process.stdout.write(chunk);
+}
+```
+5. call tools (the same `tools` option works with `AnthropicInput` and `MistralInput`):
+```js
+const input = new ChatGPTInput('You are a helpful assistant.', {
+  tools: [{ type: 'function', function: { name: 'get_weather', parameters: { type: 'object', properties: { city: { type: 'string' } } } } }]
+});
+input.addUserMessage('What is the weather in Paris?');
+
+const [response] = await bot.chat(input);
+// response.tool_calls[0].function => { name: 'get_weather', arguments: '{"city":"Paris"}' }
+```
+
+### Anthropic Claude Chatbot
+1. imports:
+```js
+const { Chatbot, AnthropicInput, SupportedChatModels } = require('intellinode');
+```
+2. call (Claude Sonnet 5 is default, use `claude-opus-5` for Opus):
+```js
+const input = new AnthropicInput('You are a helpful assistant.');
+input.addUserMessage('Who painted the Mona Lisa?');
+
+const claudeBot = new Chatbot(anthropicKey, SupportedChatModels.ANTHROPIC);
+const responses = await claudeBot.chat(input);
 ```
 
 ### Google Gemini Chatbot
@@ -76,7 +110,7 @@ input.addUserMessage('Who painted the Mona Lisa?');
 
 // get the api key from makersuite.google.com/app/apikey
 const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI);
-const responses = await geminiBot.chat(geminiInput);
+const responses = await geminiBot.chat(input);
 ```
 
 The documentation on how to switch between ChatGPT, Mistral, Anthropic, and LLama can be found in the [IntelliNode Wiki](https://docs.intellinode.ai/docs/npm/chatbot/get-started).
@@ -124,7 +158,7 @@ const htmlCode = await Gen.generate_dashboard(csv_str_data, topic, openaiKey, nu
 const { RemoteImageModel, SupportedImageModels, ImageModelInput } = require('intellinode');
 ```
 
-2. call DALL·E:
+2. call OpenAI (gpt-image-2 is default):
 ```js
 provider=SupportedImageModels.OPENAI;
 

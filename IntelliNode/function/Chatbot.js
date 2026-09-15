@@ -8,7 +8,13 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const AWSEndpointWrapper = require('../wrappers/AWSEndpointWrapper');
-const { GPTStreamParser, CohereStreamParser, VLLMStreamParser } = require('../utils/StreamParser');
+const {
+    GPTStreamParser,
+    CohereStreamParser,
+    VLLMStreamParser,
+    AnthropicStreamParser,
+    readStreamChunks
+} = require('../utils/StreamParser');
 const CohereAIWrapper = require('../wrappers/CohereAIWrapper');
 const IntellicloudWrapper = require("../wrappers/IntellicloudWrapper");
 const MistralAIWrapper = require('../wrappers/MistralAIWrapper');
@@ -17,6 +23,13 @@ const AnthropicWrapper = require('../wrappers/AnthropicWrapper');
 const SystemHelper = require("../utils/SystemHelper");
 const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
+const {
+    isReasoningModel,
+    functionsToTools,
+    functionCallToToolChoice,
+    toResponsesTools,
+    toResponsesToolChoice
+} = require('../utils/ModelHelper');
 
 const {
     ChatGPTInput,
@@ -155,6 +168,10 @@ class Chatbot {
 
         if (this.provider === SupportedChatModels.OPENAI) {
             yield* this._chatGPTStream(modelInput);
+        } else if (this.provider === SupportedChatModels.ANTHROPIC) {
+            yield* this._streamAnthropic(modelInput);
+        } else if (this.provider === SupportedChatModels.MISTRAL) {
+            yield* this._streamMistral(modelInput);
         } else if (this.provider === SupportedChatModels.COHERE) {
             yield* this._streamCohere(modelInput)
         } else if (this.provider === SupportedChatModels.NVIDIA) {
@@ -162,7 +179,7 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.VLLM) {
             yield* this._streamVLLM(modelInput);
         } else {
-            throw new Error("The stream function support only chatGPT, for other providers use chat function.");
+            throw new Error("The stream function supports openai, anthropic, mistral, cohere, nvidia and vllm; for other providers use the chat function.");
         }
     }
 
@@ -197,8 +214,7 @@ class Chatbot {
       const streamParser = new VLLMStreamParser();
 
       // Process the streaming response
-      for await (const chunk of stream) {
-        const chunkText = chunk.toString('utf8');
+      for await (const chunkText of readStreamChunks(stream)) {
         yield* streamParser.feed(chunkText);
       }
     }
@@ -302,35 +318,33 @@ class Chatbot {
       }
     }
 
+    // gpt-5+ inputs go to the Responses API; plain request objects are routed by their shape.
+    _isResponsesRequest(modelInput, params) {
+        if (modelInput instanceof ChatModelInput) {
+            return isReasoningModel(modelInput.model);
+        }
+        return params.input !== undefined && params.messages === undefined;
+    }
+
     async *_chatGPTStream(modelInput) {
         let params;
 
         if (modelInput instanceof ChatModelInput) {
             params = modelInput.getChatInput();
-            params.stream = true;
         } else if (typeof modelInput === "object") {
-            params = modelInput;
-            params.stream = true;
+            params = { ...modelInput };
         } else {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
+        params.stream = true;
 
-        // Check if this is GPT-5
-        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
-        
-        if (isGPT5) {
-            // GPT-5 doesn't support streaming in the same way
-            // For now, throw an error or handle as non-streaming
-            throw new Error("GPT-5 streaming is not yet supported. Please use the chat() method instead.");
-        }
+        const stream = this._isResponsesRequest(modelInput, params)
+            ? await this.openaiWrapper.generateGPT5Response(params)
+            : await this.openaiWrapper.generateChatText(params);
 
+        // the parser understands both chat completions and Responses API events
         const streamParser = new GPTStreamParser();
-
-        const stream = await this.openaiWrapper.generateChatText(params);
-
-        // Collect data from the stream
-        for await (const chunk of stream) {
-            const chunkText = chunk.toString('utf8');
+        for await (const chunkText of readStreamChunks(stream)) {
             yield* streamParser.feed(chunkText);
         }
     }
@@ -347,42 +361,80 @@ class Chatbot {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
 
-        // Check if this is GPT-5
-        const isGPT5 = params.model && params.model.toLowerCase().includes('gpt-5');
-        
-        if (isGPT5) {
-            // GPT-5 uses different endpoint and response format
+        if (this._isResponsesRequest(modelInput, params)) {
+            const legacyFunctions = functions != null;
+            if (legacyFunctions) {
+                // the Responses API has no `functions` field, so send them as tools
+                params = {
+                    ...params,
+                    tools: [...(params.tools || []), ...toResponsesTools(functionsToTools(functions))],
+                    ...(function_call != null && { tool_choice: toResponsesToolChoice(functionCallToToolChoice(function_call)) }),
+                };
+            }
             const results = await this.openaiWrapper.generateGPT5Response(params);
-            // GPT-5 response format: { output: [ {type: 'reasoning'}, {type: 'message', content: [...]} ] }
-            if (results.output && Array.isArray(results.output)) {
-                // Extract text from the message content
-                const messageObjects = results.output.filter(item => item.type === 'message');
-                const responses = messageObjects.map(msg => {
-                    if (msg.content && Array.isArray(msg.content)) {
-                        return msg.content.map(c => c.text || c).join('');
-                    }
-                    return msg.content || '';
-                });
-                return responses.length > 0 ? responses : [''];
-            } else if (results.choices && results.choices.length > 0) {
-                // Fallback to choices format if available
+            return this._parseResponsesOutput(results, legacyFunctions);
+        }
+
+        const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
+        return this._parseChatChoices(results);
+    }
+
+    // Chat-completions choices: text, or { content, function_call } / { content, tool_calls }.
+    _parseChatChoices(results) {
+        return (results.choices || []).map((choice) => {
+            const message = choice.message || {};
+            if (message.function_call) {
+                return {
+                    content: message.content,
+                    function_call: message.function_call
+                };
+            }
+            if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+                return {
+                    content: message.content,
+                    tool_calls: message.tool_calls
+                };
+            }
+            return message.content;
+        });
+    }
+
+    // Responses API output: { output: [ {type: 'reasoning'}, {type: 'message', content: [...]}, {type: 'function_call'} ] }
+    _parseResponsesOutput(results, legacyFunctions = false) {
+        if (!Array.isArray(results.output)) {
+            if (results.choices && results.choices.length > 0) {
                 return results.choices.map(choice => choice.output || choice.text || choice.message?.content);
             }
             return [''];
-        } else {
-            // Standard chat completion for GPT-4 and others
-            const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
-            return results.choices.map((choice) => {
-                if (choice.finish_reason === 'function_call' && choice.message.function_call) {
-                    return {
-                        content: choice.message.content,
-                        function_call: choice.message.function_call
-                    };
-                } else {
-                    return choice.message.content;
-                }
-            });
         }
+
+        const texts = [];
+        const toolCalls = [];
+        for (const item of results.output) {
+            if (item.type === 'message') {
+                const content = Array.isArray(item.content)
+                    ? item.content.map((part) => part.text ?? part.refusal ?? '').join('')
+                    : (item.content || '');
+                texts.push(content);
+            } else if (item.type === 'function_call') {
+                toolCalls.push({
+                    id: item.call_id || item.id,
+                    type: 'function',
+                    function: { name: item.name, arguments: item.arguments }
+                });
+            }
+        }
+
+        if (toolCalls.length > 0) {
+            const content = texts.join('') || null;
+            if (legacyFunctions) {
+                return toolCalls.map((call) => ({ content, function_call: call.function }));
+            }
+            return [{ content, tool_calls: toolCalls }];
+        }
+
+        // an incomplete response (e.g. max_output_tokens spent on reasoning) keeps returning ['']
+        return texts.length > 0 ? texts : [''];
     }
 
     async _chatReplicateLLama(modelInput, debugMode) {
@@ -476,84 +528,126 @@ class Chatbot {
 
         if (modelInput instanceof CohereInput) {
             params = modelInput.getChatInput();
-            params.stream = true;
         } else if (typeof modelInput === "object") {
-            params = modelInput;
-            params.stream = true;
+            params = { ...modelInput };
         } else {
             throw new Error("Invalid input: Must be an instance of ChatGPTInput or a dictionary");
         }
+        params.stream = true;
 
         const streamParser = new CohereStreamParser();
 
         const stream = await this.cohereWrapper.generateChatText(params);
 
-        // Collect data from the stream
-        for await (const chunk of stream) {
-            const chunkText = chunk.toString('utf8');
+        for await (const chunkText of readStreamChunks(stream)) {
             yield* streamParser.feed(chunkText);
         }
     }
 
-    async _chatMistral(modelInput) {
-        let params;
-
-        if (modelInput instanceof MistralInput) {
-            params = modelInput.getChatInput();
-        } if (modelInput instanceof ChatGPTInput) {
-            params = modelInput.getChatInput();
+    _getMistralParams(modelInput) {
+        if (modelInput instanceof MistralInput || modelInput instanceof ChatGPTInput) {
+            return modelInput.getChatInput();
         } else if (typeof modelInput === "object") {
-            params = modelInput;
-        } else {
-            throw new Error("Invalid input: Must be an instance of MistralInput or an object");
+            return { ...modelInput };
         }
+        throw new Error("Invalid input: Must be an instance of MistralInput or an object");
+    }
+
+    async _chatMistral(modelInput) {
+        const params = this._getMistralParams(modelInput);
 
         const results = await this.mistralWrapper.generateText(params);
 
-        return results.choices.map(choice => choice.message.content);
+        return this._parseChatChoices(results);
+    }
+
+    async *_streamMistral(modelInput) {
+        const params = this._getMistralParams(modelInput);
+        params.stream = true;
+
+        const streamParser = new GPTStreamParser();
+        const stream = await this.mistralWrapper.generateText(params);
+
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
+        }
     }
 
     async _chatGemini(modelInput) {
         let params;
+        let model = null;
 
         if (modelInput instanceof GeminiInput) {
             params = modelInput.getChatInput();
+            model = modelInput.model;
         } else if (typeof modelInput === "object") {
+            // an optional `model` key selects the model; the wrapper removes it from the body
             params = modelInput;
         } else {
             throw new Error("Invalid input: Must be an instance of GeminiInput");
         }
 
         // call Gemini
-        const result = await this.geminiWrapper.generateContent(params);
+        const result = await this.geminiWrapper.generateContent(params, false, model);
 
         if (!Array.isArray(result.candidates) || result.candidates.length === 0) {
-            throw new Error("Invalid response from Gemini API: Expected 'candidates' array with content");
+            const feedback = result.promptFeedback ? ` Prompt feedback: ${JSON.stringify(result.promptFeedback)}` : '';
+            throw new Error(`Invalid response from Gemini API: Expected 'candidates' array with content.${feedback}`);
         }
 
-        // iterate over all the candidates
-        const responses = result.candidates.map(candidate => {
-            // combine text from all parts
-            return candidate.content.parts
+        // a candidate can have no parts, e.g. when thinking used the whole output budget
+        return result.candidates.map(candidate => {
+            const parts = (candidate.content && candidate.content.parts) || [];
+            return parts
+                .filter(part => typeof part.text === 'string' && !part.thought)
                 .map(part => part.text)
-                .join(' ');
+                .join('');
         });
+    }
 
-        return responses;
+    _getAnthropicParams(modelInput) {
+        if (modelInput instanceof AnthropicInput) {
+            return modelInput.getChatInput();
+        } else if (modelInput && typeof modelInput === "object" && !(modelInput instanceof ChatModelInput)) {
+            return { ...modelInput };
+        }
+        throw new Error("Invalid input: Must be an instance of AnthropicInput or a Messages API object");
     }
 
     async _chatAnthropic(modelInput) {
-        let params;
-    
-        if (modelInput instanceof AnthropicInput) {
-            params = modelInput.getChatInput();
-        } else {
-            throw new Error("Invalid input: Must be an instance of AnthropicInput");
-        }
-    
+        const params = this._getAnthropicParams(modelInput);
+
         const results = await this.anthropicWrapper.generateText(params);
-        
-        return results.content.map(choice => choice.text);
+
+        // Claude 5 models can return thinking blocks before the answer; keep the text blocks only
+        const blocks = Array.isArray(results.content) ? results.content : [];
+        const texts = blocks.filter(block => block.type === 'text').map(block => block.text);
+        const toolUses = blocks.filter(block => block.type === 'tool_use');
+
+        if (toolUses.length > 0) {
+            return [{
+                content: texts.join('') || null,
+                tool_calls: toolUses.map(block => ({
+                    id: block.id,
+                    type: 'function',
+                    function: { name: block.name, arguments: JSON.stringify(block.input || {}) }
+                }))
+            }];
+        }
+
+        // e.g. max_tokens spent on thinking: keep the string array shape
+        return texts.length > 0 ? texts : [''];
+    }
+
+    async *_streamAnthropic(modelInput) {
+        const params = this._getAnthropicParams(modelInput);
+
+        const streamParser = new AnthropicStreamParser();
+        const stream = await this.anthropicWrapper.streamText(params);
+
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
+        }
     }
 
     async _chatNvidia(modelInput) {
@@ -564,28 +658,13 @@ class Chatbot {
     }
 
     async *_streamNvidia(modelInput) {
-        let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
+        let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : { ...modelInput };
         params.stream = true;
         const stream = await this.nvidiaWrapper.generateTextStream(params);
-        let buffer = '';
-        for await (const chunk of stream) {
-          const lines = chunk.toString('utf8').split('\n');
-          for (let line of lines) {
-            line = line.trim();
-            if (!line) continue;
-            if (line.startsWith('data: [DONE]')) {
-              yield buffer;
-              return;
-            }
-            if (line.startsWith('data: ')) {
-              try {
-                let parsed = JSON.parse(line.replace('data: ', ''));
-                let content = parsed.choices?.[0]?.delta?.content || '';
-                buffer += content;
-                yield content;
-              } catch(e) {}
-            }
-          }
+
+        const streamParser = new GPTStreamParser();
+        for await (const chunkText of readStreamChunks(stream)) {
+            yield* streamParser.feed(chunkText);
         }
     }
 

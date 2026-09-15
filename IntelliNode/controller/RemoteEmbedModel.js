@@ -4,6 +4,7 @@ const ReplicateWrapper = require('../wrappers/ReplicateWrapper');
 const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const EmbedInput = require('../model/input/EmbedInput');
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
+const NvidiaWrapper = require('../wrappers/NvidiaWrapper');
 
 const SupportedEmbedModels = {
   OPENAI: 'openai',
@@ -130,7 +131,7 @@ class RemoteEmbedModel {
       return await this.geminiWrapper.getEmbeddings(inputs);
     } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
       const result = await this.nvidiaWrapper.generateRetrieval(inputs);
-      return Array.isArray(result) ? result : [];
+      return Array.isArray(result) ? result : (result.data || []);
     } else if (this.keyType === SupportedEmbedModels.VLLM) {
       const results = await this.vllmWrapper.getEmbeddings(inputs.texts);
       return results.embeddings.map((embedding, index) => ({

@@ -6,6 +6,21 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 const config = require('../../config.json');
+const {
+  isReasoningModel,
+  isReasoningChatModel,
+  stripRouteOverride,
+  defaultReasoningEffort,
+  claudeRejectsSamplingParams,
+  toChatTools,
+  toResponsesTools,
+  toAnthropicTools,
+  toChatToolChoice,
+  toResponsesToolChoice,
+  toAnthropicToolChoice,
+} = require('../../utils/ModelHelper');
+
+let cohereWebWarningShown = false;
 
 class ChatGPTMessage {
   constructor(content, role, name = null) {
@@ -30,6 +45,22 @@ class ChatModelInput {
   }
 }
 
+// Convert chat-completions content parts into the Responses API part types.
+function toResponsesContent(content, role) {
+  if (!Array.isArray(content)) return content;
+  const textType = role === 'assistant' ? 'output_text' : 'input_text';
+  return content.map((part) => {
+    if (!part || typeof part !== 'object') return part;
+    if (part.type === 'text') return { type: textType, text: part.text };
+    if (part.type === 'image_url') {
+      const image = part.image_url;
+      const url = typeof image === 'string' ? image : image && image.url;
+      return { type: 'input_image', image_url: url, ...(image && image.detail && { detail: image.detail }) };
+    }
+    return part;
+  });
+}
+
 class ChatGPTInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super(options);
@@ -45,11 +76,18 @@ class ChatGPTInput extends ChatModelInput {
         'The input type should be system to define the chatbot theme or instructions.'
       );
     }
-    this.model = options.model || 'gpt-5';
-    this.temperature = options.temperature || 1;
+    this.model = options.model || config.url.openai.models.chat;
+    this.temperature = options.temperature ?? 1;
     this.maxTokens = options.maxTokens || null;
     this.numberOfOutputs = 1;
-    this.effort = options.effort || 'low'; // GPT-5 reasoning effort: minimal, low, medium, high
+    // gpt-5+ reasoning effort: none, low, medium, high, xhigh (the original gpt-5 also accepts minimal).
+    // Defaults to low, or medium for the *-pro models that reject low.
+    this.effort = options.effort || options.reasoningEffort || defaultReasoningEffort(this.model);
+    // gpt-5+ answer length: low, medium, high.
+    this.verbosity = options.verbosity || null;
+    // Function tools in chat-completions or Responses format; converted for the target endpoint.
+    this.tools = options.tools || null;
+    this.toolChoice = options.toolChoice ?? null;
   }
 
   addMessage(message) {
@@ -90,6 +128,11 @@ class ChatGPTInput extends ChatModelInput {
   }
 
   getChatInput() {
+    // gpt-5 and newer use the Responses API (a ":chat" model suffix keeps chat completions).
+    if (isReasoningModel(this.model)) {
+      return this.getResponsesInput();
+    }
+
     const messages = this.messages.map((message) => {
       if (message.name) {
         return {
@@ -105,34 +148,37 @@ class ChatGPTInput extends ChatModelInput {
       }
     });
 
-    // Check if this is GPT-5
-    const isGPT5 = this.model && this.model.toLowerCase().includes('gpt-5');
-    
-    if (isGPT5) {
-      // GPT-5 uses different format: input instead of messages
-      // Combine messages into a single input string
-      const input = messages
-        .map(msg => `${msg.role}: ${msg.content}`)
-        .join('\n');
-      
-      const params = {
-        model: this.model,
-        input: input,
-        reasoning: { effort: this.effort },
-        ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
-      };
-      return params;
-    } else {
-      // Standard chat completion format for GPT-4 and others
-      const params = {
-        model: this.model,
-        messages: messages,
-        ...(this.temperature && { temperature: this.temperature }),
-        ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
-        ...(this.maxTokens && { max_tokens: this.maxTokens }),
-      };
-      return params;
-    }
+    // o-series and gpt-5+ on chat completions reject max_tokens and custom temperature.
+    const reasoningChat = isReasoningChatModel(this.model);
+
+    return {
+      model: stripRouteOverride(this.model),
+      messages: messages,
+      ...(!reasoningChat && this.temperature != null && { temperature: this.temperature }),
+      ...(this.numberOfOutputs && { n: this.numberOfOutputs }),
+      ...(this.maxTokens && (reasoningChat ? { max_completion_tokens: this.maxTokens } : { max_tokens: this.maxTokens })),
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
+    };
+  }
+
+  // Request body for the Responses API (/v1/responses).
+  getResponsesInput() {
+    // Responses input messages accept role and content only (no name field).
+    const input = this.messages.map((message) => ({
+      role: message.role,
+      content: toResponsesContent(message.content, message.role),
+    }));
+
+    return {
+      model: stripRouteOverride(this.model),
+      input: input,
+      reasoning: { effort: this.effort || defaultReasoningEffort(this.model) },
+      ...(this.maxTokens && { max_output_tokens: this.maxTokens }),
+      ...(this.verbosity && { text: { verbosity: this.verbosity } }),
+      ...(this.tools && { tools: toResponsesTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toResponsesToolChoice(this.toolChoice) }),
+    };
   }
 }
 
@@ -140,7 +186,8 @@ class CohereInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
     this.web = options.web || false;
-    this.model = options.model || 'command-r';
+    this.model = options.model || config.url.cohere.models.chat;
+    this.temperature = options.temperature ?? null;
   }
 
   addUserMessage(prompt) {
@@ -160,6 +207,11 @@ class CohereInput extends ChatGPTInput {
         throw new Error("At least one message is required for Cohere API");
     }
 
+    if (this.web && !cohereWebWarningShown) {
+        cohereWebWarningShown = true;
+        console.warn("CohereInput: the 'web' option is ignored because Cohere removed connectors from the Chat API.");
+    }
+
     const chatHistory = [];
     const latestMessage = this.messages[this.messages.length - 1];
 
@@ -176,7 +228,8 @@ class CohereInput extends ChatGPTInput {
         'model': this.model,
         'message': latestMessage.content,
         'chat_history': chatHistory,
-        ...(this.web && {'connectors': [{id: 'web-search'}]}),
+        ...(this.temperature != null && { 'temperature': this.temperature }),
+        ...(this.maxTokens && { 'max_tokens': this.maxTokens }),
     };
 
     return params;
@@ -188,8 +241,8 @@ class MistralInput extends ChatGPTInput {
   constructor(systemMessage, options = {}) {
     super(systemMessage, options);
     
-    this.model = options.model || 'mistral-medium'; 
-
+    this.model = options.model || config.url.mistral.models.chat;
+    this.temperature = options.temperature ?? null;
   }
 
   getChatInput() {
@@ -203,6 +256,10 @@ class MistralInput extends ChatGPTInput {
     const params = {
       model: this.model,
       messages: messages,
+      ...(this.temperature != null && { temperature: this.temperature }),
+      ...(this.maxTokens && { max_tokens: this.maxTokens }),
+      ...(this.tools && { tools: toChatTools(this.tools) }),
+      ...(this.toolChoice != null && { tool_choice: toChatToolChoice(this.toolChoice) }),
     };
 
     return params;
@@ -213,8 +270,11 @@ class GeminiInput extends ChatModelInput {
   constructor(systemMessage, options = {}) {
     super(options);
     this.messages = [];
+    // the bare 'gemini' placeholder from older examples maps to the default model
+    this.model = options.model && options.model !== 'gemini' ? options.model : config.url.gemini.models.chat;
     this.maxOutputTokens = options.maxTokens
     this.temperature = options.temperature
+    this.tools = options.tools || null;
 
     if (systemMessage && typeof systemMessage === 'string') {
       this.addUserMessage(systemMessage);
@@ -240,13 +300,15 @@ class GeminiInput extends ChatModelInput {
     this.addModelMessage(text);
   }
 
+  // The model is part of the endpoint URL, so it is not included in the body.
   getChatInput() {
     return {
       contents: this.messages,
       generationConfig: { 
-        ...(this.temperature && { temperature: this.temperature }),
+        ...(this.temperature != null && { temperature: this.temperature }),
         ...(this.maxOutputTokens && { maxOutputTokens: this.maxOutputTokens }),
-      }
+      },
+      ...(this.tools && { tools: this.tools }),
     };
   }
 
@@ -269,9 +331,15 @@ class AnthropicInput extends ChatModelInput {
   constructor(system, options = {}) {
       super(options);
       this.system = system;
-      this.model = options.model || 'claude-3-sonnet-20240229'; 
-      this.maxTokens = options.maxTokens  || 800;
-      this.temperature = options.temperature || 1.0;
+      this.model = options.model || config.url.anthropic.models.chat;
+      // Claude 5 models think adaptively and thinking counts toward max_tokens.
+      this.maxTokens = options.maxTokens || 2048;
+      // Sent only when set; Opus 4.7+ and Claude 5 models reject sampling parameters.
+      this.temperature = options.temperature ?? null;
+      // Tools in Anthropic format or OpenAI function format.
+      this.tools = options.tools || null;
+      // 'auto' | 'any' | 'required' | 'none', or an Anthropic tool_choice object.
+      this.toolChoice = options.toolChoice ?? null;
       this.messages = [];
   }
 
@@ -289,13 +357,29 @@ class AnthropicInput extends ChatModelInput {
       });
   }
 
+  cleanMessages() {
+      this.messages = [];
+  }
+
+  deleteLastMessage(message) {
+      for (let i = this.messages.length - 1; i >= 0; i--) {
+          if (this.messages[i].role === message.role && this.messages[i].content === message.content) {
+              this.messages.splice(i, 1);
+              return true;
+          }
+      }
+      return false;
+  }
+
   getChatInput() {
       return {
-          system: this.system,
+          ...(this.system && { system: this.system }),
           model: this.model,
           messages: this.messages,
           max_tokens: this.maxTokens,
-          temperature: this.temperature,
+          ...(this.temperature != null && !claudeRejectsSamplingParams(this.model) && { temperature: this.temperature }),
+          ...(this.tools && { tools: toAnthropicTools(this.tools) }),
+          ...(this.toolChoice != null && { tool_choice: toAnthropicToolChoice(this.toolChoice) }),
       };
   }
 }
@@ -494,12 +578,12 @@ class NvidiaInput extends ChatModelInput {
     } else {
       this.messages = [];
     }
-    this.model = options.model || 'deepseek-ai/deepseek-r1';
-    this.temperature = options.temperature || 0.7;
+    this.model = options.model || config.nvidia.models.chat;
+    this.temperature = options.temperature ?? 0.7;
     this.maxTokens = options.maxTokens || 1024;
-    this.topP = options.topP || 1.0;
-    this.presencePenalty = options.presencePenalty || 0;
-    this.frequencyPenalty = options.frequencyPenalty || 0;
+    this.topP = options.topP ?? 1.0;
+    this.presencePenalty = options.presencePenalty ?? 0;
+    this.frequencyPenalty = options.frequencyPenalty ?? 0;
     this.stream = options.stream || false;
   }
 
@@ -543,8 +627,8 @@ class VLLMInput extends ChatGPTInput {
     super(systemMessage, options);
     this.model = options.model || 'Qwen/Qwen2.5-1.5B-Instruct';
     this.maxTokens = options.maxTokens || 1024;
-    this.temperature = options.temperature || 0.7;
-    this.top_p = options.top_p || 1.0;
+    this.temperature = options.temperature ?? 0.7;
+    this.top_p = options.top_p ?? 1.0;
   }
 
   getChatInput() {
