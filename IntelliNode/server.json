@@ -6,13 +6,13 @@
     "url": "https://github.com/intelligentnode/IntelliNode",
     "source": "github"
   },
-  "version": "3.0.0",
+  "version": "3.0.1",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "intellinode",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

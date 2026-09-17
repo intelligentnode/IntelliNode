@@ -8268,7 +8268,7 @@ process.umask = function() { return 0; };
 },{}],30:[function(require,module,exports){
 module.exports={
   "name": "intellinode",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Unified AI toolkit: one API for OpenAI, Anthropic, Gemini, Mistral, Cohere, NVIDIA and OpenAI-compatible services, with a tool loop, structured output, generators for web developers and an MCP server.",
   "main": "index.js",
   "types": "index.d.ts",
@@ -8319,7 +8319,7 @@ module.exports={
     "build": "node scripts/build-templates.js && browserify index.js --standalone IntelliNode -o front/intellinode.js && uglifyjs front/intellinode.js -o front/intellinode.min.js",
     "test": "node test/unit/testRunner"
   },
-  "homepage": "https://docs.intellinode.ai",
+  "homepage": "https://www.intellinode.ai",
   "devDependencies": {
     "browserify": "^17.0.1",
     "uglify-js": "^3.19.3"
