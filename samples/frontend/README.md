@@ -35,7 +35,7 @@ Include the following CDN script in your HTML:
 <script src="https://unpkg.com/intellinode@latest/front/intellinode.min.js"></script>
 ```
 
-check the [docs](https://docs.intellinode.ai/docs/npm/frontend) for more details.
+check the [docs](https://www.intellinode.ai/docs/npm/frontend) for more details.
 
 # License
 Apache License

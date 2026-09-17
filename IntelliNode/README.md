@@ -32,7 +32,7 @@ Integrate your data with the latest language models and deep learning frameworks
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
-Chat with your docs via Intellinode one key at [app.intellinode.ai](https://app.intellinode.ai/).
+Chat with your docs via Intellinode one key at [chat.intellinode.ai](https://chat.intellinode.ai/).
 
 # Examples
 ## Functions
@@ -128,7 +128,7 @@ const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI);
 const responses = await geminiBot.chat(input);
 ```
 
-The documentation on how to switch between ChatGPT, Mistral, Anthropic, and LLama can be found in the [IntelliNode Wiki](https://docs.intellinode.ai/docs/npm/chatbot/get-started).
+The documentation on how to switch between ChatGPT, Mistral, Anthropic, and LLama can be found in the [IntelliNode Wiki](https://www.intellinode.ai/docs/npm/chatbot/get-started).
 
 ### Semantic Search
 1. imports:
@@ -312,7 +312,7 @@ console.log(result.success, result.summary);   // result.iterations, result.test
 - [LLM as Microservice](https://www.kdnuggets.com/building-microservice-for-multichat-backends-using-llama-and-chatgpt): For scalable production.
 - [Fine-tuning Tutorial](https://doc.intellinode.ai/docs/npm/controllers/fine-tuning): Learn how to tune LLMs with yout data.
 - [Chatbot With Your Docs](https://doc.intellinode.ai/docs/npm/chatbot/docs-chat): Tutorial to augment any LLM provider with your docs and images.
-- [Frontend connector](https://docs.intellinode.ai/docs/npm/frontend): Connect directly to models from your browser without the need for server-side integration.
+- [Frontend connector](https://www.intellinode.ai/docs/npm/frontend): Connect directly to models from your browser without the need for server-side integration.
 
 # Pillars
 - **The wrapper layer** provides low-level access to the latest AI models
