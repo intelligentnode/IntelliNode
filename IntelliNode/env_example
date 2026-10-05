@@ -11,6 +11,21 @@ MISTRAL_API_KEY=
 AWS_API_URL=
 INTELLI_API_BASE=
 GEMINI_API_KEY=
+# Gemini on Vertex AI: an Agent Platform key (express mode), plus a project for Veo, Lyria and the Live API
+VERTEX_API_KEY=
+VERTEX_PROJECT_ID=
+VERTEX_LOCATION=
+# Google Cloud stores (Firestore, RAG Engine, Vector Search) use OAuth: gcloud auth application-default login
+GOOGLE_CLOUD_PROJECT=
+# vector databases for test/integration/VectorStores.test.js (each store runs when its variables are set)
+QDRANT_URL=
+CHROMA_URL=
+PINECONE_API_KEY=
+PINECONE_INDEX_HOST=
+WEAVIATE_URL=
+MILVUS_URL=
+ELASTICSEARCH_URL=
+PG_CONNECTION_STRING=
 # VLLM
 VLLM_EMBED_URL=
 DEEPSEEK_VLLM_URL=

@@ -45,6 +45,19 @@ class Text2SpeechInput {
     return params;
   }
 
+  /**
+   * Gemini TTS input: a Gemini voice name (Kore, Puck, Charon, ...) when voice is one, otherwise Kore for a female
+   * and Puck for a male voice. The OpenAI tts model default is replaced by the Gemini TTS default.
+   */
+  getGeminiInput() {
+    const openAIVoices = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'onyx', 'nova', 'sage', 'shimmer', 'verse'];
+    const voice = this.voice && !openAIVoices.includes(String(this.voice).toLowerCase())
+      ? this.voice
+      : (this.gender === Text2SpeechInput.Gender.MALE ? 'Puck' : 'Kore');
+    const model = this.model && String(this.model).includes('tts') && String(this.model).startsWith('gemini') ? this.model : null;
+    return { text: this.text, voice, model };
+  }
+
   getOpenAIInput() {
     const params = {
       input: this.text,

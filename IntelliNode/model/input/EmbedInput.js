@@ -76,6 +76,8 @@ class EmbedInput {
         this.model = config.models.replicate.llama['llama-2-13b-embeddings-version'];
     } else if (provider === "gemini") {
         this.model = `models/${config.url.gemini.models.embed}`;
+    } else if (provider === "vertex") {
+        this.model = config.url.gemini.vertex.models.embed;
     } else if (provider === "nvidia") {
         this.model = config.nvidia.models.embed;
     } else if (provider === "vllm") {

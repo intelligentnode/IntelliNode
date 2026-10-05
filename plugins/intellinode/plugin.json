@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "intellinode",
+  "version": "1.0.0",
+  "description": "Build Gemini- and ChatGPT-style apps, assistants with memory, RAG over vector databases and multi-provider AI features in JavaScript with the IntelliNode library."
+}

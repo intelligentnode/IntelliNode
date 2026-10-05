@@ -1,0 +1,21 @@
+{
+  "name": "intellinode-js",
+  "owner": {
+    "name": "IntelliNode"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for building AI apps in JavaScript and TypeScript with IntelliNode."
+  },
+  "plugins": [
+    {
+      "name": "intellinode",
+      "source": "./plugins/intellinode",
+      "description": "Build Gemini- and ChatGPT-style apps, assistants with memory, RAG over vector databases and multi-provider AI features in JavaScript with the IntelliNode library, plus an MCP server with cross-provider tools.",
+      "homepage": "https://www.intellinode.ai",
+      "repository": "https://github.com/intelligentnode/IntelliNode",
+      "license": "Apache-2.0",
+      "keywords": ["intellinode", "javascript", "nodejs", "gemini", "vertex-ai", "rag", "vector-database", "assistant", "mcp"],
+      "category": "development"
+    }
+  ]
+}

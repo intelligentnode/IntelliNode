@@ -12,6 +12,8 @@ const SupportedEmbedModels = {
   COHERE: 'cohere',
   REPLICATE: 'replicate',
   GEMINI: 'gemini',
+  // Gemini embeddings on Vertex AI; returns one embedding per text, like openai
+  VERTEX: 'vertex',
   NVIDIA: 'nvidia',
   VLLM: "vllm",
   // any service with an OpenAI embeddings API (needs { baseUrl } as the third argument)
@@ -53,7 +55,9 @@ class RemoteEmbedModel {
     } else if (keyType === SupportedEmbedModels.REPLICATE) {
       this.replicateWrapper = new ReplicateWrapper(keyValue);
     } else if (keyType === SupportedEmbedModels.GEMINI) {
-        this.geminiWrapper = new GeminiAIWrapper(keyValue);
+        this.geminiWrapper = GeminiAIWrapper.fromOptions(keyValue, customProxyHelper || {});
+    } else if (keyType === SupportedEmbedModels.VERTEX) {
+        this.geminiWrapper = GeminiAIWrapper.fromOptions(keyValue, { ...(customProxyHelper || {}), vertex: true });
     } else if (keyType === SupportedEmbedModels.NVIDIA) {
       this.nvidiaWrapper = new NvidiaWrapper(keyValue, customProxyHelper);
     } else if (keyType === SupportedEmbedModels.VLLM) {
@@ -90,6 +94,8 @@ class RemoteEmbedModel {
         inputs = embedInput.getLlamaReplicateInput();
       } else if (this.keyType === SupportedEmbedModels.GEMINI) {
         inputs = embedInput.getGeminiInputs();
+      } else if (this.keyType === SupportedEmbedModels.VERTEX) {
+        inputs = { texts: embedInput.texts, model: embedInput.model, taskType: embedInput.inputType };
       } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
         inputs = embedInput.getNvidiaInputs();
       } else if (this.keyType === SupportedEmbedModels.VLLM) {
@@ -153,6 +159,10 @@ class RemoteEmbedModel {
       });
     } else if (this.keyType === SupportedEmbedModels.GEMINI) {
       return await this.geminiWrapper.getEmbeddings(inputs);
+    } else if (this.keyType === SupportedEmbedModels.VERTEX) {
+      const texts = inputs.texts || (inputs.content ? [GeminiAIWrapper._contentText(inputs.content)] : []);
+      const vectors = await this.geminiWrapper.embedTexts(texts, inputs.model || null, { taskType: inputs.taskType || null });
+      return vectors.map((embedding, index) => ({ object: 'embedding', index, embedding }));
     } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
       const result = await this.nvidiaWrapper.generateRetrieval(inputs);
       return Array.isArray(result) ? result : (result.data || []);

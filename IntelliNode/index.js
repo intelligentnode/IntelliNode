@@ -30,6 +30,7 @@ const {
 } = require('./function/SemanticSearchPaging');
 const { TextAnalyzer } = require('./function/TextAnalyzer');
 const { Gen } = require('./function/Gen');
+const { Assistant } = require('./function/Assistant');
 // Node only: the browser bundle maps these modules to empty objects (package.json "browser")
 const { CodingAgent } = require('./function/CodingAgent');
 const WorkspaceToolkitModule = require('./utils/WorkspaceToolkit');
@@ -67,6 +68,7 @@ const AWSEndpointWrapper = require('./wrappers/AWSEndpointWrapper');
 const IntellicloudWrapper = require('./wrappers/IntellicloudWrapper');
 const MistralAIWrapper = require('./wrappers/MistralAIWrapper');
 const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
+const { GoogleAIError, GoogleAIChatSession, GoogleAILiveSession } = GeminiAIWrapper;
 const AnthropicWrapper = require('./wrappers/AnthropicWrapper');
 const NvidiaWrapper = require('./wrappers/NvidiaWrapper');
 const VLLMWrapper = require('./wrappers/VLLMWrapper');
@@ -87,6 +89,27 @@ const MCPClient = require('./utils/MCPClient');
 const { MCPServer } = require('./mcp/server');
 const FetchClient = require('./utils/FetchClient');
 const OutputParser = require('./utils/OutputParser');
+const TextSplitter = require('./utils/TextSplitter');
+// Node only: the browser bundle maps this module to an empty object (package.json "browser")
+const GoogleAuthModule = require('./utils/GoogleAuth');
+const GoogleAuth = typeof GoogleAuthModule === 'function' ? GoogleAuthModule : undefined;
+// stores: vector databases and chat history
+const { VectorStore } = require('./store/VectorStore');
+const { Embedder } = require('./store/Embedder');
+const { MemoryVectorStore } = require('./store/MemoryVectorStore');
+const { ChatHistory, MemoryChatHistory, FileChatHistory } = require('./store/ChatHistory');
+const { FirestoreChatHistory } = require('./store/FirestoreChatHistory');
+const { FirestoreVectorStore } = require('./store/FirestoreVectorStore');
+const { VertexRAGStore } = require('./store/VertexRAGStore');
+const { VertexVectorSearchStore, VertexVectorSearchIndexStore } = require('./store/VertexVectorSearchStore');
+const { PineconeVectorStore } = require('./store/PineconeVectorStore');
+const { QdrantVectorStore } = require('./store/QdrantVectorStore');
+const { ChromaVectorStore } = require('./store/ChromaVectorStore');
+const { WeaviateVectorStore } = require('./store/WeaviateVectorStore');
+const { MilvusVectorStore } = require('./store/MilvusVectorStore');
+const { ElasticsearchVectorStore } = require('./store/ElasticsearchVectorStore');
+const { PgVectorStore } = require('./store/PgVectorStore');
+const { MongoDBAtlasVectorStore } = require('./store/MongoDBAtlasVectorStore');
 
 module.exports = {
   RemoteLanguageModel,
@@ -155,5 +178,30 @@ module.exports = {
   OpenAICompatibleWrapper,
   OpenAICompatibleInput,
   FetchClient,
-  OutputParser
+  OutputParser,
+  Assistant,
+  GoogleAIError,
+  GoogleAIChatSession,
+  GoogleAILiveSession,
+  GoogleAuth,
+  TextSplitter,
+  VectorStore,
+  Embedder,
+  MemoryVectorStore,
+  ChatHistory,
+  MemoryChatHistory,
+  FileChatHistory,
+  FirestoreChatHistory,
+  FirestoreVectorStore,
+  VertexRAGStore,
+  VertexVectorSearchStore,
+  VertexVectorSearchIndexStore,
+  PineconeVectorStore,
+  QdrantVectorStore,
+  ChromaVectorStore,
+  WeaviateVectorStore,
+  MilvusVectorStore,
+  ElasticsearchVectorStore,
+  PgVectorStore,
+  MongoDBAtlasVectorStore
 };

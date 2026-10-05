@@ -25,6 +25,7 @@ const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
 const OpenAICompatibleWrapper = require('../wrappers/OpenAICompatibleWrapper');
 const FetchClient = require('../utils/FetchClient');
+const config = require('../config.json');
 const { parseJson } = require('../utils/OutputParser');
 const {
     isReasoningModel,
@@ -59,6 +60,8 @@ const SupportedChatModels = {
     COHERE: "cohere",
     MISTRAL: "mistral",
     GEMINI: "gemini",
+    // Gemini on Vertex AI / the Gemini Enterprise Agent Platform (express mode with an API key, or options.projectId)
+    VERTEX: "vertex",
     ANTHROPIC: "anthropic",
     NVIDIA: "nvidia",
     VLLM: "vllm",
@@ -85,6 +88,7 @@ const CHAT_INPUTS = {
     [SupportedChatModels.OPENAI]: ChatGPTInput,
     [SupportedChatModels.ANTHROPIC]: AnthropicInput,
     [SupportedChatModels.GEMINI]: GeminiInput,
+    [SupportedChatModels.VERTEX]: GeminiInput,
     [SupportedChatModels.MISTRAL]: MistralInput,
     [SupportedChatModels.COHERE]: CohereInput,
     [SupportedChatModels.NVIDIA]: NvidiaInput,
@@ -98,6 +102,7 @@ class Chatbot {
      * @param {string} provider - one of SupportedChatModels.
      * @param {object} customProxyHelper - OpenAI proxy/Azure helper, or { url } for SageMaker.
      * @param {object} options - { oneKey, intelliBase, baseUrl, headers, timeout, retries, retryDelay, signal }.
+     *   Gemini / Vertex AI also take { vertex, projectId, location, accessToken, credentials, apiVersion, quotaProjectId }.
      */
     constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null, options = {}) {
 
@@ -117,6 +122,8 @@ class Chatbot {
     initiate(keyValue, provider, customProxyHelper = null, options = {}) {
         this.provider = provider;
         options = options || {};
+        // the raw provider response of the last chat or stream (usage, grounding sources, finish reason)
+        this.lastResponse = null;
 
         if (provider === SupportedChatModels.OPENAI) {
             this.openaiWrapper = new OpenAIWrapper(keyValue, customProxyHelper);
@@ -128,8 +135,9 @@ class Chatbot {
             this.cohereWrapper = new CohereAIWrapper(keyValue);
         } else if (provider === SupportedChatModels.MISTRAL) {
             this.mistralWrapper = new MistralAIWrapper(keyValue);
-        } else if (provider === SupportedChatModels.GEMINI) {
-            this.geminiWrapper = new GeminiAIWrapper(keyValue);
+        } else if (provider === SupportedChatModels.GEMINI || provider === SupportedChatModels.VERTEX) {
+            const googleOptions = provider === SupportedChatModels.VERTEX ? { ...options, vertex: true } : options;
+            this.geminiWrapper = GeminiAIWrapper.fromOptions(keyValue, googleOptions);
         } else if (provider === SupportedChatModels.ANTHROPIC) {
             this.anthropicWrapper = new AnthropicWrapper(keyValue);
         } else if (provider === SupportedChatModels.NVIDIA) {
@@ -223,7 +231,7 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.MISTRAL) {
             const result = await this._chatMistral(modelInput);
             return modelInput.attachReference ? { result, references } : result;
-        } else if (this.provider === SupportedChatModels.GEMINI) {
+        } else if (this.provider === SupportedChatModels.GEMINI || this.provider === SupportedChatModels.VERTEX) {
             const result = await this._chatGemini(modelInput);
             return modelInput.attachReference ? { result, references } : result;
         } else if (this.provider === SupportedChatModels.ANTHROPIC) {
@@ -398,6 +406,8 @@ class Chatbot {
             yield* this._chatGPTStream(modelInput);
         } else if (this.provider === SupportedChatModels.ANTHROPIC) {
             yield* this._streamAnthropic(modelInput);
+        } else if (this.provider === SupportedChatModels.GEMINI || this.provider === SupportedChatModels.VERTEX) {
+            yield* this._streamGemini(modelInput);
         } else if (this.provider === SupportedChatModels.MISTRAL) {
             yield* this._streamMistral(modelInput);
         } else if (this.provider === SupportedChatModels.COHERE) {
@@ -409,7 +419,7 @@ class Chatbot {
         } else if (COMPATIBLE_PROVIDERS.has(this.provider)) {
             yield* this._streamCompatible(modelInput);
         } else {
-            throw new Error("The stream function supports openai, anthropic, mistral, cohere, nvidia, vllm and the OpenAI-compatible providers; for other providers use the chat function.");
+            throw new Error("The stream function supports openai, anthropic, gemini, vertex, mistral, cohere, nvidia, vllm and the OpenAI-compatible providers; for other providers use the chat function.");
         }
     }
 
@@ -429,6 +439,7 @@ class Chatbot {
     async _chatCompatible(modelInput) {
         const params = this._getCompatibleParams(modelInput);
         const results = await this.compatibleWrapper.generateChatText(params);
+        this.lastResponse = results;
         return this._parseChatChoices(results);
     }
 
@@ -642,10 +653,12 @@ class Chatbot {
                 };
             }
             const results = await this.openaiWrapper.generateGPT5Response(params);
+            this.lastResponse = results;
             return this._parseResponsesOutput(results, legacyFunctions);
         }
 
         const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
+        this.lastResponse = results;
         return this._parseChatChoices(results);
     }
 
@@ -787,6 +800,7 @@ class Chatbot {
         }
 
         const results = await this.cohereWrapper.generateChatText(params);
+        this.lastResponse = results;
 
         const responseText = results.text;
         return [responseText];
@@ -827,6 +841,7 @@ class Chatbot {
         const params = this._getMistralParams(modelInput);
 
         const results = await this.mistralWrapper.generateText(params);
+        this.lastResponse = results;
 
         return this._parseChatChoices(results);
     }
@@ -843,22 +858,24 @@ class Chatbot {
         }
     }
 
-    async _chatGemini(modelInput) {
-        let params;
-        let model = null;
-
+    _getGeminiParams(modelInput) {
         if (modelInput instanceof GeminiInput) {
-            params = modelInput.getChatInput();
-            model = modelInput.model;
-        } else if (typeof modelInput === "object") {
+            // an input that kept the Developer API default model uses the wrapper default (gemini-3.8-flash on Vertex AI)
+            const keptDefault = modelInput.defaultModel && modelInput.model === config.url.gemini.models.chat;
+            return { params: modelInput.getChatInput(), model: keptDefault && this.geminiWrapper.vertex ? null : modelInput.model };
+        } else if (modelInput && typeof modelInput === "object") {
             // an optional `model` key selects the model; the wrapper removes it from the body
-            params = modelInput;
-        } else {
-            throw new Error("Invalid input: Must be an instance of GeminiInput");
+            return { params: modelInput, model: null };
         }
+        throw new Error("Invalid input: Must be an instance of GeminiInput");
+    }
+
+    async _chatGemini(modelInput) {
+        const { params, model } = this._getGeminiParams(modelInput);
 
         // call Gemini
         const result = await this.geminiWrapper.generateContent(params, false, model);
+        this.lastResponse = result;
 
         if (!Array.isArray(result.candidates) || result.candidates.length === 0) {
             const feedback = result.promptFeedback ? ` Prompt feedback: ${JSON.stringify(result.promptFeedback)}` : '';
@@ -886,6 +903,18 @@ class Chatbot {
         });
     }
 
+    async *_streamGemini(modelInput) {
+        const { params, model } = this._getGeminiParams(modelInput);
+        let last = null;
+        for await (const chunk of this.geminiWrapper.streamGenerateContent(params, false, model)) {
+            last = chunk;
+            const text = GeminiAIWrapper.extractText(chunk);
+            if (text) yield text;
+        }
+        // the last chunk carries the usage and grounding metadata
+        this.lastResponse = last;
+    }
+
     _getAnthropicParams(modelInput) {
         if (modelInput instanceof AnthropicInput) {
             return modelInput.getChatInput();
@@ -899,6 +928,7 @@ class Chatbot {
         const params = this._getAnthropicParams(modelInput);
 
         const results = await this.anthropicWrapper.generateText(params);
+        this.lastResponse = results;
 
         // Claude 5 models can return thinking blocks before the answer; keep the text blocks only
         const blocks = Array.isArray(results.content) ? results.content : [];
@@ -935,6 +965,7 @@ class Chatbot {
         let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
         if (params.stream) throw new Error("Use stream() for NVIDIA streaming.");
         let resp = await this.nvidiaWrapper.generateText(params);
+        this.lastResponse = resp;
         return this._parseChatChoices(resp);
     }
 

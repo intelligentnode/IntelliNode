@@ -55,6 +55,36 @@ module.exports={
         "synthesize": {
           "postfix": "text:synthesize"
         }
+      },
+      "speechtotext": {
+        "prefix": "speech",
+        "recognize": {
+          "postfix": "speech:recognize"
+        },
+        "longrunning": {
+          "postfix": "speech:longrunningrecognize"
+        }
+      },
+      "vision": {
+        "prefix": "vision",
+        "annotate": {
+          "postfix": "images:annotate"
+        }
+      },
+      "language": {
+        "prefix": "language",
+        "annotate": {
+          "postfix": "documents:annotateText"
+        },
+        "sentiment": {
+          "postfix": "documents:analyzeSentiment"
+        },
+        "classify": {
+          "postfix": "documents:classifyText"
+        }
+      },
+      "translation": {
+        "base": "https://translation.googleapis.com/language/translate/v2"
       }
     },
     "stability": {
@@ -91,10 +121,90 @@ module.exports={
       "generateContent": ":generateContent",
       "embedContent": ":embedContent",
       "batchEmbedContents": ":batchEmbedContents",
+      "upload_base": "https://generativelanguage.googleapis.com/upload/v1beta/files",
       "models": {
         "chat": "gemini-3.6-flash",
         "vision": "gemini-3.6-flash",
-        "embed": "gemini-embedding-001"
+        "embed": "gemini-embedding-001",
+        "lite": "gemini-3.5-flash-lite",
+        "image": "gemini-3.1-flash-image",
+        "tts": "gemini-3.8-flash-tts",
+        "tts_pro": "gemini-2.5-pro-preview-tts",
+        "video": "veo-3.1-fast-generate-preview",
+        "music": "lyria-3.5",
+        "live": "gemini-3.8-live"
+      },
+      "vertex": {
+        "global_host": "https://aiplatform.googleapis.com",
+        "regional_host": "https://{location}-aiplatform.googleapis.com",
+        "multi_regional_host": "https://aiplatform.{location}.rep.googleapis.com",
+        "api_version": "v1beta1",
+        "default_location": "global",
+        "locations": {
+          "video": "us-central1",
+          "live": "us-central1",
+          "music": "us-central1",
+          "imagen": "us-central1",
+          "agent_engine": "us-central1",
+          "rag": "us-central1"
+        },
+        "models": {
+          "chat": "gemini-3.8-flash",
+          "vision": "gemini-3.8-flash",
+          "embed": "gemini-embedding-001",
+          "lite": "gemini-3.5-flash-lite",
+          "image": "gemini-3.1-flash-image",
+          "tts": "gemini-2.5-flash-tts",
+          "tts_pro": "gemini-2.5-pro-tts",
+          "video": "veo-3.1-fast-generate-001",
+          "music": "lyria-002",
+          "live": "gemini-3.8-live"
+        },
+        "catalog": {
+          "text": [
+            "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-3.1-pro-preview",
+            "gemini-3-flash-preview",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite"
+          ],
+          "image": [
+            "gemini-3.1-flash-image",
+            "gemini-3.1-flash-lite-image",
+            "gemini-3-pro-image",
+            "gemini-2.5-flash-image"
+          ],
+          "video": [
+            "veo-3.1-generate-001",
+            "veo-3.1-fast-generate-001",
+            "veo-3.1-lite-generate-001"
+          ],
+          "tts": [
+            "gemini-2.5-flash-tts",
+            "gemini-2.5-pro-tts",
+            "gemini-3.8-flash-tts",
+            "gemini-3.8-flash-lite-tts",
+            "gemini-2.5-flash-lite-preview-tts"
+          ],
+          "music": [
+            "lyria-002"
+          ],
+          "live": [
+            "gemini-3.8-live",
+            "gemini-live-2.5-flash-native-audio"
+          ],
+          "embedding": [
+            "gemini-embedding-001",
+            "text-embedding-005",
+            "text-multilingual-embedding-002"
+          ]
+        }
       }
     },
     "anthropic": {
@@ -202,6 +312,8 @@ const SupportedEmbedModels = {
   COHERE: 'cohere',
   REPLICATE: 'replicate',
   GEMINI: 'gemini',
+  // Gemini embeddings on Vertex AI; returns one embedding per text, like openai
+  VERTEX: 'vertex',
   NVIDIA: 'nvidia',
   VLLM: "vllm",
   // any service with an OpenAI embeddings API (needs { baseUrl } as the third argument)
@@ -243,7 +355,9 @@ class RemoteEmbedModel {
     } else if (keyType === SupportedEmbedModels.REPLICATE) {
       this.replicateWrapper = new ReplicateWrapper(keyValue);
     } else if (keyType === SupportedEmbedModels.GEMINI) {
-        this.geminiWrapper = new GeminiAIWrapper(keyValue);
+        this.geminiWrapper = GeminiAIWrapper.fromOptions(keyValue, customProxyHelper || {});
+    } else if (keyType === SupportedEmbedModels.VERTEX) {
+        this.geminiWrapper = GeminiAIWrapper.fromOptions(keyValue, { ...(customProxyHelper || {}), vertex: true });
     } else if (keyType === SupportedEmbedModels.NVIDIA) {
       this.nvidiaWrapper = new NvidiaWrapper(keyValue, customProxyHelper);
     } else if (keyType === SupportedEmbedModels.VLLM) {
@@ -280,6 +394,8 @@ class RemoteEmbedModel {
         inputs = embedInput.getLlamaReplicateInput();
       } else if (this.keyType === SupportedEmbedModels.GEMINI) {
         inputs = embedInput.getGeminiInputs();
+      } else if (this.keyType === SupportedEmbedModels.VERTEX) {
+        inputs = { texts: embedInput.texts, model: embedInput.model, taskType: embedInput.inputType };
       } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
         inputs = embedInput.getNvidiaInputs();
       } else if (this.keyType === SupportedEmbedModels.VLLM) {
@@ -343,6 +459,10 @@ class RemoteEmbedModel {
       });
     } else if (this.keyType === SupportedEmbedModels.GEMINI) {
       return await this.geminiWrapper.getEmbeddings(inputs);
+    } else if (this.keyType === SupportedEmbedModels.VERTEX) {
+      const texts = inputs.texts || (inputs.content ? [GeminiAIWrapper._contentText(inputs.content)] : []);
+      const vectors = await this.geminiWrapper.embedTexts(texts, inputs.model || null, { taskType: inputs.taskType || null });
+      return vectors.map((embedding, index) => ({ object: 'embedding', index, embedding }));
     } else if (this.keyType === SupportedEmbedModels.NVIDIA) {
       const result = await this.nvidiaWrapper.generateRetrieval(inputs);
       return Array.isArray(result) ? result : (result.data || []);
@@ -366,7 +486,7 @@ module.exports = {
   RemoteEmbedModel,
   SupportedEmbedModels,
 };
-},{"../model/input/EmbedInput":15,"../wrappers/CohereAIWrapper":49,"../wrappers/GeminiAIWrapper":50,"../wrappers/NvidiaWrapper":55,"../wrappers/OpenAICompatibleWrapper":56,"../wrappers/OpenAIWrapper":57,"../wrappers/ReplicateWrapper":58,"../wrappers/VLLMWrapper":60}],3:[function(require,module,exports){
+},{"../model/input/EmbedInput":16,"../wrappers/CohereAIWrapper":68,"../wrappers/GeminiAIWrapper":69,"../wrappers/NvidiaWrapper":74,"../wrappers/OpenAICompatibleWrapper":75,"../wrappers/OpenAIWrapper":76,"../wrappers/ReplicateWrapper":77,"../wrappers/VLLMWrapper":79}],3:[function(require,module,exports){
 /*
 Apache License
 
@@ -452,7 +572,7 @@ module.exports = {
     SupportedFineTuneModels,
 };
 
-},{"../model/input/FineTuneInput":16,"../wrappers/OpenAIWrapper":57}],4:[function(require,module,exports){
+},{"../model/input/FineTuneInput":17,"../wrappers/OpenAIWrapper":76}],4:[function(require,module,exports){
 /*
 Apache License
 
@@ -461,14 +581,24 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const SupportedImageModels = {
   OPENAI: "openai",
   STABILITY: "stability",
+  // Gemini image models on the Gemini Developer API, or on Vertex AI with the vertex provider
+  GEMINI: "gemini",
+  VERTEX: "vertex",
 };
 
 const OpenAIWrapper = require("../wrappers/OpenAIWrapper");
 const StabilityAIWrapper = require("../wrappers/StabilityAIWrapper");
+const GeminiAIWrapper = require("../wrappers/GeminiAIWrapper");
 const ImageModelInput = require("../model/input/ImageModelInput");
 
 class RemoteImageModel {
-  constructor(keyValue, provider) {
+  /**
+   * @param {string} keyValue - provider API key.
+   * @param {string} provider - openai, stability, gemini or vertex.
+   * @param {object} options - Gemini / Vertex AI settings: { projectId, location, accessToken, credentials }.
+   */
+  constructor(keyValue, provider, options = {}) {
+    this.options = options || {};
     if (!provider) {
       provider = SupportedImageModels.OPENAI;
     }
@@ -492,6 +622,9 @@ class RemoteImageModel {
       this.openaiWrapper = new OpenAIWrapper(keyValue);
     } else if (keyType === SupportedImageModels.STABILITY) {
       this.stabilityWrapper = new StabilityAIWrapper(keyValue);
+    } else if (keyType === SupportedImageModels.GEMINI || keyType === SupportedImageModels.VERTEX) {
+      const options = keyType === SupportedImageModels.VERTEX ? { ...this.options, vertex: true } : this.options;
+      this.geminiWrapper = GeminiAIWrapper.fromOptions(keyValue, options);
     } else {
       throw new Error("Invalid provider name");
     }
@@ -509,6 +642,8 @@ class RemoteImageModel {
         inputs = imageInput.getOpenAIInputs();
       } else if (this.keyType === SupportedImageModels.STABILITY) {
         inputs = imageInput.getStabilityInputs();
+      } else if (this.geminiWrapper) {
+        inputs = imageInput.getGeminiInputs();
       } else {
         throw new Error("The keyType is not supported");
       }
@@ -543,6 +678,15 @@ class RemoteImageModel {
       
       return results.artifacts.map((imageObj) => imageObj.base64);
 
+    } else if (this.geminiWrapper) {
+      // one request per image; Gemini image models return one image per call
+      const images = [];
+      const count = inputs.numberOfImages || 1;
+      for (let index = 0; index < count; index++) {
+        const response = await this.geminiWrapper.generateImage(inputs.prompt, inputs.config || null, inputs.model || null, { images: inputs.images || null });
+        images.push(...GeminiAIWrapper.extractImages(response).map((image) => image.data));
+      }
+      return images;
     } else {
       throw new Error(`This version supports ${SupportedImageModels.OPENAI} keyType only`);
     }
@@ -553,7 +697,7 @@ module.exports = {
   RemoteImageModel,
   SupportedImageModels,
 };
-},{"../model/input/ImageModelInput":18,"../wrappers/OpenAIWrapper":57,"../wrappers/StabilityAIWrapper":59}],5:[function(require,module,exports){
+},{"../model/input/ImageModelInput":19,"../wrappers/GeminiAIWrapper":69,"../wrappers/OpenAIWrapper":76,"../wrappers/StabilityAIWrapper":78}],5:[function(require,module,exports){
 /*
 Apache License
 
@@ -649,7 +793,7 @@ module.exports = {
   RemoteLanguageModel,
   SupportedLangModels,
 };
-},{"../config.json":1,"../model/input/LanguageModelInput":19,"../wrappers/CohereAIWrapper":49,"../wrappers/OpenAIWrapper":57}],6:[function(require,module,exports){
+},{"../config.json":1,"../model/input/LanguageModelInput":20,"../wrappers/CohereAIWrapper":68,"../wrappers/OpenAIWrapper":76}],6:[function(require,module,exports){
 /*
 Apache License
 
@@ -658,16 +802,26 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 const GoogleAIWrapper = require('../wrappers/GoogleAIWrapper');
+const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const Text2SpeechInput = require('../model/input/Text2SpeechInput');
 
 const SupportedSpeechModels = {
   GOOGLE: 'google',
   OPENAI: 'openAi',
+  // Gemini TTS on the Gemini Developer API, or on Vertex AI with the vertex provider
+  GEMINI: 'gemini',
+  VERTEX: 'vertex',
 };
 
 class RemoteSpeechModel {
-  constructor(keyValue, provider) {
+  /**
+   * @param {string} keyValue - provider API key.
+   * @param {string} provider - google (Cloud TTS), openAi, gemini or vertex.
+   * @param {object} options - Gemini / Vertex AI settings: { projectId, location, accessToken, credentials }.
+   */
+  constructor(keyValue, provider, options = {}) {
+    this.options = options || {};
     if (!provider) {
       provider = SupportedSpeechModels.GOOGLE;
     }
@@ -689,6 +843,9 @@ class RemoteSpeechModel {
       this.googleWrapper = new GoogleAIWrapper(keyValue);
     } else if (keyType === SupportedSpeechModels.OPENAI) {
       this.openAIWrapper = new OpenAIWrapper(keyValue);
+    } else if (keyType === SupportedSpeechModels.GEMINI || keyType === SupportedSpeechModels.VERTEX) {
+      const options = keyType === SupportedSpeechModels.VERTEX ? { ...this.options, vertex: true } : this.options;
+      this.geminiWrapper = GeminiAIWrapper.fromOptions(keyValue, options);
     } else {
       throw new Error('Invalid provider name');
     }
@@ -725,6 +882,14 @@ class RemoteSpeechModel {
 
       const response = await this.openAIWrapper.textToSpeech(params);
       return response;
+    } else if (this.geminiWrapper) {
+      const params = input instanceof Text2SpeechInput ? input.getGeminiInput() : input;
+      if (!params || typeof params !== 'object') {
+        throw new Error('Invalid input: Must be an instance of Text2SpeechInput or a dictionary');
+      }
+      // base64 WAV, like the base64 MP3 of the google provider
+      const wav = await this.geminiWrapper.textToSpeech(params.text, { voice: params.voice, model: params.model, languageCode: params.languageCode });
+      return wav.toString('base64');
     }  else {
       throw new Error('The keyType is not supported');
     }
@@ -736,7 +901,464 @@ module.exports = {
   SupportedSpeechModels,
 };
 
-},{"../model/input/Text2SpeechInput":20,"../wrappers/GoogleAIWrapper":51,"../wrappers/OpenAIWrapper":57}],7:[function(require,module,exports){
+},{"../model/input/Text2SpeechInput":21,"../wrappers/GeminiAIWrapper":69,"../wrappers/GoogleAIWrapper":70,"../wrappers/OpenAIWrapper":76}],7:[function(require,module,exports){
+(function (Buffer){(function (){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const { Chatbot, SupportedChatModels } = require('./Chatbot');
+const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
+const { MemoryChatHistory } = require('../store/ChatHistory');
+const { newId } = require('../store/VectorStore');
+const TextSplitter = require('../utils/TextSplitter');
+
+const DEFAULT_SYSTEM = 'You are a helpful assistant. Answer clearly and concisely.';
+const GEMINI_PROVIDERS = new Set([SupportedChatModels.GEMINI, SupportedChatModels.VERTEX]);
+const TEXT_EXTENSIONS = new Set(['txt', 'md', 'markdown', 'csv', 'json', 'html', 'htm', 'xml', 'yaml', 'yml', 'js', 'ts', 'py', 'java', 'go', 'rs', 'sql', 'log']);
+const MIME_BY_EXTENSION = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', pdf: 'application/pdf',
+  mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
+  txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', html: 'text/html', json: 'application/json',
+};
+
+/**
+ * A ready-made chat assistant for Gemini- or ChatGPT-style apps, on any Chatbot provider:
+ * conversations kept in a ChatHistory (memory, JSON files, Firestore), answers grounded on your documents
+ * (a knowledge VectorStore, with numbered references), long-term memory recalled from earlier conversations
+ * (a memory VectorStore), attachments (images, PDFs, audio, video on Gemini), Google Search grounding on
+ * Gemini / Vertex AI, tools, and streaming.
+ *
+ *   const assistant = new Assistant({ provider: 'vertex', apiKey: process.env.VERTEX_API_KEY,
+ *     history: new FileChatHistory({ dir: './conversations' }),
+ *     knowledge: new MemoryVectorStore({ embedder: { provider: 'vertex', apiKey } }) });
+ *   await assistant.addDocuments([{ id: 'handbook', text: handbookText }]);
+ *   const reply = await assistant.chat('What is the refund policy?', { conversationId: 'c1' });
+ *   // reply: { conversationId, text, references, citations, memories, usage }
+ */
+class Assistant {
+  /**
+   * @param {object} settings
+   * @param {string} settings.provider - any Chatbot provider: openai, anthropic, gemini, vertex, mistral, cohere,
+   *   nvidia, vllm, ollama, openrouter, ...
+   * @param {string} settings.apiKey
+   * @param {string} settings.model - chat model; the provider default when omitted.
+   * @param {object} settings.options - Chatbot options: Gemini / Vertex { projectId, location, accessToken },
+   *   compatible providers { baseUrl }, request { timeout, retries }.
+   * @param {string} settings.systemMessage
+   * @param {ChatHistory} settings.history - conversation store (default MemoryChatHistory).
+   * @param {VectorStore} settings.knowledge - documents to ground answers on (RAG).
+   * @param {VectorStore} settings.memory - long-term memory: every exchange is stored and recalled later.
+   * @param {number} settings.maxHistory - recent messages sent with each turn (default 20).
+   * @param {number} settings.topK - knowledge chunks per turn (default 4).
+   * @param {number} settings.memoryTopK - recalled memories per turn (default 3).
+   * @param {number} settings.minScore - drop knowledge and memory matches below this similarity.
+   * @param {boolean} settings.googleSearch - ground answers on Google Search (gemini and vertex providers).
+   * @param {object|Array} settings.tools - a Chatbot.runTools tool set; turns then run the tool loop.
+   * @param {boolean} settings.autoTitle - name a new conversation after its first exchange (one extra model call).
+   */
+  constructor({
+    provider = SupportedChatModels.OPENAI,
+    apiKey = null,
+    model = null,
+    options = {},
+    systemMessage = DEFAULT_SYSTEM,
+    history = null,
+    knowledge = null,
+    memory = null,
+    maxHistory = 20,
+    topK = 4,
+    memoryTopK = 3,
+    minScore = null,
+    googleSearch = false,
+    tools = null,
+    maxToolSteps = 5,
+    maxTokens = null,
+    temperature = null,
+    inputOptions = {},
+    autoTitle = false,
+  } = {}) {
+    this.provider = provider;
+    this.model = model;
+    this.options = options || {};
+    this.chatbot = new Chatbot(apiKey, provider, this.options.customProxyHelper || null, this.options);
+    this.systemMessage = systemMessage;
+    this.history = history || new MemoryChatHistory();
+    this.knowledge = knowledge;
+    this.memory = memory;
+    this.maxHistory = maxHistory;
+    this.topK = topK;
+    this.memoryTopK = memoryTopK;
+    this.minScore = minScore;
+    this.googleSearch = googleSearch;
+    this.tools = tools;
+    this.maxToolSteps = maxToolSteps;
+    this.maxTokens = maxTokens;
+    this.temperature = temperature;
+    this.inputOptions = inputOptions || {};
+    this.autoTitle = autoTitle;
+    if (googleSearch && !GEMINI_PROVIDERS.has(provider)) {
+      throw new Error('googleSearch grounding needs the gemini or vertex provider.');
+    }
+  }
+
+  /**
+   * Answer a message in a conversation (a new one when conversationId is omitted).
+   * @param {string} message
+   * @param {object} options - { conversationId, userId, attachments, filter (knowledge metadata filter), systemMessage,
+   *   googleSearch (this turn only, gemini and vertex) }.
+   *   attachments: file paths (Node), { data (base64 or bytes), mimeType, name } or { uri, mimeType }.
+   * @returns {Promise<{conversationId, messageId, text, references, citations, memories, usage, model, toolSteps}>}
+   *   references are the retrieved chunks; `cited: true` marks the ones the answer cites as [n].
+   */
+  async chat(message, options = {}) {
+    const turn = await this._prepare(message, options);
+    const bot = this._turnChatbot();
+    let text;
+    let toolSteps = [];
+    if (this.tools) {
+      const result = await bot.runTools(turn.input, this.tools, { maxSteps: this.maxToolSteps });
+      text = result.text;
+      toolSteps = result.steps;
+    } else {
+      const replies = await bot.chat(turn.input);
+      const first = Array.isArray(replies) ? replies[0] : replies.result[0];
+      text = typeof first === 'string' ? first : (first && first.content) || '';
+    }
+    return this._finish(turn, text, bot.lastResponse, toolSteps);
+  }
+
+  /**
+   * Stream the answer. Yields { type: 'start', conversationId, references, memories }, then { type: 'text', text }
+   * chunks, then { type: 'done', ...result } with the same fields as chat().
+   */
+  async* stream(message, options = {}) {
+    const turn = await this._prepare(message, options);
+    yield { type: 'start', conversationId: turn.conversationId, references: turn.references, memories: turn.memories };
+    const bot = this._turnChatbot();
+    let text = '';
+    let toolSteps = [];
+    if (this.tools) {
+      // the tool loop needs whole replies; the final answer is sent as one chunk
+      const result = await bot.runTools(turn.input, this.tools, { maxSteps: this.maxToolSteps });
+      text = result.text;
+      toolSteps = result.steps;
+      if (text) yield { type: 'text', text };
+    } else {
+      for await (const chunk of bot.stream(turn.input)) {
+        text += chunk;
+        yield { type: 'text', text: chunk };
+      }
+    }
+    yield { type: 'done', ...(await this._finish(turn, text, bot.lastResponse, toolSteps)) };
+  }
+
+  /** Answer the last user message of a conversation again (the previous answer is removed from the history). */
+  async regenerate(conversationId, options = {}) {
+    const messages = await this.history.getMessages(conversationId, { limit: 2 });
+    if (messages.length < 2 || messages[1].role !== 'assistant' || messages[0].role !== 'user') {
+      throw new Error('The conversation does not end with a user message and an answer.');
+    }
+    await this.history.deleteLastMessages(conversationId, 2);
+    if (this.memory) await this.memory.delete([messages[0].id]).catch(() => {});
+    return this.chat(messages[0].content, { ...options, conversationId });
+  }
+
+  /**
+   * Add documents to the knowledge store, split into chunks.
+   * @param {Array<string|{id?, text, metadata?}>} documents - metadata.source / title / url are shown in references.
+   * @param {object} options - { chunkSize = 1200, chunkOverlap = 150 }.
+   * @returns {Promise<string[]>} chunk ids.
+   */
+  async addDocuments(documents, { chunkSize = 1200, chunkOverlap = 150 } = {}) {
+    if (!this.knowledge) throw new Error('addDocuments needs a knowledge VectorStore: new Assistant({ knowledge }).');
+    const chunks = [];
+    for (const document of documents || []) {
+      const item = typeof document === 'string' ? { text: document } : document;
+      const id = item.id || newId();
+      const metadata = { source: id, ...(item.metadata || {}) };
+      chunks.push(...TextSplitter.toDocuments(item.text, metadata, { chunkSize, chunkOverlap, idPrefix: String(id) }));
+    }
+    return this.knowledge.addDocuments(chunks);
+  }
+
+  /** Add text files (txt, md, csv, json, html, code) to the knowledge store; the file name becomes the source (Node). */
+  async addFiles(paths, options = {}) {
+    const fs = require('fs');
+    const path = require('path');
+    const documents = [];
+    for (const file of Array.isArray(paths) ? paths : [paths]) {
+      const extension = path.extname(file).slice(1).toLowerCase();
+      if (!TEXT_EXTENSIONS.has(extension)) {
+        throw new Error(`addFiles reads text files; extract the text of ${path.basename(file)} first (for a PDF on Gemini: GeminiAIWrapper.mediaToText).`);
+      }
+      documents.push({ id: path.basename(file), text: await fs.promises.readFile(file, 'utf8'), metadata: { source: path.basename(file), path: file } });
+    }
+    return this.addDocuments(documents, options);
+  }
+
+  async listConversations(options = {}) {
+    return this.history.listConversations(options);
+  }
+
+  async getMessages(conversationId, options = {}) {
+    return this.history.getMessages(conversationId, options);
+  }
+
+  /** Delete a conversation and its long-term memories. */
+  async deleteConversation(conversationId) {
+    if (this.memory) {
+      const ids = (await this.history.getMessages(conversationId)).filter((message) => message.role === 'user').map((message) => message.id);
+      if (ids.length) await this.memory.delete(ids).catch(() => {});
+    }
+    return this.history.deleteConversation(conversationId);
+  }
+
+  async renameConversation(conversationId, title) {
+    return this.history.saveConversation({ id: conversationId, title });
+  }
+
+  /** Name a conversation from its first message (a short model call) and save the title. */
+  async generateTitle(conversationId) {
+    const [first] = await this.history.getMessages(conversationId, { limit: null }).then((messages) => messages.filter((m) => m.role === 'user'));
+    if (!first) return null;
+    const input = this._createInput('You write short titles for chat conversations.', { maxTokens: null, tools: null });
+    input.addUserMessage(`Write a title of at most six words for a conversation that starts with the message below. Reply with the title only, no quotes.\n\n${first.content.slice(0, 2000)}`);
+    const replies = await this._turnChatbot().chat(input);
+    const reply = Array.isArray(replies) ? replies[0] : replies.result[0];
+    const title = String(typeof reply === 'string' ? reply : (reply && reply.content) || '').replace(/^["'#\s]+|["'\s]+$/g, '').split('\n')[0].slice(0, 80) || null;
+    if (title) await this.history.saveConversation({ id: conversationId, title });
+    return title;
+  }
+
+  // ------------------------------------------------------------------
+  // Turn building
+  // ------------------------------------------------------------------
+
+  // A per-turn view of the shared Chatbot (same wrappers and credentials), so concurrent turns keep their own
+  // lastResponse. Request options (timeout, retries) are set once on assistant.chatbot.
+  _turnChatbot() {
+    const bot = Object.create(this.chatbot);
+    bot.lastResponse = null;
+    return bot;
+  }
+
+  _createInput(systemText, overrides = {}, googleSearch = this.googleSearch) {
+    const isGemini = GEMINI_PROVIDERS.has(this.provider);
+    const options = {
+      ...this.inputOptions,
+      ...(this.model && { model: this.model }),
+      ...(this.maxTokens && { maxTokens: this.maxTokens }),
+      ...(this.temperature !== null && this.temperature !== undefined && { temperature: this.temperature }),
+      ...(isGemini && { systemInstruction: true }),
+      ...overrides,
+    };
+    if (isGemini && googleSearch && overrides.tools !== null) {
+      options.tools = [...(options.tools || []), { googleSearch: {} }];
+    }
+    if (overrides.tools === null) delete options.tools;
+    if (overrides.maxTokens === null) delete options.maxTokens;
+    return Chatbot.createInput(this.provider, systemText, options);
+  }
+
+  async _prepare(message, options) {
+    const text = String(message === undefined || message === null ? '' : message);
+    const conversationId = options.conversationId || newId();
+    const existing = await this.history.getConversation(conversationId);
+    if (existing && existing.userId && options.userId && existing.userId !== options.userId) {
+      throw new Error(`Conversation '${conversationId}' belongs to another user.`);
+    }
+    if (!existing || (options.userId && !existing.userId)) {
+      await this.history.saveConversation({ id: conversationId, ...(options.userId && { userId: options.userId }) });
+    }
+    const recent = this.maxHistory > 0 ? await this.history.getMessages(conversationId, { limit: this.maxHistory }) : [];
+    const references = await this._searchKnowledge(text, options.filter || null);
+    const memories = await this._recall(text, conversationId, options.userId || (existing && existing.userId) || null, recent);
+    const attachments = (options.attachments || []).map((attachment) => Assistant._readAttachment(attachment));
+
+    if (options.googleSearch && !GEMINI_PROVIDERS.has(this.provider)) {
+      throw new Error('googleSearch grounding needs the gemini or vertex provider.');
+    }
+    const googleSearch = options.googleSearch !== undefined ? Boolean(options.googleSearch) : this.googleSearch;
+    const input = this._createInput(this._systemText(options.systemMessage || this.systemMessage, references, memories), {}, googleSearch);
+    for (const item of recent) {
+      if (!item.content) continue;
+      if (item.role === 'user') input.addUserMessage(item.content);
+      else input.addAssistantMessage(item.content);
+    }
+    this._addUserTurn(input, text, attachments);
+    return { conversationId, isNew: !existing, text, attachments, references, memories, input, userId: options.userId || (existing && existing.userId) || null };
+  }
+
+  _systemText(systemMessage, references, memories) {
+    const sections = [systemMessage];
+    if (references.length) {
+      sections.push('Use the sources below when they are relevant to the question. Cite them inline as [1], [2] by their numbers. '
+        + 'If the sources do not answer the question, say so before answering from general knowledge.');
+      sections.push(`Sources:\n${references.map((reference) => `[${reference.index}] ${Assistant._sourceLabel(reference)}\n${reference.text}`).join('\n\n')}`);
+    }
+    if (memories.length) {
+      sections.push('Notes from earlier conversations with this user (use them only when they help):\n'
+        + memories.map((memory) => `- ${memory.text.replace(/\s+/g, ' ').slice(0, 600)}`).join('\n'));
+    }
+    return sections.join('\n\n');
+  }
+
+  static _sourceLabel(reference) {
+    const metadata = reference.metadata || {};
+    const label = metadata.title || metadata.source || reference.id;
+    return metadata.url ? `${label} (${metadata.url})` : String(label);
+  }
+
+  async _searchKnowledge(text, filter) {
+    if (!this.knowledge || !text.trim() || !this.topK) return [];
+    const matches = await this.knowledge.query({ text, topK: this.topK, filter });
+    return matches
+      .filter((match) => this._relevant(match))
+      .map((match, index) => ({ index: index + 1, id: match.id, text: match.text || '', score: match.score, metadata: match.metadata || {} }));
+  }
+
+  async _recall(text, conversationId, userId, recent) {
+    if (!this.memory || !text.trim() || !this.memoryTopK) return [];
+    const recentIds = new Set(recent.map((message) => message.id));
+    const matches = await this.memory.query({ text, topK: this.memoryTopK + recent.length, filter: userId ? { userId } : null });
+    return matches
+      .filter((match) => !recentIds.has(match.id))
+      .filter((match) => this._relevant(match))
+      .slice(0, this.memoryTopK)
+      .map((match) => ({ id: match.id, text: match.text || '', score: match.score, conversationId: match.metadata && match.metadata.conversationId }));
+  }
+
+  // A match passes minScore; stores that return no score (null) always pass.
+  _relevant(match) {
+    return this.minScore === null || this.minScore === undefined || typeof match.score !== 'number' || match.score >= this.minScore;
+  }
+
+  _addUserTurn(input, text, attachments) {
+    if (!attachments.length) {
+      input.addUserMessage(text);
+      return;
+    }
+    if (GEMINI_PROVIDERS.has(this.provider)) {
+      input.addUserMessage(text, attachments.map((item) => (item.uri ? { uri: item.uri, mimeType: item.mimeType } : { data: item.data, mimeType: item.mimeType })));
+    } else if (this.provider === SupportedChatModels.ANTHROPIC) {
+      const blocks = attachments.map((item) => {
+        if (item.uri) throw new Error('Anthropic attachments need the file data, not a URI.');
+        if (item.mimeType === 'application/pdf') return { type: 'document', source: { type: 'base64', media_type: item.mimeType, data: item.data } };
+        if (item.mimeType.startsWith('image/')) return { type: 'image', source: { type: 'base64', media_type: item.mimeType, data: item.data } };
+        throw new Error(`Anthropic takes image and PDF attachments, not ${item.mimeType}.`);
+      });
+      input.addUserMessage([...blocks, { type: 'text', text }]);
+    } else {
+      const parts = attachments.map((item) => {
+        if (!item.mimeType.startsWith('image/')) throw new Error(`${this.provider} takes image attachments; ${item.mimeType} needs the gemini, vertex or anthropic provider.`);
+        return { type: 'image_url', image_url: { url: item.uri || `data:${item.mimeType};base64,${item.data}` } };
+      });
+      input.addUserMessage([{ type: 'text', text }, ...parts]);
+    }
+  }
+
+  // { data (base64), mimeType, name } or { uri, mimeType, name } from a path, bytes, a data URL or an object.
+  static _readAttachment(attachment) {
+    if (typeof attachment === 'string') {
+      if (/^(gs|https?):\/\//i.test(attachment)) {
+        const extension = attachment.split('?')[0].split('.').pop().toLowerCase();
+        return { uri: attachment, mimeType: MIME_BY_EXTENSION[extension] || 'application/octet-stream', name: attachment.split('/').pop() };
+      }
+      if (attachment.startsWith('data:')) {
+        const match = /^data:([^;,]+);base64,(.*)$/s.exec(attachment);
+        if (!match) throw new Error('Attachments as data URLs must be base64.');
+        return { data: match[2], mimeType: match[1], name: 'attachment' };
+      }
+      const fs = require('fs');
+      const path = require('path');
+      const extension = path.extname(attachment).slice(1).toLowerCase();
+      return { data: fs.readFileSync(attachment).toString('base64'), mimeType: MIME_BY_EXTENSION[extension] || 'application/octet-stream', name: path.basename(attachment) };
+    }
+    if (attachment && (attachment.uri || attachment.fileUri)) {
+      return { uri: attachment.uri || attachment.fileUri, mimeType: attachment.mimeType, name: attachment.name || null };
+    }
+    if (attachment && attachment.data !== undefined) {
+      if (!attachment.mimeType) throw new Error('An attachment with data needs a mimeType.');
+      const data = typeof attachment.data === 'string' ? attachment.data.replace(/^data:[^,]*,/, '') : Buffer.from(attachment.data).toString('base64');
+      return { data, mimeType: attachment.mimeType, name: attachment.name || null };
+    }
+    throw new Error('An attachment is a file path, a data URL, { data, mimeType } or { uri, mimeType }.');
+  }
+
+  async _finish(turn, text, lastResponse, toolSteps) {
+    const isGemini = GEMINI_PROVIDERS.has(this.provider);
+    const citations = isGemini && lastResponse ? GeminiAIWrapper.extractCitations(lastResponse) : [];
+    const usage = Assistant._usage(lastResponse);
+    // the retrieved chunks the answer cites as [n]
+    const cited = new Set([...String(text).matchAll(/\[(\d+(?:\s*,\s*\d+)*)\]/g)].flatMap((match) => match[1].split(',').map(Number)));
+    for (const reference of turn.references) reference.cited = cited.has(reference.index);
+    const [userMessage, assistantMessage] = await this.history.addMessages(turn.conversationId, [
+      {
+        role: 'user',
+        content: turn.text,
+        metadata: turn.attachments.length ? { attachments: turn.attachments.map((item) => ({ name: item.name, mimeType: item.mimeType })) } : null,
+      },
+      {
+        role: 'assistant',
+        content: text,
+        metadata: {
+          ...(turn.references.length && { references: turn.references.map(({ index, id, metadata, cited: isCited }) => ({ index, id, cited: isCited, source: metadata.source || null, title: metadata.title || null, url: metadata.url || null })) }),
+          ...(citations.length && { citations }),
+        },
+      },
+    ]);
+    if (this.memory && text) {
+      await this.memory.addDocuments([{
+        id: userMessage.id,
+        text: `User: ${turn.text}\nAssistant: ${text}`,
+        metadata: { conversationId: turn.conversationId, ...(turn.userId && { userId: turn.userId }), createdAt: userMessage.createdAt },
+      }]);
+    }
+    if (this.autoTitle && turn.isNew) {
+      await this.generateTitle(turn.conversationId).catch(() => null);
+    }
+    return {
+      conversationId: turn.conversationId,
+      messageId: assistantMessage.id,
+      text,
+      references: turn.references,
+      citations,
+      memories: turn.memories,
+      usage,
+      model: Assistant._model(lastResponse, turn.input),
+      toolSteps,
+    };
+  }
+
+  // The model that answered: the response's own record when it has one, else the input's model.
+  static _model(response, input) {
+    if (response && typeof response === 'object') {
+      if (response.modelVersion) return response.modelVersion;
+      if (typeof response.model === 'string') return response.model;
+    }
+    return (input && input.model) || null;
+  }
+
+  // Token usage in one shape for every provider: { inputTokens, outputTokens, totalTokens }.
+  static _usage(response) {
+    if (!response || typeof response !== 'object') return null;
+    const usage = response.usageMetadata || response.usage || (response.meta && response.meta.billed_units) || null;
+    if (!usage) return null;
+    const inputTokens = usage.promptTokenCount ?? usage.input_tokens ?? usage.prompt_tokens ?? null;
+    const outputTokens = usage.candidatesTokenCount ?? usage.output_tokens ?? usage.completion_tokens ?? null;
+    const totalTokens = usage.totalTokenCount ?? usage.total_tokens ?? (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null);
+    return { inputTokens, outputTokens, totalTokens };
+  }
+}
+
+module.exports = { Assistant };
+
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"../store/ChatHistory":33,"../store/VectorStore":46,"../utils/TextSplitter":65,"../wrappers/GeminiAIWrapper":69,"./Chatbot":8,"buffer":25,"fs":24,"path":29}],8:[function(require,module,exports){
 /*
 Apache License
 
@@ -764,6 +1386,7 @@ const NvidiaWrapper = require("../wrappers/NvidiaWrapper");
 const VLLMWrapper = require('../wrappers/VLLMWrapper');
 const OpenAICompatibleWrapper = require('../wrappers/OpenAICompatibleWrapper');
 const FetchClient = require('../utils/FetchClient');
+const config = require('../config.json');
 const { parseJson } = require('../utils/OutputParser');
 const {
     isReasoningModel,
@@ -798,6 +1421,8 @@ const SupportedChatModels = {
     COHERE: "cohere",
     MISTRAL: "mistral",
     GEMINI: "gemini",
+    // Gemini on Vertex AI / the Gemini Enterprise Agent Platform (express mode with an API key, or options.projectId)
+    VERTEX: "vertex",
     ANTHROPIC: "anthropic",
     NVIDIA: "nvidia",
     VLLM: "vllm",
@@ -824,6 +1449,7 @@ const CHAT_INPUTS = {
     [SupportedChatModels.OPENAI]: ChatGPTInput,
     [SupportedChatModels.ANTHROPIC]: AnthropicInput,
     [SupportedChatModels.GEMINI]: GeminiInput,
+    [SupportedChatModels.VERTEX]: GeminiInput,
     [SupportedChatModels.MISTRAL]: MistralInput,
     [SupportedChatModels.COHERE]: CohereInput,
     [SupportedChatModels.NVIDIA]: NvidiaInput,
@@ -837,6 +1463,7 @@ class Chatbot {
      * @param {string} provider - one of SupportedChatModels.
      * @param {object} customProxyHelper - OpenAI proxy/Azure helper, or { url } for SageMaker.
      * @param {object} options - { oneKey, intelliBase, baseUrl, headers, timeout, retries, retryDelay, signal }.
+     *   Gemini / Vertex AI also take { vertex, projectId, location, accessToken, credentials, apiVersion, quotaProjectId }.
      */
     constructor(keyValue, provider = SupportedChatModels.OPENAI, customProxyHelper = null, options = {}) {
 
@@ -856,6 +1483,8 @@ class Chatbot {
     initiate(keyValue, provider, customProxyHelper = null, options = {}) {
         this.provider = provider;
         options = options || {};
+        // the raw provider response of the last chat or stream (usage, grounding sources, finish reason)
+        this.lastResponse = null;
 
         if (provider === SupportedChatModels.OPENAI) {
             this.openaiWrapper = new OpenAIWrapper(keyValue, customProxyHelper);
@@ -867,8 +1496,9 @@ class Chatbot {
             this.cohereWrapper = new CohereAIWrapper(keyValue);
         } else if (provider === SupportedChatModels.MISTRAL) {
             this.mistralWrapper = new MistralAIWrapper(keyValue);
-        } else if (provider === SupportedChatModels.GEMINI) {
-            this.geminiWrapper = new GeminiAIWrapper(keyValue);
+        } else if (provider === SupportedChatModels.GEMINI || provider === SupportedChatModels.VERTEX) {
+            const googleOptions = provider === SupportedChatModels.VERTEX ? { ...options, vertex: true } : options;
+            this.geminiWrapper = GeminiAIWrapper.fromOptions(keyValue, googleOptions);
         } else if (provider === SupportedChatModels.ANTHROPIC) {
             this.anthropicWrapper = new AnthropicWrapper(keyValue);
         } else if (provider === SupportedChatModels.NVIDIA) {
@@ -962,7 +1592,7 @@ class Chatbot {
         } else if (this.provider === SupportedChatModels.MISTRAL) {
             const result = await this._chatMistral(modelInput);
             return modelInput.attachReference ? { result, references } : result;
-        } else if (this.provider === SupportedChatModels.GEMINI) {
+        } else if (this.provider === SupportedChatModels.GEMINI || this.provider === SupportedChatModels.VERTEX) {
             const result = await this._chatGemini(modelInput);
             return modelInput.attachReference ? { result, references } : result;
         } else if (this.provider === SupportedChatModels.ANTHROPIC) {
@@ -1137,6 +1767,8 @@ class Chatbot {
             yield* this._chatGPTStream(modelInput);
         } else if (this.provider === SupportedChatModels.ANTHROPIC) {
             yield* this._streamAnthropic(modelInput);
+        } else if (this.provider === SupportedChatModels.GEMINI || this.provider === SupportedChatModels.VERTEX) {
+            yield* this._streamGemini(modelInput);
         } else if (this.provider === SupportedChatModels.MISTRAL) {
             yield* this._streamMistral(modelInput);
         } else if (this.provider === SupportedChatModels.COHERE) {
@@ -1148,7 +1780,7 @@ class Chatbot {
         } else if (COMPATIBLE_PROVIDERS.has(this.provider)) {
             yield* this._streamCompatible(modelInput);
         } else {
-            throw new Error("The stream function supports openai, anthropic, mistral, cohere, nvidia, vllm and the OpenAI-compatible providers; for other providers use the chat function.");
+            throw new Error("The stream function supports openai, anthropic, gemini, vertex, mistral, cohere, nvidia, vllm and the OpenAI-compatible providers; for other providers use the chat function.");
         }
     }
 
@@ -1168,6 +1800,7 @@ class Chatbot {
     async _chatCompatible(modelInput) {
         const params = this._getCompatibleParams(modelInput);
         const results = await this.compatibleWrapper.generateChatText(params);
+        this.lastResponse = results;
         return this._parseChatChoices(results);
     }
 
@@ -1381,10 +2014,12 @@ class Chatbot {
                 };
             }
             const results = await this.openaiWrapper.generateGPT5Response(params);
+            this.lastResponse = results;
             return this._parseResponsesOutput(results, legacyFunctions);
         }
 
         const results = await this.openaiWrapper.generateChatText(params, functions, function_call);
+        this.lastResponse = results;
         return this._parseChatChoices(results);
     }
 
@@ -1526,6 +2161,7 @@ class Chatbot {
         }
 
         const results = await this.cohereWrapper.generateChatText(params);
+        this.lastResponse = results;
 
         const responseText = results.text;
         return [responseText];
@@ -1566,6 +2202,7 @@ class Chatbot {
         const params = this._getMistralParams(modelInput);
 
         const results = await this.mistralWrapper.generateText(params);
+        this.lastResponse = results;
 
         return this._parseChatChoices(results);
     }
@@ -1582,22 +2219,24 @@ class Chatbot {
         }
     }
 
-    async _chatGemini(modelInput) {
-        let params;
-        let model = null;
-
+    _getGeminiParams(modelInput) {
         if (modelInput instanceof GeminiInput) {
-            params = modelInput.getChatInput();
-            model = modelInput.model;
-        } else if (typeof modelInput === "object") {
+            // an input that kept the Developer API default model uses the wrapper default (gemini-3.8-flash on Vertex AI)
+            const keptDefault = modelInput.defaultModel && modelInput.model === config.url.gemini.models.chat;
+            return { params: modelInput.getChatInput(), model: keptDefault && this.geminiWrapper.vertex ? null : modelInput.model };
+        } else if (modelInput && typeof modelInput === "object") {
             // an optional `model` key selects the model; the wrapper removes it from the body
-            params = modelInput;
-        } else {
-            throw new Error("Invalid input: Must be an instance of GeminiInput");
+            return { params: modelInput, model: null };
         }
+        throw new Error("Invalid input: Must be an instance of GeminiInput");
+    }
+
+    async _chatGemini(modelInput) {
+        const { params, model } = this._getGeminiParams(modelInput);
 
         // call Gemini
         const result = await this.geminiWrapper.generateContent(params, false, model);
+        this.lastResponse = result;
 
         if (!Array.isArray(result.candidates) || result.candidates.length === 0) {
             const feedback = result.promptFeedback ? ` Prompt feedback: ${JSON.stringify(result.promptFeedback)}` : '';
@@ -1625,6 +2264,18 @@ class Chatbot {
         });
     }
 
+    async *_streamGemini(modelInput) {
+        const { params, model } = this._getGeminiParams(modelInput);
+        let last = null;
+        for await (const chunk of this.geminiWrapper.streamGenerateContent(params, false, model)) {
+            last = chunk;
+            const text = GeminiAIWrapper.extractText(chunk);
+            if (text) yield text;
+        }
+        // the last chunk carries the usage and grounding metadata
+        this.lastResponse = last;
+    }
+
     _getAnthropicParams(modelInput) {
         if (modelInput instanceof AnthropicInput) {
             return modelInput.getChatInput();
@@ -1638,6 +2289,7 @@ class Chatbot {
         const params = this._getAnthropicParams(modelInput);
 
         const results = await this.anthropicWrapper.generateText(params);
+        this.lastResponse = results;
 
         // Claude 5 models can return thinking blocks before the answer; keep the text blocks only
         const blocks = Array.isArray(results.content) ? results.content : [];
@@ -1674,6 +2326,7 @@ class Chatbot {
         let params = modelInput instanceof NvidiaInput ? modelInput.getChatInput() : modelInput;
         if (params.stream) throw new Error("Use stream() for NVIDIA streaming.");
         let resp = await this.nvidiaWrapper.generateText(params);
+        this.lastResponse = resp;
         return this._parseChatChoices(resp);
     }
 
@@ -1695,7 +2348,7 @@ module.exports = {
     SupportedChatModels,
 };
 
-},{"../model/input/ChatModelInput":14,"../utils/FetchClient":35,"../utils/ModelHelper":41,"../utils/OutputParser":42,"../utils/StreamParser":45,"../utils/SystemHelper":46,"../wrappers/AWSEndpointWrapper":47,"../wrappers/AnthropicWrapper":48,"../wrappers/CohereAIWrapper":49,"../wrappers/GeminiAIWrapper":50,"../wrappers/IntellicloudWrapper":53,"../wrappers/MistralAIWrapper":54,"../wrappers/NvidiaWrapper":55,"../wrappers/OpenAICompatibleWrapper":56,"../wrappers/OpenAIWrapper":57,"../wrappers/ReplicateWrapper":58,"../wrappers/VLLMWrapper":60}],8:[function(require,module,exports){
+},{"../config.json":1,"../model/input/ChatModelInput":15,"../utils/FetchClient":53,"../utils/ModelHelper":59,"../utils/OutputParser":60,"../utils/StreamParser":63,"../utils/SystemHelper":64,"../wrappers/AWSEndpointWrapper":66,"../wrappers/AnthropicWrapper":67,"../wrappers/CohereAIWrapper":68,"../wrappers/GeminiAIWrapper":69,"../wrappers/IntellicloudWrapper":72,"../wrappers/MistralAIWrapper":73,"../wrappers/NvidiaWrapper":74,"../wrappers/OpenAICompatibleWrapper":75,"../wrappers/OpenAIWrapper":76,"../wrappers/ReplicateWrapper":77,"../wrappers/VLLMWrapper":79}],9:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -1736,6 +2389,7 @@ const CHAT_INPUTS = {
   [SupportedChatModels.OPENAI]: ChatGPTInput,
   [SupportedChatModels.ANTHROPIC]: AnthropicInput,
   [SupportedChatModels.GEMINI]: GeminiInput,
+  [SupportedChatModels.VERTEX]: GeminiInput,
   [SupportedChatModels.MISTRAL]: MistralInput,
   [SupportedChatModels.COHERE]: CohereInput,
   [SupportedChatModels.NVIDIA]: NvidiaInput,
@@ -1760,7 +2414,9 @@ const INLINE_REASONING_PROVIDERS = new Set([
 ]);
 
 // Chatbot options that Gen passes straight through from options.
-const CHATBOT_OPTION_KEYS = ['baseUrl', 'headers', 'timeout', 'retries', 'retryDelay', 'signal'];
+const CHATBOT_OPTION_KEYS = ['baseUrl', 'headers', 'timeout', 'retries', 'retryDelay', 'signal',
+  // Gemini on Vertex AI
+  'vertex', 'projectId', 'location', 'accessToken', 'credentials', 'apiVersion', 'quotaProjectId'];
 
 function chatbotOptionsFrom(options) {
   const chatbotOptions = {};
@@ -2759,7 +3415,7 @@ class Gen {
 module.exports = { Gen };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../config.json":1,"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":7,"../model/input/ChatModelInput":14,"../model/input/ImageModelInput":18,"../model/input/Text2SpeechInput":20,"../utils/FileHelper":36,"../utils/ModelHelper":41,"../utils/OutputParser":42,"../utils/Prompt":43,"../utils/SystemHelper":46,"buffer":24,"path":28}],9:[function(require,module,exports){
+},{"../config.json":1,"../controller/RemoteImageModel":4,"../controller/RemoteLanguageModel":5,"../controller/RemoteSpeechModel":6,"../function/Chatbot":8,"../model/input/ChatModelInput":15,"../model/input/ImageModelInput":19,"../model/input/Text2SpeechInput":21,"../utils/FileHelper":54,"../utils/ModelHelper":59,"../utils/OutputParser":60,"../utils/Prompt":61,"../utils/SystemHelper":64,"buffer":25,"path":29}],10:[function(require,module,exports){
 /*
 Apache License
 
@@ -2770,11 +3426,13 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/RemoteEmbedModel');
 const EmbedInput = require('../model/input/EmbedInput');
 const MatchHelpers = require('../utils/MatchHelpers');
+const { Embedder } = require('../store/Embedder');
 
 class SemanticSearch {
   constructor(keyValue, provider = SupportedEmbedModels.OPENAI, customProxyHelper = null) {
     this.keyValue = keyValue;
     this.provider = provider;
+    this.customProxyHelper = customProxyHelper;
 
     this.remoteEmbedModel = new RemoteEmbedModel(keyValue, provider, customProxyHelper);
   }
@@ -2783,6 +3441,13 @@ class SemanticSearch {
 
       if (numberOfMatches > searchArray.length) {
         throw new Error('numberOfMatches should not be greater than the searchArray');
+      }
+
+      if (this.provider !== SupportedEmbedModels.OPENAI && this.provider !== SupportedEmbedModels.COHERE) {
+        // gemini, vertex, nvidia, vllm and the OpenAI-compatible providers: one vector per text through the Embedder
+        const embedder = new Embedder({ provider: this.provider, apiKey: this.keyValue, model: modelName, options: this.customProxyHelper || {} });
+        const [pivotEmbedding, ...searchEmbeddings] = await embedder.embed([pivotItem, ...searchArray]);
+        return this.getTopMatchesFromEmbeddings(pivotEmbedding, searchEmbeddings, numberOfMatches);
       }
 
       const embedInput = new EmbedInput({
@@ -2841,7 +3506,7 @@ class SemanticSearch {
 
 module.exports = { SemanticSearch };
 
-},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":15,"../utils/MatchHelpers":39}],10:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":16,"../store/Embedder":36,"../utils/MatchHelpers":57}],11:[function(require,module,exports){
 const { SemanticSearch } = require('./SemanticSearch'); // assuming path
 
 class SemanticSearchPaging extends SemanticSearch {
@@ -2879,7 +3544,7 @@ class SemanticSearchPaging extends SemanticSearch {
 }
 
 module.exports = { SemanticSearchPaging };
-},{"./SemanticSearch":9}],11:[function(require,module,exports){
+},{"./SemanticSearch":10}],12:[function(require,module,exports){
 /*
 Apache License
 
@@ -2938,7 +3603,7 @@ class TextAnalyzer {
 }
 
 module.exports = { TextAnalyzer };
-},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":19,"../utils/SystemHelper":46}],12:[function(require,module,exports){
+},{"../controller/RemoteLanguageModel":5,"../model/input/LanguageModelInput":20,"../utils/SystemHelper":64}],13:[function(require,module,exports){
 // controllers
 const {
   RemoteLanguageModel,
@@ -2971,6 +3636,7 @@ const {
 } = require('./function/SemanticSearchPaging');
 const { TextAnalyzer } = require('./function/TextAnalyzer');
 const { Gen } = require('./function/Gen');
+const { Assistant } = require('./function/Assistant');
 // Node only: the browser bundle maps these modules to empty objects (package.json "browser")
 const { CodingAgent } = require('./function/CodingAgent');
 const WorkspaceToolkitModule = require('./utils/WorkspaceToolkit');
@@ -3008,6 +3674,7 @@ const AWSEndpointWrapper = require('./wrappers/AWSEndpointWrapper');
 const IntellicloudWrapper = require('./wrappers/IntellicloudWrapper');
 const MistralAIWrapper = require('./wrappers/MistralAIWrapper');
 const GeminiAIWrapper = require('./wrappers/GeminiAIWrapper');
+const { GoogleAIError, GoogleAIChatSession, GoogleAILiveSession } = GeminiAIWrapper;
 const AnthropicWrapper = require('./wrappers/AnthropicWrapper');
 const NvidiaWrapper = require('./wrappers/NvidiaWrapper');
 const VLLMWrapper = require('./wrappers/VLLMWrapper');
@@ -3028,6 +3695,27 @@ const MCPClient = require('./utils/MCPClient');
 const { MCPServer } = require('./mcp/server');
 const FetchClient = require('./utils/FetchClient');
 const OutputParser = require('./utils/OutputParser');
+const TextSplitter = require('./utils/TextSplitter');
+// Node only: the browser bundle maps this module to an empty object (package.json "browser")
+const GoogleAuthModule = require('./utils/GoogleAuth');
+const GoogleAuth = typeof GoogleAuthModule === 'function' ? GoogleAuthModule : undefined;
+// stores: vector databases and chat history
+const { VectorStore } = require('./store/VectorStore');
+const { Embedder } = require('./store/Embedder');
+const { MemoryVectorStore } = require('./store/MemoryVectorStore');
+const { ChatHistory, MemoryChatHistory, FileChatHistory } = require('./store/ChatHistory');
+const { FirestoreChatHistory } = require('./store/FirestoreChatHistory');
+const { FirestoreVectorStore } = require('./store/FirestoreVectorStore');
+const { VertexRAGStore } = require('./store/VertexRAGStore');
+const { VertexVectorSearchStore, VertexVectorSearchIndexStore } = require('./store/VertexVectorSearchStore');
+const { PineconeVectorStore } = require('./store/PineconeVectorStore');
+const { QdrantVectorStore } = require('./store/QdrantVectorStore');
+const { ChromaVectorStore } = require('./store/ChromaVectorStore');
+const { WeaviateVectorStore } = require('./store/WeaviateVectorStore');
+const { MilvusVectorStore } = require('./store/MilvusVectorStore');
+const { ElasticsearchVectorStore } = require('./store/ElasticsearchVectorStore');
+const { PgVectorStore } = require('./store/PgVectorStore');
+const { MongoDBAtlasVectorStore } = require('./store/MongoDBAtlasVectorStore');
 
 module.exports = {
   RemoteLanguageModel,
@@ -3096,10 +3784,35 @@ module.exports = {
   OpenAICompatibleWrapper,
   OpenAICompatibleInput,
   FetchClient,
-  OutputParser
+  OutputParser,
+  Assistant,
+  GoogleAIError,
+  GoogleAIChatSession,
+  GoogleAILiveSession,
+  GoogleAuth,
+  TextSplitter,
+  VectorStore,
+  Embedder,
+  MemoryVectorStore,
+  ChatHistory,
+  MemoryChatHistory,
+  FileChatHistory,
+  FirestoreChatHistory,
+  FirestoreVectorStore,
+  VertexRAGStore,
+  VertexVectorSearchStore,
+  VertexVectorSearchIndexStore,
+  PineconeVectorStore,
+  QdrantVectorStore,
+  ChromaVectorStore,
+  WeaviateVectorStore,
+  MilvusVectorStore,
+  ElasticsearchVectorStore,
+  PgVectorStore,
+  MongoDBAtlasVectorStore
 };
 
-},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Chatbot":7,"./function/CodingAgent":22,"./function/Gen":8,"./function/SemanticSearch":9,"./function/SemanticSearchPaging":10,"./function/TextAnalyzer":11,"./mcp/server":22,"./model/input/ChatModelInput":14,"./model/input/EmbedInput":15,"./model/input/FineTuneInput":16,"./model/input/FunctionModelInput":17,"./model/input/ImageModelInput":18,"./model/input/LanguageModelInput":19,"./model/input/Text2SpeechInput":20,"./utils/AudioHelper":32,"./utils/ChatContext":33,"./utils/ConnHelper":34,"./utils/FetchClient":35,"./utils/LLMEvaluation":37,"./utils/MCPClient":38,"./utils/MatchHelpers":39,"./utils/ModelHelper":41,"./utils/OutputParser":42,"./utils/Prompt":43,"./utils/ProxyHelper":44,"./utils/StreamParser":45,"./utils/SystemHelper":46,"./utils/WorkspaceToolkit":22,"./wrappers/AWSEndpointWrapper":47,"./wrappers/AnthropicWrapper":48,"./wrappers/CohereAIWrapper":49,"./wrappers/GeminiAIWrapper":50,"./wrappers/GoogleAIWrapper":51,"./wrappers/HuggingWrapper":52,"./wrappers/IntellicloudWrapper":53,"./wrappers/MistralAIWrapper":54,"./wrappers/NvidiaWrapper":55,"./wrappers/OpenAICompatibleWrapper":56,"./wrappers/OpenAIWrapper":57,"./wrappers/ReplicateWrapper":58,"./wrappers/StabilityAIWrapper":59,"./wrappers/VLLMWrapper":60}],13:[function(require,module,exports){
+},{"./controller/RemoteEmbedModel":2,"./controller/RemoteFineTuneModel":3,"./controller/RemoteImageModel":4,"./controller/RemoteLanguageModel":5,"./controller/RemoteSpeechModel":6,"./function/Assistant":7,"./function/Chatbot":8,"./function/CodingAgent":23,"./function/Gen":9,"./function/SemanticSearch":10,"./function/SemanticSearchPaging":11,"./function/TextAnalyzer":12,"./mcp/server":23,"./model/input/ChatModelInput":15,"./model/input/EmbedInput":16,"./model/input/FineTuneInput":17,"./model/input/FunctionModelInput":18,"./model/input/ImageModelInput":19,"./model/input/LanguageModelInput":20,"./model/input/Text2SpeechInput":21,"./store/ChatHistory":33,"./store/ChromaVectorStore":34,"./store/ElasticsearchVectorStore":35,"./store/Embedder":36,"./store/FirestoreChatHistory":37,"./store/FirestoreVectorStore":38,"./store/MemoryVectorStore":40,"./store/MilvusVectorStore":41,"./store/MongoDBAtlasVectorStore":42,"./store/PgVectorStore":43,"./store/PineconeVectorStore":44,"./store/QdrantVectorStore":45,"./store/VectorStore":46,"./store/VertexRAGStore":47,"./store/VertexVectorSearchStore":48,"./store/WeaviateVectorStore":49,"./utils/AudioHelper":50,"./utils/ChatContext":51,"./utils/ConnHelper":52,"./utils/FetchClient":53,"./utils/GoogleAuth":23,"./utils/LLMEvaluation":55,"./utils/MCPClient":56,"./utils/MatchHelpers":57,"./utils/ModelHelper":59,"./utils/OutputParser":60,"./utils/Prompt":61,"./utils/ProxyHelper":62,"./utils/StreamParser":63,"./utils/SystemHelper":64,"./utils/TextSplitter":65,"./utils/WorkspaceToolkit":23,"./wrappers/AWSEndpointWrapper":66,"./wrappers/AnthropicWrapper":67,"./wrappers/CohereAIWrapper":68,"./wrappers/GeminiAIWrapper":69,"./wrappers/GoogleAIWrapper":70,"./wrappers/HuggingWrapper":71,"./wrappers/IntellicloudWrapper":72,"./wrappers/MistralAIWrapper":73,"./wrappers/NvidiaWrapper":74,"./wrappers/OpenAICompatibleWrapper":75,"./wrappers/OpenAIWrapper":76,"./wrappers/ReplicateWrapper":77,"./wrappers/StabilityAIWrapper":78,"./wrappers/VLLMWrapper":79}],14:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -3444,7 +4157,8 @@ module.exports = {
 };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../utils/StreamParser":45,"buffer":24}],14:[function(require,module,exports){
+},{"../utils/StreamParser":63,"buffer":25}],15:[function(require,module,exports){
+(function (Buffer){(function (){
 /*
 Apache License
 
@@ -3927,6 +4641,21 @@ function toGeminiTools(tools) {
   return [...(declarations.length ? [{ functionDeclarations: declarations }] : []), ...native];
 }
 
+// A media item as a Gemini part: a part object as is, { data, mimeType } inline, or { uri, mimeType } as file data.
+function toGeminiPart(item) {
+  if (!item || typeof item !== 'object') throw new Error('Gemini media must be a part or { data, mimeType } / { uri, mimeType }.');
+  if (item.inlineData || item.inline_data || item.fileData || item.file_data || item.text !== undefined) return item;
+  const mimeType = item.mimeType || item.mime_type;
+  if (item.uri || item.fileUri) {
+    return { fileData: { mimeType, fileUri: item.uri || item.fileUri } };
+  }
+  if (item.data !== undefined) {
+    const data = typeof item.data === 'string' ? item.data.replace(/^data:[^,]*,/, '') : Buffer.from(item.data).toString('base64');
+    return { inlineData: { mimeType, data } };
+  }
+  throw new Error('Gemini media must be a part or { data, mimeType } / { uri, mimeType }.');
+}
+
 function toGeminiToolConfig(choice) {
   if (choice === 'auto') return { functionCallingConfig: { mode: 'AUTO' } };
   if (choice === 'required' || choice === 'any') return { functionCallingConfig: { mode: 'ANY' } };
@@ -3945,22 +4674,43 @@ class GeminiInput extends ChatModelInput {
     this.messages = [];
     // the bare 'gemini' placeholder from older examples maps to the default model
     this.model = options.model && options.model !== 'gemini' ? options.model : config.url.gemini.models.chat;
+    // a model left at the Developer API default is replaced by the Vertex AI default on the vertex provider
+    this.defaultModel = this.model === config.url.gemini.models.chat && !(options.model && options.model !== 'gemini');
     this.maxOutputTokens = options.maxTokens
     this.temperature = options.temperature
     // tools in Gemini (functionDeclarations) or OpenAI function format
     this.tools = options.tools || null;
     this.toolChoice = options.toolChoice ?? null;
+    // Gemini only: generationConfig entries (thinkingConfig, responseModalities, ...), safety settings and a
+    // context cache name (GeminiAIWrapper.createCachedContent)
+    this.generationConfig = options.generationConfig || null;
+    this.safetySettings = options.safetySettings || null;
+    this.cachedContent = options.cachedContent || null;
+    // systemInstruction: true sends the system message as a Gemini system instruction; a string sets it directly.
+    // Without it the system message is the first user turn, as before.
+    this.systemInstruction = typeof options.systemInstruction === 'string' ? options.systemInstruction : null;
 
     if (systemMessage && typeof systemMessage === 'string') {
-      this.addUserMessage(systemMessage);
-      this.addModelMessage('I will response based on the provided instructions.');
+      if (options.systemInstruction === true) {
+        this.systemInstruction = systemMessage;
+      } else {
+        this.addUserMessage(systemMessage);
+        this.addModelMessage('I will response based on the provided instructions.');
+      }
     }
   }
 
-  addUserMessage(text) {
+  /**
+   * Add a user turn. media (optional) adds images, audio, video or PDFs: Gemini parts, { data, mimeType }
+   * with base64 or bytes, or { uri, mimeType } for gs://, https, YouTube and Files API URIs.
+   */
+  addUserMessage(text, media = null) {
+    const parts = [];
+    if (!media || (text !== null && text !== undefined && text !== '')) parts.push({ text });
+    for (const item of media ? (Array.isArray(media) ? media : [media]) : []) parts.push(toGeminiPart(item));
     this.messages.push({
       role: "user",
-      parts: [{ text }]
+      parts
     });
   }
 
@@ -4000,14 +4750,18 @@ class GeminiInput extends ChatModelInput {
     const toolConfig = this.toolChoice != null ? toGeminiToolConfig(this.toolChoice) : null;
     return {
       contents: this.messages,
+      ...(this.systemInstruction && { systemInstruction: { parts: [{ text: this.systemInstruction }] } }),
       generationConfig: {
         ...(this.temperature != null && { temperature: this.temperature }),
         ...(this.maxOutputTokens && { maxOutputTokens: this.maxOutputTokens }),
         ...(this.responseFormat === 'json' && { responseMimeType: 'application/json' }),
         ...(this.responseSchema && { responseSchema: toGeminiSchema(this.responseSchema) }),
+        ...(this.generationConfig || {}),
       },
       ...(this.tools && { tools: toGeminiTools(this.tools) }),
       ...(toolConfig && { toolConfig }),
+      ...(this.safetySettings && { safetySettings: this.safetySettings }),
+      ...(this.cachedContent && { cachedContent: this.cachedContent }),
     };
   }
 
@@ -4419,7 +5173,8 @@ module.exports = {
   VLLMInput
 };
 
-},{"../../config.json":1,"../../utils/ModelHelper":41}],15:[function(require,module,exports){
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"../../config.json":1,"../../utils/ModelHelper":59,"buffer":25}],16:[function(require,module,exports){
 const config = require('../../config.json');
 
 class EmbedInput {
@@ -4498,6 +5253,8 @@ class EmbedInput {
         this.model = config.models.replicate.llama['llama-2-13b-embeddings-version'];
     } else if (provider === "gemini") {
         this.model = `models/${config.url.gemini.models.embed}`;
+    } else if (provider === "vertex") {
+        this.model = config.url.gemini.vertex.models.embed;
     } else if (provider === "nvidia") {
         this.model = config.nvidia.models.embed;
     } else if (provider === "vllm") {
@@ -4513,7 +5270,7 @@ class EmbedInput {
 
 module.exports = EmbedInput;
 
-},{"../../config.json":1}],16:[function(require,module,exports){
+},{"../../config.json":1}],17:[function(require,module,exports){
 /*
 Apache License
 
@@ -4538,7 +5295,7 @@ class FineTuneInput {
 
 module.exports = FineTuneInput;
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /*
 Apache License
 
@@ -4573,7 +5330,7 @@ class FunctionModelInput {
 
 module.exports = FunctionModelInput ;
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 /*
 Apache License
 
@@ -4650,6 +5407,30 @@ class ImageModelInput {
     return normalized;
   }
 
+  // Gemini image models take an aspect ratio, not pixel sizes.
+  getGeminiInputs() {
+    const ratio = this.width && this.height ? ImageModelInput.aspectRatio(this.width, this.height) : null;
+    return {
+      prompt: this.prompt,
+      numberOfImages: this.numberOfImages || 1,
+      model: this.model || null,
+      ...(ratio && { config: { imageConfig: { aspectRatio: ratio } } }),
+    };
+  }
+
+  // The closest aspect ratio Gemini supports for a width and height.
+  static aspectRatio(width, height) {
+    const supported = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
+    const target = width / height;
+    let best = supported[0];
+    for (const ratio of supported) {
+      const [w, h] = ratio.split(':').map(Number);
+      const [bw, bh] = best.split(':').map(Number);
+      if (Math.abs(w / h - target) < Math.abs(bw / bh - target)) best = ratio;
+    }
+    return best;
+  }
+
   getStabilityInputs() {
     const inputs = {
       text_prompts: [{ text: this.prompt }],
@@ -4674,6 +5455,9 @@ class ImageModelInput {
       this.height = 1024;
       this.width = 1024;
       this.engine = 'stable-diffusion-xl-1024-v1-0';
+    } else if (provider === "gemini" || provider === "vertex") {
+      this.numberOfImages = 1;
+      this.model = this.model || (provider === "vertex" ? config.url.gemini.vertex.models.image : config.url.gemini.models.image);
     } else {
       throw new Error("Invalid provider name");
     }
@@ -4682,7 +5466,7 @@ class ImageModelInput {
 
 module.exports = ImageModelInput;
 
-},{"../../config.json":1}],19:[function(require,module,exports){
+},{"../../config.json":1}],20:[function(require,module,exports){
 /*
 Apache License
 
@@ -4762,7 +5546,7 @@ class LanguageModelInput {
 
 module.exports = LanguageModelInput;
 
-},{"../../config.json":1}],20:[function(require,module,exports){
+},{"../../config.json":1}],21:[function(require,module,exports){
 /*
 Apache License
 
@@ -4810,6 +5594,19 @@ class Text2SpeechInput {
     return params;
   }
 
+  /**
+   * Gemini TTS input: a Gemini voice name (Kore, Puck, Charon, ...) when voice is one, otherwise Kore for a female
+   * and Puck for a male voice. The OpenAI tts model default is replaced by the Gemini TTS default.
+   */
+  getGeminiInput() {
+    const openAIVoices = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'onyx', 'nova', 'sage', 'shimmer', 'verse'];
+    const voice = this.voice && !openAIVoices.includes(String(this.voice).toLowerCase())
+      ? this.voice
+      : (this.gender === Text2SpeechInput.Gender.MALE ? 'Puck' : 'Kore');
+    const model = this.model && String(this.model).includes('tts') && String(this.model).startsWith('gemini') ? this.model : null;
+    return { text: this.text, voice, model };
+  }
+
   getOpenAIInput() {
     const params = {
       input: this.text,
@@ -4828,7 +5625,7 @@ Text2SpeechInput.Gender = {
 
 module.exports = Text2SpeechInput;
 
-},{"../../config.json":1}],21:[function(require,module,exports){
+},{"../../config.json":1}],22:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -4980,11 +5777,11 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],22:[function(require,module,exports){
-
 },{}],23:[function(require,module,exports){
-arguments[4][22][0].apply(exports,arguments)
-},{"dup":22}],24:[function(require,module,exports){
+
+},{}],24:[function(require,module,exports){
+arguments[4][23][0].apply(exports,arguments)
+},{"dup":23}],25:[function(require,module,exports){
 (function (Buffer){(function (){
 /*!
  * The buffer module from node.js, for the browser.
@@ -6765,7 +7562,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"base64-js":21,"buffer":24,"ieee754":27}],25:[function(require,module,exports){
+},{"base64-js":22,"buffer":25,"ieee754":28}],26:[function(require,module,exports){
 (function (global){(function (){
 // Save global object in a variable
 var __global__ =
@@ -7453,13 +8250,13 @@ exports.Response = ctx.Response
 module.exports = exports
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 'use strict';
 
 /* eslint-env browser */
 module.exports = typeof self === 'object' ? self.FormData : window.FormData;
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
@@ -7546,7 +8343,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 (function (process){(function (){
 // 'path' module extracted from Node.js v8.11.1 (only the posix part)
 // transplited with Babel
@@ -8079,7 +8876,7 @@ posix.posix = posix;
 module.exports = posix;
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":29}],29:[function(require,module,exports){
+},{"_process":30}],30:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -8265,11 +9062,11 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 module.exports={
   "name": "intellinode",
-  "version": "3.0.1",
-  "description": "Unified AI toolkit: one API for OpenAI, Anthropic, Gemini, Mistral, Cohere, NVIDIA and OpenAI-compatible services, with a tool loop, structured output, generators for web developers and an MCP server.",
+  "version": "3.1.1",
+  "description": "JavaScript AI SDK for OpenAI, Claude, Gemini and Vertex AI: chatbots, AI agents, RAG with vector databases, tool calling, MCP, image and speech.",
   "main": "index.js",
   "types": "index.d.ts",
   "bin": {
@@ -8279,7 +9076,8 @@ module.exports={
   "browser": {
     "./mcp/server.js": false,
     "./function/CodingAgent.js": false,
-    "./utils/WorkspaceToolkit.js": false
+    "./utils/WorkspaceToolkit.js": false,
+    "./utils/GoogleAuth.js": false
   },
   "keywords": [
     "ai",
@@ -8304,10 +9102,15 @@ module.exports={
     "groq",
     "openai-compatible",
     "tool-calling",
-    "structured-output",
     "model-context-protocol",
     "coding-agent",
-    "agent"
+    "agent",
+    "vertex-ai",
+    "google-cloud",
+    "RAG",
+    "vector-database",
+    "codex",
+    "agent-skills"
   ],
   "author": "IntelliNode",
   "license": "Apache",
@@ -8317,7 +9120,8 @@ module.exports={
   },
   "scripts": {
     "build": "node scripts/build-templates.js && browserify index.js --standalone IntelliNode -o front/intellinode.js && uglifyjs front/intellinode.js -o front/intellinode.min.js",
-    "test": "node test/unit/testRunner"
+    "test": "node test/unit/testRunner",
+    "sync-skill": "node scripts/sync-skill.js"
   },
   "homepage": "https://www.intellinode.ai",
   "devDependencies": {
@@ -8331,7 +9135,7 @@ module.exports={
   }
 }
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 // Generated by scripts/build-templates.js from resource/templates/*.in - do not edit.
 module.exports = {
   "accessibility_prompt.in": "You are a web accessibility (WCAG 2.2 AA) expert. Review the HTML below, fix every accessibility problem you find and report what changed.\n\nReturn exactly two markdown code blocks and nothing else:\n1. A block tagged html containing the complete corrected HTML.\n2. A block tagged json containing an array of the problems you fixed, in this shape:\n[{\"issue\": \"what was wrong\", \"fix\": \"what you changed\", \"wcag\": \"criterion id, e.g. 1.1.1\"}]\n\nRules:\n- Keep the original structure, content and styling; only change what accessibility requires (alt text, labels, roles, landmarks, heading order, focus order, ARIA attributes, language, link text).\n- If the HTML has no problems, return it unchanged and an empty JSON array.\n\nHTML:\n${text}\n",
@@ -8370,7 +9174,3049 @@ module.exports = {
   "unit_tests_prompt.in": "You are an expert in automated testing. Write ${framework} unit tests for the code below.\n\nRequirements:\n- Return only the complete test file inside a single markdown code block. No explanation.\n- Cover the normal behaviour, edge cases and error handling of every exported function or component.\n- Import the code under test from \"${module_path}\" and keep each test independent, readable and deterministic (mock network, time and randomness).\n\nCode:\n${text}\n"
 };
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const { newId } = require('./VectorStore');
+
+/**
+ * Where an Assistant keeps its conversations. Messages are { id, role: 'user' | 'assistant', content, createdAt,
+ * metadata? }; conversations are { id, title, userId, createdAt, updatedAt, metadata }.
+ *
+ * Implementations: MemoryChatHistory (in process), FileChatHistory (JSON files, Node), FirestoreChatHistory (Google
+ * Cloud Firestore). Write your own by extending ChatHistory and implementing the six methods.
+ */
+class ChatHistory {
+  /** The last `limit` messages of a conversation, oldest first. */
+  async getMessages() {
+    throw new Error(`${this.constructor.name}.getMessages is not implemented.`);
+  }
+
+  /** Append messages; fills id and createdAt and updates the conversation's updatedAt. Returns the stored messages. */
+  async addMessages() {
+    throw new Error(`${this.constructor.name}.addMessages is not implemented.`);
+  }
+
+  async getConversation() {
+    throw new Error(`${this.constructor.name}.getConversation is not implemented.`);
+  }
+
+  /** Create or update a conversation's fields (title, userId, metadata). */
+  async saveConversation() {
+    throw new Error(`${this.constructor.name}.saveConversation is not implemented.`);
+  }
+
+  /** Conversations, most recently updated first; { userId } keeps one user's. */
+  async listConversations() {
+    throw new Error(`${this.constructor.name}.listConversations is not implemented.`);
+  }
+
+  async deleteConversation() {
+    throw new Error(`${this.constructor.name}.deleteConversation is not implemented.`);
+  }
+
+  /** Remove the last `count` messages (used to regenerate an answer). */
+  async deleteLastMessages() {
+    throw new Error(`${this.constructor.name}.deleteLastMessages is not implemented.`);
+  }
+
+  static _stamp(messages) {
+    const now = new Date().toISOString();
+    return (messages || []).map((message) => ({
+      id: message.id || newId(),
+      role: message.role,
+      content: message.content === undefined || message.content === null ? '' : String(message.content),
+      createdAt: message.createdAt || now,
+      ...(message.metadata && Object.keys(message.metadata).length && { metadata: message.metadata }),
+    }));
+  }
+
+  static _conversation(id, existing, fields = {}) {
+    const now = new Date().toISOString();
+    return {
+      id,
+      title: fields.title !== undefined ? fields.title : (existing && existing.title) || null,
+      userId: fields.userId !== undefined ? fields.userId : (existing && existing.userId) || null,
+      createdAt: (existing && existing.createdAt) || now,
+      updatedAt: now,
+      metadata: { ...((existing && existing.metadata) || {}), ...(fields.metadata || {}) },
+    };
+  }
+}
+
+/** Conversations in process memory (lost on restart). */
+class MemoryChatHistory extends ChatHistory {
+  constructor() {
+    super();
+    this.conversations = new Map();
+  }
+
+  _entry(id) {
+    if (!this.conversations.has(id)) this.conversations.set(id, { conversation: ChatHistory._conversation(id, null), messages: [] });
+    return this.conversations.get(id);
+  }
+
+  async getMessages(conversationId, { limit = null } = {}) {
+    const entry = this.conversations.get(conversationId);
+    if (!entry) return [];
+    return limit ? entry.messages.slice(-limit) : [...entry.messages];
+  }
+
+  async addMessages(conversationId, messages) {
+    const entry = this._entry(conversationId);
+    const stamped = ChatHistory._stamp(messages);
+    entry.messages.push(...stamped);
+    entry.conversation = ChatHistory._conversation(conversationId, entry.conversation);
+    return stamped;
+  }
+
+  async getConversation(conversationId) {
+    const entry = this.conversations.get(conversationId);
+    return entry ? { ...entry.conversation, messageCount: entry.messages.length } : null;
+  }
+
+  async saveConversation(conversation) {
+    const entry = this._entry(conversation.id);
+    entry.conversation = ChatHistory._conversation(conversation.id, entry.conversation, conversation);
+    return entry.conversation;
+  }
+
+  async listConversations({ userId = null, limit = 50 } = {}) {
+    return [...this.conversations.values()]
+      .map((entry) => entry.conversation)
+      .filter((conversation) => !userId || conversation.userId === userId)
+      .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
+      .slice(0, limit);
+  }
+
+  async deleteConversation(conversationId) {
+    this.conversations.delete(conversationId);
+  }
+
+  async deleteLastMessages(conversationId, count = 1) {
+    const entry = this.conversations.get(conversationId);
+    if (entry) entry.messages.splice(Math.max(0, entry.messages.length - count), count);
+  }
+}
+
+/**
+ * Conversations as JSON files in a directory (Node only), one file per conversation. Good for local apps,
+ * desktop tools and development; use FirestoreChatHistory (or your database) for multi-user servers.
+ */
+class FileChatHistory extends ChatHistory {
+  constructor({ dir = '.intellinode/conversations' } = {}) {
+    super();
+    this.dir = dir;
+  }
+
+  _file(conversationId) {
+    const safe = String(conversationId).replace(/[^A-Za-z0-9_.-]/g, '_');
+    if (!safe || safe === '.' || safe === '..') throw new Error(`Invalid conversation id '${conversationId}'.`);
+    return require('path').join(this.dir, `${safe}.json`);
+  }
+
+  async _read(conversationId) {
+    try {
+      return JSON.parse(await require('fs').promises.readFile(this._file(conversationId), 'utf8'));
+    } catch (error) {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    }
+  }
+
+  async _write(conversationId, data) {
+    const fs = require('fs');
+    await fs.promises.mkdir(this.dir, { recursive: true });
+    const file = this._file(conversationId);
+    await fs.promises.writeFile(`${file}.tmp`, JSON.stringify(data, null, 2));
+    await fs.promises.rename(`${file}.tmp`, file);
+  }
+
+  async getMessages(conversationId, { limit = null } = {}) {
+    const data = await this._read(conversationId);
+    if (!data) return [];
+    return limit ? data.messages.slice(-limit) : data.messages;
+  }
+
+  async addMessages(conversationId, messages) {
+    const data = (await this._read(conversationId)) || { conversation: null, messages: [] };
+    const stamped = ChatHistory._stamp(messages);
+    data.messages.push(...stamped);
+    data.conversation = ChatHistory._conversation(conversationId, data.conversation);
+    await this._write(conversationId, data);
+    return stamped;
+  }
+
+  async getConversation(conversationId) {
+    const data = await this._read(conversationId);
+    return data ? { ...data.conversation, messageCount: data.messages.length } : null;
+  }
+
+  async saveConversation(conversation) {
+    const data = (await this._read(conversation.id)) || { conversation: null, messages: [] };
+    data.conversation = ChatHistory._conversation(conversation.id, data.conversation, conversation);
+    await this._write(conversation.id, data);
+    return data.conversation;
+  }
+
+  async listConversations({ userId = null, limit = 50 } = {}) {
+    const fs = require('fs');
+    let files;
+    try {
+      files = (await fs.promises.readdir(this.dir)).filter((file) => file.endsWith('.json'));
+    } catch (error) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+    const conversations = [];
+    for (const file of files) {
+      try {
+        const data = JSON.parse(await fs.promises.readFile(require('path').join(this.dir, file), 'utf8'));
+        if (data.conversation && (!userId || data.conversation.userId === userId)) conversations.push(data.conversation);
+      } catch (error) {
+        // skip a file that is being written or is not a conversation
+      }
+    }
+    return conversations.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, limit);
+  }
+
+  async deleteConversation(conversationId) {
+    await require('fs').promises.rm(this._file(conversationId), { force: true });
+  }
+
+  async deleteLastMessages(conversationId, count = 1) {
+    const data = await this._read(conversationId);
+    if (!data) return;
+    data.messages.splice(Math.max(0, data.messages.length - count), count);
+    await this._write(conversationId, data);
+  }
+}
+
+module.exports = { ChatHistory, MemoryChatHistory, FileChatHistory };
+
+},{"./VectorStore":46,"fs":24,"path":29}],34:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const FetchClient = require('../utils/FetchClient');
+const ConnHelper = require('../utils/ConnHelper');
+const { VectorStore } = require('./VectorStore');
+
+// Chroma rejects a where clause with more than one key unless the conditions are wrapped in $and.
+function toChromaWhere(filter) {
+  const clauses = Object.entries(filter || {}).map(([key, value]) => ({
+    [key]: Array.isArray(value) ? { $in: value } : { $eq: value },
+  }));
+  if (clauses.length === 0) return null;
+  return clauses.length === 1 ? clauses[0] : { $and: clauses };
+}
+
+// The distance space of a collection; Chroma's default is l2.
+function collectionSpace(collection) {
+  const config = collection.configuration_json || {};
+  return (config.hnsw && config.hnsw.space)
+    || (config.spann && config.spann.space)
+    || (collection.metadata && collection.metadata['hnsw:space'])
+    || 'l2';
+}
+
+// upsert and delete answer {} or { deleted } depending on the server version; only errors matter
+function parseText(text) {
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function chromaError(error) {
+  const wrapped = ConnHelper.wrapError(error);
+  wrapped.message = `Chroma error: ${wrapped.message}`;
+  return wrapped;
+}
+
+/**
+ * A Chroma server (self-hosted or Chroma Cloud) through the v2 REST API.
+ *
+ *   const store = new ChromaVectorStore({ url: 'http://localhost:8000', collection: 'docs', embedder });
+ *
+ * The collection is fetched or created by name (with the cosine space) on first use. Scores are converted from
+ * the collection's distance: cosine and ip give 1 - distance, l2 gives 1 / (1 + distance).
+ * filter becomes a where clause ($eq / $in, joined by $and); nativeFilter is a Chroma where clause.
+ * Chroma metadata values must be strings, numbers, booleans or arrays of them (no nested objects).
+ */
+class ChromaVectorStore extends VectorStore {
+  // API: https://docs.trychroma.com/reference/chroma-api/record/query-collection
+  /**
+   * @param {object} options - { url = 'http://localhost:8000', collection, tenant = 'default_tenant',
+   *   database = 'default_database', apiKey (Chroma Cloud, sent as x-chroma-token), space = 'cosine' (for a new
+   *   collection), batchSize = 1000, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    if (!options.collection) throw new Error('ChromaVectorStore needs a collection name.');
+    this.collection = options.collection;
+    this.tenant = options.tenant || 'default_tenant';
+    this.database = options.database || 'default_database';
+    this.space = options.space || 'cosine';
+    this.batchSize = options.batchSize || 1000;
+    this.collectionId = null;
+    this._ready = null;
+    const headers = { 'Content-Type': 'application/json' };
+    if (options.apiKey) headers['x-chroma-token'] = options.apiKey;
+    this.client = new FetchClient({ baseURL: String(options.url || 'http://localhost:8000').replace(/\/+$/, ''), headers });
+  }
+
+  /** Get or create the collection by name; returns its id. */
+  async getCollection() {
+    if (!this._ready) {
+      this._ready = this._request('POST', `${this._databasePath()}/collections`, {
+        name: this.collection,
+        metadata: { 'hnsw:space': this.space },
+        get_or_create: true,
+      }).then((collection) => {
+        this.collectionId = collection.id;
+        this.space = collectionSpace(collection);
+        return collection.id;
+      }).catch((error) => {
+        this._ready = null;
+        throw error;
+      });
+    }
+    return this._ready;
+  }
+
+  async upsert(records) {
+    const items = toItems(records);
+    if (items.length === 0) return [];
+    const path = await this._collectionPath();
+    for (let start = 0; start < items.length; start += this.batchSize) {
+      const batch = items.slice(start, start + this.batchSize);
+      await this._request('POST', `${path}/upsert`, {
+        ids: batch.map((item) => item.id),
+        embeddings: batch.map((item) => item.vector),
+        documents: batch.map((item) => item.text),
+        // older Chroma servers reject an empty metadata object
+        metadatas: batch.map((item) => (Object.keys(item.metadata).length > 0 ? item.metadata : null)),
+      }, { responseType: 'text' });
+    }
+    return items.map((item) => item.id);
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    const path = await this._collectionPath();
+    const where = params.nativeFilter || toChromaWhere(params.filter);
+    const body = { query_embeddings: [vector], n_results: params.topK || 5, include: ['documents', 'metadatas', 'distances'] };
+    if (where) body.where = where;
+    const data = await this._request('POST', `${path}/query`, body);
+    const first = (list) => (Array.isArray(list) && Array.isArray(list[0]) ? list[0] : []);
+    const documents = first(data.documents);
+    const metadatas = first(data.metadatas);
+    const distances = first(data.distances);
+    return first(data.ids).map((id, index) => ({
+      id,
+      score: this._score(distances[index]),
+      text: documents[index] ?? null,
+      metadata: metadatas[index] || {},
+    })).sort((a, b) => b.score - a.score);
+  }
+
+  async delete(ids) {
+    const list = (ids || []).map(String);
+    if (list.length === 0) return;
+    const path = await this._collectionPath();
+    for (let start = 0; start < list.length; start += this.batchSize) {
+      await this._request('POST', `${path}/delete`, { ids: list.slice(start, start + this.batchSize) }, { responseType: 'text' });
+    }
+  }
+
+  // cosine distance is 1 - cos and ip distance is 1 - dot; l2 is the squared euclidean distance
+  _score(distance) {
+    return this.space === 'l2' ? 1 / (1 + distance) : 1 - distance;
+  }
+
+  _databasePath() {
+    return `/api/v2/tenants/${encodeURIComponent(this.tenant)}/databases/${encodeURIComponent(this.database)}`;
+  }
+
+  async _collectionPath() {
+    const id = await this.getCollection();
+    return `${this._databasePath()}/collections/${encodeURIComponent(id)}`;
+  }
+
+  async _request(method, path, body, extraConfig = {}) {
+    try {
+      const data = await this.client.request(method, path, body, extraConfig);
+      return extraConfig.responseType === 'text' ? parseText(data) : data;
+    } catch (error) {
+      throw chromaError(error);
+    }
+  }
+}
+
+function toItems(records) {
+  return (records || []).map((record) => {
+    if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+    return { id: String(record.id), vector: record.vector, text: record.text ?? null, metadata: record.metadata || {} };
+  });
+}
+
+module.exports = { ChromaVectorStore };
+
+},{"../utils/ConnHelper":52,"../utils/FetchClient":53,"./VectorStore":46}],35:[function(require,module,exports){
+(function (Buffer){(function (){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const FetchClient = require('../utils/FetchClient');
+const ConnHelper = require('../utils/ConnHelper');
+const { VectorStore } = require('./VectorStore');
+
+const RETRY_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+/**
+ * FetchClient JSON-encodes every body, but _bulk takes NDJSON: this client sends a string body as is (with the
+ * same headers, timeout, retries and signal) and leaves every other request to FetchClient.
+ */
+class NdjsonFetchClient extends FetchClient {
+  async request(method, endpoint, data, extraConfig = {}) {
+    if (typeof data !== 'string') return super.request(method, endpoint, data, extraConfig);
+    const fetch = require('cross-fetch');
+    const url = endpoint.startsWith('http') ? endpoint : this.baseURL + endpoint;
+    const headers = { ...this.defaultHeaders, 'Content-Type': 'application/x-ndjson', ...(extraConfig.headers || {}) };
+    const options = this.resolveOptions(extraConfig);
+    const aborted = () => Object.assign(new Error('The request was aborted.'), { name: 'AbortError', code: 'ABORT_ERR' });
+    for (let attempt = 0; ; attempt++) {
+      if (options.signal && options.signal.aborted) throw aborted();
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      if (options.signal) options.signal.addEventListener('abort', abort, { once: true });
+      let timedOut = false;
+      const timer = options.timeout ? setTimeout(() => { timedOut = true; abort(); }, options.timeout) : null;
+      let response;
+      let text;
+      try {
+        response = await fetch(url, { method, headers, body: data, signal: controller.signal });
+        text = await response.text();
+      } catch (error) {
+        if (options.signal && options.signal.aborted) throw aborted();
+        if (attempt < options.retries) {
+          await new Promise((resolve) => setTimeout(resolve, options.retryDelay * (2 ** attempt)));
+          continue;
+        }
+        if (timedOut) throw Object.assign(new Error(`Request timed out after ${options.timeout}ms: ${url}`), { code: 'ETIMEDOUT' });
+        throw error;
+      } finally {
+        if (timer) clearTimeout(timer);
+        if (options.signal) options.signal.removeEventListener('abort', abort);
+      }
+      if (response.ok) return text ? JSON.parse(text) : {};
+      if (attempt < options.retries && RETRY_STATUSES.has(response.status)) {
+        await new Promise((resolve) => setTimeout(resolve, options.retryDelay * (2 ** attempt)));
+        continue;
+      }
+      throw Object.assign(new Error(`HTTP error ${response.status}: ${text}`), { status: response.status, body: text });
+    }
+  }
+}
+
+function toBase64(text) {
+  if (typeof Buffer !== 'undefined') return Buffer.from(text, 'utf8').toString('base64');
+  return btoa(unescape(encodeURIComponent(text)));
+}
+
+function toElasticFilter(filter) {
+  const clauses = Object.entries(filter || {}).map(([key, value]) => (
+    Array.isArray(value) ? { terms: { [`metadata.${key}`]: value } } : { term: { [`metadata.${key}`]: value } }
+  ));
+  return clauses.length > 0 ? { bool: { filter: clauses } } : null;
+}
+
+function elasticError(error) {
+  const wrapped = ConnHelper.wrapError(error);
+  wrapped.message = `Elasticsearch error: ${wrapped.message}`;
+  return wrapped;
+}
+
+/**
+ * An Elasticsearch index (self-managed, Elastic Cloud or Serverless) with a dense_vector field, through the REST API.
+ *
+ *   const store = new ElasticsearchVectorStore({ url: 'https://my-deployment.es.io', apiKey, index: 'docs', embedder });
+ *
+ * A missing index is created on the first upsert: the vector field (dense_vector, index: true, similarity cosine),
+ * `text`, and `metadata` whose string values are mapped as keyword so filters match exact values. Upserts and
+ * deletes go through _bulk; queries use the top-level knn search. Elasticsearch scores cosine and dot_product as
+ * (1 + cos) / 2, which is converted back to the cosine similarity; l2_norm keeps 1 / (1 + distance^2).
+ * filter becomes term / terms clauses on metadata.<key>; nativeFilter is a query DSL filter for knn.filter.
+ */
+class ElasticsearchVectorStore extends VectorStore {
+  // API: https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/dense-vector
+  /**
+   * @param {object} options - { url = 'http://localhost:9200', apiKey (the encoded API key, sent as
+   *   Authorization: ApiKey), username, password, index, dimension, similarity = 'cosine', createIndex = true,
+   *   vectorField = 'embedding', refresh = 'wait_for' (false to skip waiting), numCandidates (default 10 x topK,
+   *   at least 100), batchSize = 500, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    if (!options.index) throw new Error('ElasticsearchVectorStore needs an index name.');
+    this.index = options.index;
+    this.dimension = options.dimension || null;
+    this.similarity = options.similarity || 'cosine';
+    this.createIndex = options.createIndex !== false;
+    this.vectorField = options.vectorField || 'embedding';
+    this.refresh = options.refresh === undefined ? 'wait_for' : options.refresh;
+    this.numCandidates = options.numCandidates || null;
+    this.batchSize = options.batchSize || 500;
+    this._ready = null;
+    const headers = { 'Content-Type': 'application/json' };
+    if (options.apiKey) headers.Authorization = `ApiKey ${options.apiKey}`;
+    else if (options.username) headers.Authorization = `Basic ${toBase64(`${options.username}:${options.password || ''}`)}`;
+    this.client = new NdjsonFetchClient({ baseURL: String(options.url || 'http://localhost:9200').replace(/\/+$/, ''), headers });
+  }
+
+  /** Create the index with the vector mapping when it does not exist. Returns true when it was created. */
+  async ensureIndex(dimension = this.dimension) {
+    if (await this._exists()) return false;
+    if (!dimension) throw new Error(`Elasticsearch index '${this.index}' does not exist and no dimension is known to create it.`);
+    try {
+      await this._request('PUT', this._path(), {
+        mappings: {
+          dynamic_templates: [{
+            metadata_strings: { path_match: 'metadata.*', match_mapping_type: 'string', mapping: { type: 'keyword' } },
+          }],
+          properties: {
+            [this.vectorField]: { type: 'dense_vector', dims: dimension, index: true, similarity: this.similarity },
+            text: { type: 'text' },
+            metadata: { type: 'object' },
+          },
+        },
+      });
+    } catch (error) {
+      // resource_already_exists_exception: created meanwhile by another call
+      if (await this._exists().catch(() => false)) return false;
+      throw error;
+    }
+    return true;
+  }
+
+  async upsert(records) {
+    const items = toItems(records);
+    if (items.length === 0) return [];
+    if (this.createIndex) await this._prepare(items[0].vector.length);
+    for (let start = 0; start < items.length; start += this.batchSize) {
+      const lines = [];
+      for (const item of items.slice(start, start + this.batchSize)) {
+        lines.push(JSON.stringify({ index: { _index: this.index, _id: item.id } }));
+        lines.push(JSON.stringify({ text: item.text, metadata: item.metadata, [this.vectorField]: item.vector }));
+      }
+      await this._bulk(lines);
+    }
+    return items.map((item) => item.id);
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    const topK = params.topK || 5;
+    const knn = {
+      field: this.vectorField,
+      query_vector: vector,
+      k: topK,
+      num_candidates: Math.min(10000, Math.max(topK, this.numCandidates || Math.max(100, topK * 10))),
+    };
+    const filter = params.nativeFilter || toElasticFilter(params.filter);
+    if (filter) knn.filter = filter;
+    const data = await this._request('POST', `${this._path()}/_search`, { knn, size: topK, _source: { excludes: [this.vectorField] } });
+    const hits = (data && data.hits && data.hits.hits) || [];
+    return hits.map((hit) => {
+      const source = hit._source || {};
+      return { id: hit._id, score: this._score(hit._score), text: source.text ?? null, metadata: source.metadata || {} };
+    }).sort((a, b) => b.score - a.score);
+  }
+
+  async delete(ids) {
+    const list = (ids || []).map(String);
+    for (let start = 0; start < list.length; start += this.batchSize) {
+      await this._bulk(list.slice(start, start + this.batchSize).map((id) => JSON.stringify({ delete: { _index: this.index, _id: id } })));
+    }
+  }
+
+  _score(score) {
+    return this.similarity === 'cosine' || this.similarity === 'dot_product' ? 2 * score - 1 : score;
+  }
+
+  _path() {
+    return `/${encodeURIComponent(this.index)}`;
+  }
+
+  async _exists() {
+    try {
+      await this._request('HEAD', this._path(), undefined, { responseType: 'text' });
+      return true;
+    } catch (error) {
+      if (error.status === 404) return false;
+      throw error;
+    }
+  }
+
+  _prepare(dimension) {
+    if (!this._ready) {
+      this._ready = this.ensureIndex(this.dimension || dimension).catch((error) => {
+        this._ready = null;
+        throw error;
+      });
+    }
+    return this._ready;
+  }
+
+  // _bulk answers 200 and reports failures per item; a delete of a missing id is not a failure.
+  async _bulk(lines) {
+    const refresh = this.refresh ? `?refresh=${encodeURIComponent(this.refresh)}` : '';
+    const data = await this._request('POST', `/_bulk${refresh}`, `${lines.join('\n')}\n`);
+    if (!data || !data.errors) return data;
+    for (const item of data.items || []) {
+      const [action, result] = Object.entries(item)[0] || [];
+      if (!result || !result.error || (action === 'delete' && result.status === 404)) continue;
+      const reason = result.error.reason || result.error.type || JSON.stringify(result.error);
+      const error = new Error(`Elasticsearch error: ${action} ${result._id}: ${reason}`);
+      error.status = result.status;
+      error.body = JSON.stringify(result.error);
+      throw error;
+    }
+    return data;
+  }
+
+  async _request(method, path, body, extraConfig = {}) {
+    try {
+      return await this.client.request(method, path, body, extraConfig);
+    } catch (error) {
+      throw elasticError(error);
+    }
+  }
+}
+
+function toItems(records) {
+  return (records || []).map((record) => {
+    if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+    return { id: String(record.id), vector: record.vector, text: record.text ?? null, metadata: record.metadata || {} };
+  });
+}
+
+module.exports = { ElasticsearchVectorStore };
+
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"../utils/ConnHelper":52,"../utils/FetchClient":53,"./VectorStore":46,"buffer":25,"cross-fetch":26}],36:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const EmbedInput = require('../model/input/EmbedInput');
+
+// Providers that embed documents and queries differently, and the value each one expects.
+const KIND_INPUT_TYPES = {
+  cohere: { document: 'search_document', query: 'search_query' },
+  nvidia: { document: 'passage', query: 'query' },
+};
+const GEMINI_TASK_TYPES = { document: 'RETRIEVAL_DOCUMENT', query: 'RETRIEVAL_QUERY' };
+const GOOGLE_PROVIDERS = new Set(['gemini', 'google', 'vertex']);
+
+/**
+ * Turns texts into vectors with any IntelliNode embedding provider, for the vector stores and the Assistant.
+ *
+ *   new Embedder({ provider: 'openai', apiKey })
+ *   new Embedder({ provider: 'gemini', apiKey, options: { vertex: true } })      // Gemini Developer API or Vertex AI
+ *   new Embedder({ provider: 'ollama', options: { baseUrl: 'http://localhost:11434/v1' }, model: 'nomic-embed-text' })
+ *
+ * Gemini and Cohere embed documents and search queries differently; embed(texts, { kind: 'query' }) selects that.
+ */
+class Embedder {
+  /**
+   * @param {object} settings - { provider = 'openai', apiKey, model, dimensions, batchSize, options }.
+   *   options holds the provider settings: Google { vertex, projectId, location, accessToken, credentials },
+   *   OpenAI-compatible / vLLM { baseUrl, headers }, or an OpenAI proxy helper as options.customProxyHelper.
+   */
+  constructor({ provider = 'openai', apiKey = null, model = null, dimensions = null, batchSize = null, options = {} } = {}) {
+    this.provider = String(provider).toLowerCase();
+    this.model = model;
+    this.dimensions = dimensions;
+    this.options = options || {};
+    if (GOOGLE_PROVIDERS.has(this.provider)) {
+      const GoogleAIWrapper = require('../wrappers/GoogleAIWrapper');
+      const googleOptions = this.provider === 'vertex' ? { vertex: true, ...this.options } : this.options;
+      this.google = GoogleAIWrapper.fromOptions(apiKey, googleOptions);
+      this.batchSize = batchSize || 100;
+    } else {
+      const { RemoteEmbedModel } = require('../controller/RemoteEmbedModel');
+      const helper = this.options.customProxyHelper
+        || (this.options.baseUrl || this.options.headers ? { baseUrl: this.options.baseUrl, headers: this.options.headers } : null);
+      this.remote = new RemoteEmbedModel(apiKey, this.provider, helper);
+      // Cohere accepts at most 96 texts per call
+      this.batchSize = batchSize || 96;
+    }
+  }
+
+  /** Embed a list of texts. kind: 'document' (default) or 'query'. Returns number[][] in the same order. */
+  async embed(texts, { kind = 'document' } = {}) {
+    const list = (Array.isArray(texts) ? texts : [texts]).map((text) => String(text));
+    const vectors = [];
+    for (let start = 0; start < list.length; start += this.batchSize) {
+      vectors.push(...await this._embedBatch(list.slice(start, start + this.batchSize), kind));
+    }
+    return vectors;
+  }
+
+  async _embedBatch(texts, kind) {
+    if (this.google) {
+      return this.google.embedTexts(texts, this.model, {
+        taskType: GEMINI_TASK_TYPES[kind] || null,
+        outputDimensionality: this.dimensions,
+      });
+    }
+    const inputTypes = KIND_INPUT_TYPES[this.provider];
+    const input = new EmbedInput({ texts, model: this.model, inputType: inputTypes ? inputTypes[kind] : null });
+    if (!this.model) input.setDefaultValues(this.provider);
+    const raw = this.provider === 'openai' && this.dimensions
+      ? { ...input.getOpenAIInputs(), dimensions: this.dimensions }
+      : input;
+    const results = await this.remote.getEmbeddings(raw);
+    const items = Array.isArray(results) ? results : (results && results.data) || [];
+    // OpenAI-style results carry an index; keep the input order
+    const ordered = items.every((item) => item && typeof item.index === 'number')
+      ? [...items].sort((a, b) => a.index - b.index)
+      : items;
+    return ordered.map((item) => (Array.isArray(item) ? item : item.embedding || item.values));
+  }
+}
+
+/** An Embedder from an Embedder, a function (texts, { kind }) => vectors, an object with embed(), or settings. */
+function toEmbedder(value) {
+  if (!value) return null;
+  if (typeof value === 'function') return { embed: (texts, opts) => value(texts, opts || {}) };
+  if (typeof value.embed === 'function') return value;
+  if (typeof value === 'object' && value.provider) return new Embedder(value);
+  throw new Error('embedder must be an Embedder, a function (texts) => vectors, or { provider, apiKey, model, options }.');
+}
+
+module.exports = { Embedder, toEmbedder };
+
+},{"../controller/RemoteEmbedModel":2,"../model/input/EmbedInput":16,"../wrappers/GoogleAIWrapper":70}],37:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+// API: Firestore REST v1 (documents:commit, runQuery, runAggregationQuery)
+const { ChatHistory } = require('./ChatHistory');
+const { GoogleCloudService, Firestore } = require('./GoogleCloud');
+
+const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1';
+const BATCH = 500;
+
+/**
+ * Conversations in Google Cloud Firestore, for multi-user Gemini / ChatGPT-style apps:
+ *   <collection>/{conversationId}                 { title, userId, createdAt, updatedAt, metadata }
+ *   <collection>/{conversationId}/messages/{id}   { role, content, createdAt, seq, metadata }
+ *
+ * No composite index is needed. Credentials: OAuth (accessToken, a service account, or
+ * `gcloud auth application-default login`).
+ */
+class FirestoreChatHistory extends ChatHistory {
+  /** @param {object} options - { projectId, database = '(default)', collection = 'conversations', accessToken, credentials }. */
+  constructor(options = {}) {
+    super();
+    this.service = new GoogleCloudService({ ...options, label: 'Firestore' });
+    this.client = this.service.client;
+    this.database = options.database || '(default)';
+    this.collection = options.collection || 'conversations';
+  }
+
+  async _root() {
+    return `projects/${await this.service._project()}/databases/${this.database}/documents`;
+  }
+
+  async _conversationName(conversationId) {
+    return `${await this._root()}/${this.collection}/${Firestore.docId(conversationId)}`;
+  }
+
+  async _commit(writes) {
+    const url = `${FIRESTORE_BASE}/${await this._root()}:commit`;
+    for (let start = 0; start < writes.length; start += BATCH) {
+      await this.service._request('POST', url, { writes: writes.slice(start, start + BATCH) });
+    }
+  }
+
+  async _runQuery(parent, structuredQuery) {
+    const rows = await this.service._request('POST', `${FIRESTORE_BASE}/${parent}:runQuery`, { structuredQuery });
+    return (Array.isArray(rows) ? rows : [rows]).filter((row) => row && row.document).map((row) => row.document);
+  }
+
+  static _message(document) {
+    const data = Firestore.fromFields(document.fields);
+    return {
+      id: data.id || decodeURIComponent(document.name.split('/').pop()),
+      role: data.role,
+      content: data.content || '',
+      createdAt: data.createdAt,
+      ...(data.metadata && Object.keys(data.metadata).length && { metadata: data.metadata }),
+    };
+  }
+
+  // Newest messages first: [{ name, ...message }].
+  async _latest(conversationId, limit) {
+    const documents = await this._runQuery(await this._conversationName(conversationId), {
+      from: [{ collectionId: 'messages' }],
+      orderBy: [{ field: { fieldPath: 'seq' }, direction: 'DESCENDING' }],
+      ...(limit && { limit }),
+    });
+    return documents.map((document) => ({ name: document.name, ...FirestoreChatHistory._message(document) }));
+  }
+
+  async getMessages(conversationId, { limit = null } = {}) {
+    const latest = await this._latest(conversationId, limit);
+    return latest.reverse().map(({ name, ...message }) => message);
+  }
+
+  async addMessages(conversationId, messages) {
+    const conversationName = await this._conversationName(conversationId);
+    const stamped = ChatHistory._stamp(messages);
+    const base = Date.now() * 100;
+    const writes = stamped.map((message, index) => ({
+      update: {
+        name: `${conversationName}/messages/${Firestore.docId(message.id)}`,
+        fields: Firestore.toFields({ ...message, seq: base + index }),
+      },
+    }));
+    // touching updatedAt only (the conversation keeps its other fields)
+    writes.push({
+      update: { name: conversationName, fields: Firestore.toFields({ updatedAt: new Date().toISOString() }) },
+      updateMask: { fieldPaths: ['updatedAt'] },
+    });
+    await this._commit(writes);
+    return stamped;
+  }
+
+  async getConversation(conversationId) {
+    const name = await this._conversationName(conversationId);
+    let document;
+    try {
+      document = await this.service._request('GET', `${FIRESTORE_BASE}/${name}`);
+    } catch (error) {
+      if (error.status === 404) return null;
+      throw error;
+    }
+    const data = Firestore.fromFields(document.fields);
+    const count = await this.service._request('POST', `${FIRESTORE_BASE}/${name}:runAggregationQuery`, {
+      structuredAggregationQuery: {
+        structuredQuery: { from: [{ collectionId: 'messages' }] },
+        aggregations: [{ alias: 'count', count: {} }],
+      },
+    }).catch(() => null);
+    const aggregate = Array.isArray(count) && count[0] && count[0].result && count[0].result.aggregateFields;
+    return {
+      id: conversationId,
+      title: data.title || null,
+      userId: data.userId || null,
+      createdAt: data.createdAt || null,
+      updatedAt: data.updatedAt || null,
+      metadata: data.metadata || {},
+      ...(aggregate && aggregate.count && { messageCount: Number(Firestore.fromValue(aggregate.count)) }),
+    };
+  }
+
+  async saveConversation(conversation) {
+    const existing = await this.getConversation(conversation.id);
+    const merged = ChatHistory._conversation(conversation.id, existing, conversation);
+    const { id, ...fields } = merged;
+    await this._commit([{ update: { name: await this._conversationName(conversation.id), fields: Firestore.toFields(fields) } }]);
+    return merged;
+  }
+
+  async listConversations({ userId = null, limit = 50 } = {}) {
+    const root = await this._root();
+    // userId equality without orderBy needs no composite index; sorting happens here
+    const documents = await this._runQuery(root, {
+      from: [{ collectionId: this.collection }],
+      ...(userId
+        ? { where: Firestore.where({ userId }), limit: 500 }
+        : { orderBy: [{ field: { fieldPath: 'updatedAt' }, direction: 'DESCENDING' }], limit }),
+    });
+    return documents
+      .map((document) => {
+        const data = Firestore.fromFields(document.fields);
+        return {
+          id: decodeURIComponent(document.name.split('/').pop()),
+          title: data.title || null,
+          userId: data.userId || null,
+          createdAt: data.createdAt || null,
+          updatedAt: data.updatedAt || null,
+          metadata: data.metadata || {},
+        };
+      })
+      .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
+      .slice(0, limit);
+  }
+
+  async deleteConversation(conversationId) {
+    const latest = await this._latest(conversationId, null);
+    const writes = latest.map((message) => ({ delete: message.name }));
+    writes.push({ delete: await this._conversationName(conversationId) });
+    await this._commit(writes);
+  }
+
+  async deleteLastMessages(conversationId, count = 1) {
+    const latest = await this._latest(conversationId, count);
+    if (latest.length) await this._commit(latest.map((message) => ({ delete: message.name })));
+  }
+}
+
+module.exports = { FirestoreChatHistory };
+
+},{"./ChatHistory":33,"./GoogleCloud":39}],38:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+// API: https://cloud.google.com/firestore/native/docs/vector-search and the Firestore REST v1 reference
+const { VectorStore } = require('./VectorStore');
+const { GoogleCloudService, Firestore, FirestoreVector } = require('./GoogleCloud');
+
+const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1';
+// Firestore commits take at most 500 writes
+const BATCH = 500;
+
+/**
+ * Vectors in Google Cloud Firestore (native vector search with findNearest), next to your app data.
+ * Each record is a document { id, text, metadata, embedding }.
+ *
+ * Firestore needs a vector index on the embedding field before the first query, created once:
+ *   gcloud firestore indexes composite create --collection-group=intellinode_vectors --query-scope=COLLECTION \
+ *     --field-config field-path=embedding,vector-config='{"dimension":"768","flat":"{}"}' --database='(default)'
+ * A metadata filter needs a composite index that also lists the metadata fields (metadata.<key>).
+ * Credentials: OAuth (accessToken, a service account, or `gcloud auth application-default login`); API keys are not accepted.
+ */
+class FirestoreVectorStore extends VectorStore {
+  /**
+   * @param {object} options - { projectId, database = '(default)', collection = 'intellinode_vectors',
+   *   vectorField = 'embedding', distanceMeasure = 'COSINE' (or 'EUCLIDEAN', 'DOT_PRODUCT'), accessToken,
+   *   credentials, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    this.service = new GoogleCloudService({ ...options, label: 'Firestore' });
+    this.client = this.service.client;
+    this.database = options.database || '(default)';
+    this.collection = options.collection || 'intellinode_vectors';
+    this.vectorField = options.vectorField || 'embedding';
+    this.distanceMeasure = options.distanceMeasure || 'COSINE';
+  }
+
+  async _root() {
+    return `projects/${await this.service._project()}/databases/${this.database}/documents`;
+  }
+
+  async upsert(records) {
+    const root = await this._root();
+    const writes = (records || []).map((record) => {
+      if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+      return {
+        update: {
+          name: `${root}/${this.collection}/${Firestore.docId(record.id)}`,
+          fields: Firestore.toFields({
+            id: String(record.id),
+            text: record.text ?? null,
+            metadata: record.metadata || {},
+            [this.vectorField]: new FirestoreVector(record.vector),
+          }),
+        },
+      };
+    });
+    await this._commit(writes);
+    return (records || []).map((record) => String(record.id));
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    const root = await this._root();
+    const where = params.nativeFilter || Firestore.where(params.filter, 'metadata.');
+    const body = {
+      structuredQuery: {
+        from: [{ collectionId: this.collection }],
+        ...(where && { where }),
+        findNearest: {
+          vectorField: { fieldPath: this.vectorField },
+          queryVector: Firestore.toValue(new FirestoreVector(vector)),
+          distanceMeasure: this.distanceMeasure,
+          limit: params.topK || 5,
+          distanceResultField: '_distance',
+        },
+      },
+    };
+    const rows = await this.service._request('POST', `${FIRESTORE_BASE}/${root}:runQuery`, body);
+    return (Array.isArray(rows) ? rows : [rows])
+      .filter((row) => row && row.document)
+      .map((row) => {
+        const data = Firestore.fromFields(row.document.fields);
+        return {
+          id: data.id || decodeURIComponent(row.document.name.split('/').pop()),
+          score: this._score(data._distance),
+          text: data.text ?? null,
+          metadata: data.metadata || {},
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+  }
+
+  // Firestore returns distances: COSINE is 0..2 (0 = same), EUCLIDEAN grows with distance, DOT_PRODUCT grows with similarity.
+  _score(distance) {
+    if (typeof distance !== 'number') return 0;
+    if (this.distanceMeasure === 'COSINE') return 1 - distance;
+    if (this.distanceMeasure === 'EUCLIDEAN') return 1 / (1 + distance);
+    return distance;
+  }
+
+  async delete(ids) {
+    const root = await this._root();
+    await this._commit((ids || []).map((id) => ({ delete: `${root}/${this.collection}/${Firestore.docId(id)}` })));
+  }
+
+  async _commit(writes) {
+    if (!writes.length) return;
+    const url = `${FIRESTORE_BASE}/projects/${await this.service._project()}/databases/${this.database}/documents:commit`;
+    for (let start = 0; start < writes.length; start += BATCH) {
+      await this.service._request('POST', url, { writes: writes.slice(start, start + BATCH) });
+    }
+  }
+
+  /** The gcloud command that creates the vector index this store needs. */
+  indexCommand(dimension) {
+    return `gcloud firestore indexes composite create --collection-group=${this.collection} --query-scope=COLLECTION `
+      + `--field-config field-path=${this.vectorField},vector-config='{"dimension":"${dimension}","flat":"{}"}' --database='${this.database}'`;
+  }
+}
+
+module.exports = { FirestoreVectorStore };
+
+},{"./GoogleCloud":39,"./VectorStore":46}],39:[function(require,module,exports){
+(function (process){(function (){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const FetchClient = require('../utils/FetchClient');
+const connHelper = require('../utils/ConnHelper');
+
+/**
+ * Shared plumbing for the Google Cloud stores (Firestore, RAG Engine, Vector Search): OAuth headers and one
+ * FetchClient. These APIs reject API keys, so credentials come from an access token, a service account or
+ * Application Default Credentials (`gcloud auth application-default login`), see utils/GoogleAuth.js.
+ */
+class GoogleCloudService {
+  constructor({ projectId = null, accessToken = null, credentials = null, quotaProjectId = null, timeout, retries, label = 'Google Cloud' } = {}) {
+    this.projectId = projectId || (typeof process !== 'undefined' && process.env ? process.env.GOOGLE_CLOUD_PROJECT || null : null);
+    this.label = label;
+    this.client = new FetchClient({ headers: { 'Content-Type': 'application/json' }, timeout, retries });
+    this._accessToken = accessToken;
+    this._credentials = credentials;
+    this._quotaProjectId = quotaProjectId;
+    this._auth = null;
+  }
+
+  async _headers() {
+    if (this._accessToken) {
+      const token = typeof this._accessToken === 'function' ? await this._accessToken() : this._accessToken;
+      return { Authorization: `Bearer ${token}`, ...(this._quotaProjectId && { 'x-goog-user-project': this._quotaProjectId }) };
+    }
+    return this._getAuth().getHeaders();
+  }
+
+  _getAuth() {
+    if (!this._auth) {
+      const GoogleAuth = require('../utils/GoogleAuth');
+      if (typeof GoogleAuth !== 'function') throw new Error(`${this.label} needs an accessToken in the browser.`);
+      this._auth = new GoogleAuth({ credentials: this._credentials, quotaProjectId: this._quotaProjectId });
+    }
+    return this._auth;
+  }
+
+  async _project() {
+    if (this.projectId) return this.projectId;
+    if (!this._accessToken) this.projectId = await this._getAuth().getProjectId();
+    if (!this.projectId) throw new Error(`${this.label} needs a projectId (or GOOGLE_CLOUD_PROJECT).`);
+    return this.projectId;
+  }
+
+  async _request(method, url, body, extra = {}) {
+    try {
+      const headers = { ...(await this._headers()), ...(extra.headers || {}) };
+      if (method === 'GET') return await this.client.get(url, { ...extra, headers });
+      if (method === 'POST') return await this.client.post(url, body, { ...extra, headers });
+      const text = await this.client.request(method, url, body, { ...extra, headers, responseType: 'text' });
+      return text && String(text).trim() ? JSON.parse(text) : {};
+    } catch (error) {
+      const wrapped = connHelper.wrapError(error);
+      wrapped.message = `${this.label} error: ${wrapped.message}`;
+      throw wrapped;
+    }
+  }
+
+  /** Poll a long-running operation until it is done; returns its response (or throws its error). */
+  async waitForOperation(operation, operationUrl, { maxWaitMs = 600000, pollMs = 3000 } = {}) {
+    let current = operation;
+    const started = Date.now();
+    while (!current.done) {
+      if (Date.now() - started > maxWaitMs) throw new Error(`${this.label}: operation ${current.name} did not finish in time.`);
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+      current = await this._request('GET', operationUrl(current.name));
+    }
+    if (current.error) throw new Error(`${this.label} operation failed: ${JSON.stringify(current.error)}`);
+    return current.response || current;
+  }
+}
+
+// Firestore REST values <-> JavaScript values. Vectors use the map form the Firestore SDKs write.
+const Firestore = {
+  toValue(value) {
+    if (value === null || value === undefined) return { nullValue: null };
+    if (value instanceof FirestoreVector) {
+      return { mapValue: { fields: { __type__: { stringValue: '__vector__' }, value: { arrayValue: { values: value.values.map((v) => ({ doubleValue: v })) } } } } };
+    }
+    if (typeof value === 'boolean') return { booleanValue: value };
+    if (typeof value === 'number') return Number.isInteger(value) ? { integerValue: String(value) } : { doubleValue: value };
+    if (typeof value === 'string') return { stringValue: value };
+    if (value instanceof Date) return { timestampValue: value.toISOString() };
+    if (Array.isArray(value)) return { arrayValue: { values: value.map((item) => Firestore.toValue(item)) } };
+    if (typeof value === 'object') return { mapValue: { fields: Firestore.toFields(value) } };
+    return { stringValue: String(value) };
+  },
+
+  toFields(object) {
+    const fields = {};
+    for (const [key, value] of Object.entries(object || {})) {
+      if (value !== undefined) fields[key] = Firestore.toValue(value);
+    }
+    return fields;
+  },
+
+  fromValue(value) {
+    if (!value || typeof value !== 'object') return null;
+    if ('nullValue' in value) return null;
+    if ('booleanValue' in value) return value.booleanValue;
+    if ('integerValue' in value) return Number(value.integerValue);
+    if ('doubleValue' in value) return Number(value.doubleValue);
+    if ('stringValue' in value) return value.stringValue;
+    if ('timestampValue' in value) return value.timestampValue;
+    if ('arrayValue' in value) return (value.arrayValue.values || []).map((item) => Firestore.fromValue(item));
+    if ('mapValue' in value) {
+      const fields = value.mapValue.fields || {};
+      if (fields.__type__ && fields.__type__.stringValue === '__vector__') return Firestore.fromValue(fields.value);
+      return Firestore.fromFields(fields);
+    }
+    if ('referenceValue' in value) return value.referenceValue;
+    if ('geoPointValue' in value) return value.geoPointValue;
+    if ('bytesValue' in value) return value.bytesValue;
+    return null;
+  },
+
+  fromFields(fields) {
+    const result = {};
+    for (const [key, value] of Object.entries(fields || {})) result[key] = Firestore.fromValue(value);
+    return result;
+  },
+
+  // A document id from any record id: '/' is not allowed in Firestore ids.
+  docId(id) {
+    const encoded = encodeURIComponent(String(id)).replace(/\./g, '%2E');
+    if (!encoded || /^__.*__$/.test(encoded)) throw new Error(`Invalid Firestore document id '${id}'.`);
+    return encoded;
+  },
+
+  // field filter(s) for metadata equality: { key: value } -> where clause on metadata.key
+  where(filter, prefix = '') {
+    const filters = Object.entries(filter || {}).map(([key, expected]) => ({
+      fieldFilter: {
+        field: { fieldPath: `${prefix}${Firestore.fieldPath(key)}` },
+        op: Array.isArray(expected) ? 'IN' : 'EQUAL',
+        value: Array.isArray(expected) ? { arrayValue: { values: expected.map((item) => Firestore.toValue(item)) } } : Firestore.toValue(expected),
+      },
+    }));
+    if (!filters.length) return null;
+    return filters.length === 1 ? filters[0] : { compositeFilter: { op: 'AND', filters } };
+  },
+
+  // A field path segment: simple names as is, others in backticks.
+  fieldPath(name) {
+    return /^[A-Za-z_][A-Za-z_0-9]*$/.test(name) ? name : `\`${String(name).replace(/[`\\]/g, '\\$&')}\``;
+  },
+};
+
+class FirestoreVector {
+  constructor(values) {
+    this.values = values;
+  }
+}
+
+module.exports = { GoogleCloudService, Firestore, FirestoreVector };
+
+}).call(this)}).call(this,require('_process'))
+},{"../utils/ConnHelper":52,"../utils/FetchClient":53,"../utils/GoogleAuth":23,"_process":30}],40:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const { VectorStore, matchesFilter, cosineSimilarity } = require('./VectorStore');
+
+/**
+ * An in-process vector store (exact cosine search). Good for local apps, tests and a few thousand records.
+ * With { path } (Node only) the records are kept in a JSON file and loaded on first use.
+ *
+ *   const store = new MemoryVectorStore({ embedder: { provider: 'openai', apiKey } });
+ *   await store.addDocuments([{ text: 'IntelliNode supports Gemini.' }]);
+ *   const hits = await store.search('Which models are supported?', 3);
+ */
+class MemoryVectorStore extends VectorStore {
+  constructor(options = {}) {
+    super(options);
+    this.path = options.path || null;
+    this.records = new Map();
+    this._loaded = !this.path;
+  }
+
+  async upsert(records) {
+    await this._load();
+    for (const record of records || []) {
+      if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+      const id = String(record.id);
+      this.records.set(id, { id, vector: record.vector, text: record.text ?? null, metadata: record.metadata || {} });
+    }
+    await this._save();
+    return (records || []).map((record) => String(record.id));
+  }
+
+  async query(params = {}) {
+    await this._load();
+    const vector = await this._queryVector(params);
+    const topK = params.topK || 5;
+    const filter = params.nativeFilter || params.filter;
+    const matches = [];
+    for (const record of this.records.values()) {
+      const passes = typeof filter === 'function' ? filter(record.metadata, record) : matchesFilter(record.metadata, filter);
+      if (!passes) continue;
+      matches.push({ id: record.id, score: cosineSimilarity(vector, record.vector), text: record.text, metadata: record.metadata });
+    }
+    matches.sort((a, b) => b.score - a.score);
+    return matches.slice(0, topK);
+  }
+
+  async get(ids) {
+    await this._load();
+    return ids.map((id) => this.records.get(String(id))).filter(Boolean);
+  }
+
+  async delete(ids) {
+    await this._load();
+    for (const id of ids || []) this.records.delete(String(id));
+    await this._save();
+  }
+
+  /** Delete every record (or only those whose metadata matches filter). */
+  async clear(filter = null) {
+    await this._load();
+    if (!filter) {
+      this.records.clear();
+    } else {
+      for (const [id, record] of this.records) {
+        if (matchesFilter(record.metadata, filter)) this.records.delete(id);
+      }
+    }
+    await this._save();
+  }
+
+  async count() {
+    await this._load();
+    return this.records.size;
+  }
+
+  async _load() {
+    if (this._loaded) return;
+    this._loaded = true;
+    const fs = require('fs');
+    if (!fs.promises || !this.path) return;
+    try {
+      const data = JSON.parse(await fs.promises.readFile(this.path, 'utf8'));
+      for (const record of data.records || []) this.records.set(String(record.id), record);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw new Error(`Could not read the vector store file ${this.path}: ${error.message}`);
+    }
+  }
+
+  async _save() {
+    if (!this.path) return;
+    const fs = require('fs');
+    const path = require('path');
+    await fs.promises.mkdir(path.dirname(this.path), { recursive: true });
+    // write a temporary file first so a crash never leaves a half-written store
+    const temporary = `${this.path}.tmp`;
+    await fs.promises.writeFile(temporary, JSON.stringify({ version: 1, records: [...this.records.values()] }));
+    await fs.promises.rename(temporary, this.path);
+  }
+}
+
+module.exports = { MemoryVectorStore };
+
+},{"./VectorStore":46,"fs":24,"path":29}],41:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const FetchClient = require('../utils/FetchClient');
+const ConnHelper = require('../utils/ConnHelper');
+const { VectorStore } = require('./VectorStore');
+
+// Milvus string literals are double quoted with backslash escapes, which JSON.stringify produces.
+function literal(value) {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error(`Milvus filters cannot take the number ${value}.`);
+    return String(value);
+  }
+  if (typeof value === 'boolean') return String(value);
+  return JSON.stringify(String(value));
+}
+
+function toMilvusFilter(filter) {
+  const conditions = Object.entries(filter || {}).map(([key, value]) => {
+    const field = `metadata[${JSON.stringify(key)}]`;
+    return Array.isArray(value)
+      ? `${field} in [${value.map(literal).join(', ')}]`
+      : `${field} == ${literal(value)}`;
+  });
+  return conditions.length > 0 ? conditions.join(' and ') : null;
+}
+
+function parseMetadata(value) {
+  if (!value) return {};
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return {};
+  }
+}
+
+function milvusError(error) {
+  const wrapped = ConnHelper.wrapError(error);
+  wrapped.message = `Milvus error: ${wrapped.message}`;
+  return wrapped;
+}
+
+/**
+ * Milvus or Zilliz Cloud through the RESTful API v2.
+ *
+ *   const store = new MilvusVectorStore({ url: 'http://localhost:19530', token: 'root:Milvus', collection: 'docs', embedder });
+ *
+ * A missing collection is created on the first upsert with a VarChar primary key `id`, a FloatVector `vector`
+ * (AUTOINDEX, COSINE), a VarChar `text` and a JSON `metadata` field; it is loaded right away. With COSINE (and IP)
+ * Milvus returns the similarity itself in `distance`; L2 distances become 1 / (1 + distance).
+ * filter becomes a boolean expression on the JSON field (metadata["key"] == "value", metadata["key"] in [...]);
+ * nativeFilter is a Milvus expression string.
+ */
+class MilvusVectorStore extends VectorStore {
+  // API: https://milvus.io/api-reference/restful/v2.6.x/v2/Vector%20(v2)/Search.md
+  /**
+   * @param {object} options - { url = 'http://localhost:19530', token ('user:password' or a Zilliz Cloud API key),
+   *   collection, dbName, dimension, metricType = 'COSINE', createCollection = true, maxTextLength = 65535,
+   *   consistencyLevel (e.g. 'Strong' to read your own writes), batchSize = 500, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    if (!options.collection) throw new Error('MilvusVectorStore needs a collection name.');
+    this.collection = options.collection;
+    this.dbName = options.dbName || null;
+    this.dimension = options.dimension || null;
+    this.metricType = options.metricType || 'COSINE';
+    this.createCollection = options.createCollection !== false;
+    this.maxTextLength = options.maxTextLength || 65535;
+    this.consistencyLevel = options.consistencyLevel || null;
+    this.batchSize = options.batchSize || 500;
+    this._ready = null;
+    const headers = { 'Content-Type': 'application/json' };
+    if (options.token) headers.Authorization = `Bearer ${options.token}`;
+    this.client = new FetchClient({ baseURL: String(options.url || 'http://localhost:19530').replace(/\/+$/, ''), headers });
+  }
+
+  /** Create the collection when it does not exist. Returns true when it was created. */
+  async ensureCollection(dimension = this.dimension) {
+    if (await this._has()) return false;
+    if (!dimension) throw new Error(`Milvus collection '${this.collection}' does not exist and no dimension is known to create it.`);
+    try {
+      await this._request('/v2/vectordb/collections/create', {
+        schema: {
+          autoId: false,
+          fields: [
+            { fieldName: 'id', dataType: 'VarChar', isPrimary: true, elementTypeParams: { max_length: 512 } },
+            { fieldName: 'vector', dataType: 'FloatVector', elementTypeParams: { dim: String(dimension) } },
+            { fieldName: 'text', dataType: 'VarChar', elementTypeParams: { max_length: this.maxTextLength } },
+            { fieldName: 'metadata', dataType: 'JSON' },
+          ],
+        },
+        indexParams: [{ fieldName: 'vector', indexName: 'vector', metricType: this.metricType, indexType: 'AUTOINDEX' }],
+      });
+    } catch (error) {
+      if (await this._has().catch(() => false)) return false;
+      throw error;
+    }
+    return true;
+  }
+
+  async upsert(records) {
+    const items = lastById(toItems(records));
+    if (items.length === 0) return [];
+    if (this.createCollection) await this._prepare(items[0].vector.length);
+    const rows = items.map((item) => ({ id: item.id, vector: item.vector, text: item.text ?? '', metadata: item.metadata }));
+    for (let start = 0; start < rows.length; start += this.batchSize) {
+      await this._request('/v2/vectordb/entities/upsert', { data: rows.slice(start, start + this.batchSize) });
+    }
+    return (records || []).map((record) => String(record.id));
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    const filter = params.nativeFilter || toMilvusFilter(params.filter);
+    const body = {
+      data: [vector],
+      annsField: 'vector',
+      limit: params.topK || 5,
+      outputFields: ['text', 'metadata'],
+      searchParams: { metricType: this.metricType },
+    };
+    if (filter) body.filter = filter;
+    if (this.consistencyLevel) body.consistencyLevel = this.consistencyLevel;
+    const hits = await this._request('/v2/vectordb/entities/search', body);
+    return (Array.isArray(hits) ? hits.flat() : []).map((hit) => ({
+      id: String(hit.id),
+      score: this.metricType === 'L2' ? 1 / (1 + hit.distance) : hit.distance,
+      text: hit.text === '' || hit.text === undefined ? null : hit.text,
+      metadata: parseMetadata(hit.metadata),
+    })).sort((a, b) => b.score - a.score);
+  }
+
+  async delete(ids) {
+    const list = (ids || []).map(String);
+    for (let start = 0; start < list.length; start += this.batchSize) {
+      const batch = list.slice(start, start + this.batchSize);
+      await this._request('/v2/vectordb/entities/delete', { filter: `id in [${batch.map(literal).join(', ')}]` });
+    }
+  }
+
+  async _has() {
+    const data = await this._request('/v2/vectordb/collections/has', {});
+    return Boolean(data && data.has);
+  }
+
+  _prepare(dimension) {
+    if (!this._ready) {
+      this._ready = this.ensureCollection(this.dimension || dimension).catch((error) => {
+        this._ready = null;
+        throw error;
+      });
+    }
+    return this._ready;
+  }
+
+  // Every v2 call is a POST that answers HTTP 200 with { code, message } on failure, so check code too.
+  async _request(path, body) {
+    let response;
+    try {
+      response = await this.client.request('POST', path, {
+        collectionName: this.collection,
+        ...(this.dbName ? { dbName: this.dbName } : {}),
+        ...body,
+      });
+    } catch (error) {
+      throw milvusError(error);
+    }
+    if (response && response.code !== undefined && response.code !== 0 && response.code !== 200) {
+      const error = new Error(`Milvus error: ${response.message || 'request failed'} (code ${response.code})`);
+      error.body = JSON.stringify(response);
+      throw error;
+    }
+    return response ? response.data : undefined;
+  }
+}
+
+function toItems(records) {
+  return (records || []).map((record) => {
+    if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+    return { id: String(record.id), vector: record.vector, text: record.text ?? null, metadata: record.metadata || {} };
+  });
+}
+
+// Milvus rejects a batch that repeats a primary key; the last record wins, like separate upserts.
+function lastById(items) {
+  return [...new Map(items.map((item) => [item.id, item])).values()];
+}
+
+module.exports = { MilvusVectorStore };
+
+},{"../utils/ConnHelper":52,"../utils/FetchClient":53,"./VectorStore":46}],42:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const ConnHelper = require('../utils/ConnHelper');
+const { VectorStore } = require('./VectorStore');
+
+function toAtlasFilter(filter) {
+  const clauses = Object.entries(filter || {}).map(([key, value]) => ({
+    [`metadata.${key}`]: Array.isArray(value) ? { $in: value } : { $eq: value },
+  }));
+  if (clauses.length === 0) return null;
+  return clauses.length === 1 ? clauses[0] : { $and: clauses };
+}
+
+// The document for a record; a dotted path ('embedding.values') becomes nested fields.
+function toDocument(item, textKey, path) {
+  const document = { [textKey]: item.text, metadata: item.metadata };
+  const keys = path.split('.');
+  let target = document;
+  for (const key of keys.slice(0, -1)) {
+    target[key] = target[key] && typeof target[key] === 'object' ? target[key] : {};
+    target = target[key];
+  }
+  target[keys[keys.length - 1]] = item.vector;
+  return document;
+}
+
+function mongoError(error) {
+  const wrapped = ConnHelper.wrapError(error);
+  wrapped.message = `MongoDB error: ${wrapped.message}`;
+  return wrapped;
+}
+
+/**
+ * MongoDB Atlas Vector Search, without a driver dependency: pass a driver Collection
+ * (client.db(name).collection(name) from the `mongodb` package).
+ *
+ *   const store = new MongoDBAtlasVectorStore({ collection: client.db('app').collection('docs'), embedder });
+ *
+ * Documents are { _id: id, text, metadata, embedding }. The collection needs an Atlas Vector Search index
+ * (indexName) on `path`; createIndex({ dimension, filterFields }) creates one. Atlas only filters on paths
+ * indexed as "filter" fields, so every metadata key used in `filter` must be listed there (as metadata.<key>).
+ * filter becomes $eq / $in on metadata.<key> (joined by $and); nativeFilter is a $vectorSearch filter.
+ * Atlas scores cosine and dotProduct as (1 + similarity) / 2, converted back to the similarity; euclidean keeps
+ * 1 / (1 + distance).
+ */
+class MongoDBAtlasVectorStore extends VectorStore {
+  // API: https://www.mongodb.com/docs/atlas/atlas-vector-search/vector-search-stage/
+  /**
+   * @param {object} options - { collection, indexName = 'vector_index', path = 'embedding', textKey = 'text',
+   *   similarity = 'cosine' (the index similarity), numCandidatesMultiplier = 20 (numCandidates = topK x it, at
+   *   most 10,000), batchSize = 1000, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    const collection = options.collection;
+    if (!collection || typeof collection.aggregate !== 'function' || typeof collection.bulkWrite !== 'function') {
+      throw new Error('MongoDBAtlasVectorStore needs { collection }: a MongoDB driver Collection.');
+    }
+    this.collection = collection;
+    this.indexName = options.indexName || 'vector_index';
+    this.path = options.path || 'embedding';
+    this.textKey = options.textKey || 'text';
+    this.similarity = options.similarity || 'cosine';
+    this.numCandidatesMultiplier = options.numCandidatesMultiplier || 20;
+    this.batchSize = options.batchSize || 1000;
+  }
+
+  /**
+   * Create the Atlas Vector Search index (it builds in the background, so queries return nothing until it is ready).
+   * @param {{dimension: number, filterFields?: string[]}} settings - filterFields are metadata keys to filter on.
+   */
+  async createIndex({ dimension, filterFields = [] } = {}) {
+    if (!dimension) throw new Error('createIndex needs the vector dimension.');
+    const fields = [{ type: 'vector', path: this.path, numDimensions: dimension, similarity: this.similarity }];
+    for (const key of filterFields) fields.push({ type: 'filter', path: `metadata.${key}` });
+    try {
+      return await this.collection.createSearchIndex({ name: this.indexName, type: 'vectorSearch', definition: { fields } });
+    } catch (error) {
+      throw mongoError(error);
+    }
+  }
+
+  async upsert(records) {
+    const items = toItems(records);
+    for (let start = 0; start < items.length; start += this.batchSize) {
+      const operations = items.slice(start, start + this.batchSize).map((item) => ({
+        replaceOne: { filter: { _id: item.id }, replacement: toDocument(item, this.textKey, this.path), upsert: true },
+      }));
+      try {
+        await this.collection.bulkWrite(operations, { ordered: true });
+      } catch (error) {
+        throw mongoError(error);
+      }
+    }
+    return items.map((item) => item.id);
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    const limit = Math.floor(params.topK || 5);
+    const stage = {
+      index: this.indexName,
+      path: this.path,
+      queryVector: vector,
+      numCandidates: Math.min(10000, Math.max(limit, limit * this.numCandidatesMultiplier)),
+      limit,
+    };
+    const filter = params.nativeFilter || toAtlasFilter(params.filter);
+    if (filter) stage.filter = filter;
+    const pipeline = [
+      { $vectorSearch: stage },
+      { $project: { _id: 1, [this.textKey]: 1, metadata: 1, score: { $meta: 'vectorSearchScore' } } },
+    ];
+    let rows;
+    try {
+      rows = await this.collection.aggregate(pipeline).toArray();
+    } catch (error) {
+      throw mongoError(error);
+    }
+    return (rows || []).map((row) => ({
+      id: String(row._id),
+      score: this.similarity === 'euclidean' ? row.score : 2 * row.score - 1,
+      text: row[this.textKey] ?? null,
+      metadata: row.metadata || {},
+    })).sort((a, b) => b.score - a.score);
+  }
+
+  async delete(ids) {
+    const list = (ids || []).map(String);
+    if (list.length === 0) return;
+    try {
+      await this.collection.deleteMany({ _id: { $in: list } });
+    } catch (error) {
+      throw mongoError(error);
+    }
+  }
+}
+
+function toItems(records) {
+  return (records || []).map((record) => {
+    if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+    return { id: String(record.id), vector: record.vector, text: record.text ?? null, metadata: record.metadata || {} };
+  });
+}
+
+module.exports = { MongoDBAtlasVectorStore };
+
+},{"../utils/ConnHelper":52,"./VectorStore":46}],43:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const ConnHelper = require('../utils/ConnHelper');
+const { VectorStore } = require('./VectorStore');
+
+// table or schema.table: identifier characters only, since the name goes into the SQL text
+const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/;
+// pgvector indexes the vector type with HNSW up to 2,000 dimensions
+const MAX_INDEXED_DIMENSIONS = 2000;
+
+function toVectorLiteral(vector) {
+  return `[${vector.map((value) => {
+    const number = Number(value);
+    if (!Number.isFinite(number)) throw new Error(`pgvector cannot store the value ${value}.`);
+    return number;
+  }).join(',')}]`;
+}
+
+function pgError(error) {
+  const wrapped = ConnHelper.wrapError(error);
+  wrapped.message = `pgvector error: ${wrapped.message}`;
+  return wrapped;
+}
+
+/**
+ * PostgreSQL with the pgvector extension (also AlloyDB, Cloud SQL, Supabase, Neon), without a driver dependency:
+ * pass any client with query(sql, params) -> { rows }, such as a `pg` Pool or Client.
+ *
+ *   const { Pool } = require('pg');
+ *   const store = new PgVectorStore({ client: new Pool({ connectionString }), dimension: 1536, embedder });
+ *
+ * With createTable the first use runs CREATE EXTENSION IF NOT EXISTS vector and creates the table
+ * (id text primary key, text, metadata jsonb, embedding vector(dimension)) plus an HNSW cosine index when the
+ * dimension is at most 2,000. Scores are 1 - cosine distance. filter matches with metadata @> (arrays mean
+ * one of); nativeFilter is a SQL condition string, or { sql, params } with its own $1.. placeholders.
+ */
+class PgVectorStore extends VectorStore {
+  // API: https://github.com/pgvector/pgvector
+  /**
+   * @param {object} options - { client, table = 'intellinode_vectors' (or schema.table), dimension,
+   *   createTable = true, createIndex = true, batchSize = 500, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    if (!options.client || typeof options.client.query !== 'function') {
+      throw new Error('PgVectorStore needs { client }: a pg Pool or Client, or any object with query(sql, params).');
+    }
+    this.client = options.client;
+    this.table = options.table || 'intellinode_vectors';
+    if (!TABLE_NAME.test(this.table)) throw new Error(`Invalid table name '${this.table}': use letters, digits and underscores.`);
+    this.dimension = options.dimension || null;
+    this.createTable = options.createTable !== false;
+    this.createIndex = options.createIndex !== false;
+    this.batchSize = options.batchSize || 500;
+    this._ready = null;
+  }
+
+  /** Create the extension, the table and its index when missing. */
+  async ensureTable(dimension = this.dimension) {
+    const size = Number(dimension);
+    if (!Number.isInteger(size) || size <= 0) throw new Error('PgVectorStore needs a dimension to create its table.');
+    await this._query('CREATE EXTENSION IF NOT EXISTS vector');
+    await this._query(`CREATE TABLE IF NOT EXISTS ${this.table} (
+      id text PRIMARY KEY,
+      text text,
+      metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+      embedding vector(${size}) NOT NULL
+    )`);
+    if (this.createIndex && size <= MAX_INDEXED_DIMENSIONS) {
+      const indexName = `${this.table.split('.').pop()}_embedding_idx`;
+      await this._query(`CREATE INDEX IF NOT EXISTS ${indexName} ON ${this.table} USING hnsw (embedding vector_cosine_ops)`);
+    }
+  }
+
+  async upsert(records) {
+    // one INSERT cannot touch the same row twice: the last record of an id wins
+    const items = [...new Map(toItems(records).map((item) => [item.id, item])).values()];
+    if (items.length === 0) return [];
+    await this._prepare(items[0].vector.length);
+    for (let start = 0; start < items.length; start += this.batchSize) {
+      const rows = [];
+      const params = [];
+      for (const item of items.slice(start, start + this.batchSize)) {
+        const n = params.length;
+        rows.push(`($${n + 1}, $${n + 2}, $${n + 3}::jsonb, $${n + 4}::vector)`);
+        params.push(item.id, item.text, JSON.stringify(item.metadata), toVectorLiteral(item.vector));
+      }
+      await this._query(`INSERT INTO ${this.table} (id, text, metadata, embedding) VALUES ${rows.join(', ')}
+        ON CONFLICT (id) DO UPDATE SET text = EXCLUDED.text, metadata = EXCLUDED.metadata, embedding = EXCLUDED.embedding`, params);
+    }
+    return (records || []).map((record) => String(record.id));
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    if (this.dimension) await this._prepare(this.dimension);
+    const values = [toVectorLiteral(vector)];
+    const conditions = [];
+    if (params.nativeFilter) {
+      const native = typeof params.nativeFilter === 'string' ? { sql: params.nativeFilter, params: [] } : params.nativeFilter;
+      const offset = values.length;
+      conditions.push(`(${native.sql.replace(/\$(\d+)/g, (match, index) => `$${Number(index) + offset}`)})`);
+      values.push(...(native.params || []));
+    } else if (params.filter) {
+      const equal = {};
+      for (const [key, value] of Object.entries(params.filter)) {
+        if (!Array.isArray(value)) {
+          equal[key] = value;
+          continue;
+        }
+        // a jsonb array contains a scalar member, so this reads "metadata.key is one of value"
+        values.push(JSON.stringify(value), key);
+        conditions.push(`$${values.length - 1}::jsonb @> (metadata -> $${values.length}::text)`);
+      }
+      if (Object.keys(equal).length > 0) {
+        values.push(JSON.stringify(equal));
+        conditions.push(`metadata @> $${values.length}::jsonb`);
+      }
+    }
+    values.push(Math.floor(params.topK || 5));
+    const where = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+    const result = await this._query(`SELECT id, text, metadata, 1 - (embedding <=> $1::vector) AS score
+      FROM ${this.table}${where} ORDER BY embedding <=> $1::vector LIMIT $${values.length}`, values);
+    return ((result && result.rows) || []).map((row) => ({
+      id: String(row.id),
+      score: Number(row.score),
+      text: row.text ?? null,
+      metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : (row.metadata || {}),
+    })).sort((a, b) => b.score - a.score);
+  }
+
+  async delete(ids) {
+    const list = (ids || []).map(String);
+    if (list.length === 0) return;
+    await this._query(`DELETE FROM ${this.table} WHERE id = ANY($1::text[])`, [list]);
+  }
+
+  _prepare(dimension) {
+    if (!this.createTable) return Promise.resolve();
+    if (!this._ready) {
+      this._ready = this.ensureTable(this.dimension || dimension).catch((error) => {
+        this._ready = null;
+        throw error;
+      });
+    }
+    return this._ready;
+  }
+
+  async _query(sql, params) {
+    try {
+      return await (params ? this.client.query(sql, params) : this.client.query(sql));
+    } catch (error) {
+      throw pgError(error);
+    }
+  }
+}
+
+function toItems(records) {
+  return (records || []).map((record) => {
+    if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+    return { id: String(record.id), vector: record.vector, text: record.text ?? null, metadata: record.metadata || {} };
+  });
+}
+
+module.exports = { PgVectorStore };
+
+},{"../utils/ConnHelper":52,"./VectorStore":46}],44:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const FetchClient = require('../utils/FetchClient');
+const ConnHelper = require('../utils/ConnHelper');
+const { VectorStore } = require('./VectorStore');
+
+// Pinecone rejects upsert requests over 2MB; stay under it with room for the JSON envelope
+const MAX_BATCH_BYTES = 1500000;
+
+function toPineconeFilter(filter) {
+  const entries = Object.entries(filter || {});
+  if (entries.length === 0) return null;
+  const result = {};
+  for (const [key, value] of entries) result[key] = Array.isArray(value) ? { $in: value } : { $eq: value };
+  return result;
+}
+
+// Pinecone metadata takes strings, numbers, booleans and string lists, and rejects nulls.
+function cleanMetadata(metadata) {
+  const result = {};
+  for (const [key, value] of Object.entries(metadata || {})) {
+    if (value !== null && value !== undefined) result[key] = value;
+  }
+  return result;
+}
+
+function pineconeError(error) {
+  const wrapped = ConnHelper.wrapError(error);
+  wrapped.message = `Pinecone error: ${wrapped.message}`;
+  return wrapped;
+}
+
+/**
+ * A Pinecone index through the data plane REST API.
+ *
+ *   const store = new PineconeVectorStore({ apiKey, indexHost: 'docs-abc123.svc.aped-4627-b74a.pinecone.io', embedder });
+ *
+ * Create the index first (console or control plane) with the embedder's dimension; with the cosine metric the
+ * scores are cosine similarities. The record text is kept in the metadata under textKey. filter becomes
+ * { key: { $eq } } or { key: { $in } }; nativeFilter is a Pinecone metadata filter.
+ */
+class PineconeVectorStore extends VectorStore {
+  // API: https://docs.pinecone.io/reference/api/2026-07/data-plane/upsert
+  /**
+   * @param {object} options - { apiKey, indexHost (the index host, with or without https://), namespace,
+   *   apiVersion = '2026-07', metric = 'cosine' (the index metric: cosine, dotproduct or euclidean),
+   *   textKey = 'text', batchSize = 100, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    if (!options.apiKey) throw new Error('PineconeVectorStore needs an apiKey.');
+    if (!options.indexHost) throw new Error('PineconeVectorStore needs the indexHost of the index.');
+    const host = String(options.indexHost).replace(/\/+$/, '');
+    this.namespace = options.namespace || null;
+    this.metric = options.metric || 'cosine';
+    this.textKey = options.textKey || 'text';
+    this.batchSize = Math.min(options.batchSize || 100, 1000);
+    this.client = new FetchClient({
+      baseURL: /^https?:\/\//i.test(host) ? host : `https://${host}`,
+      headers: {
+        'Content-Type': 'application/json',
+        'Api-Key': options.apiKey,
+        'X-Pinecone-Api-Version': options.apiVersion || '2026-07',
+      },
+    });
+  }
+
+  async upsert(records) {
+    const items = toItems(records);
+    const vectors = items.map((item) => {
+      const metadata = cleanMetadata(item.metadata);
+      if (item.text !== null) metadata[this.textKey] = item.text;
+      return Object.keys(metadata).length > 0
+        ? { id: item.id, values: item.vector, metadata }
+        : { id: item.id, values: item.vector };
+    });
+    let batch = [];
+    let bytes = 0;
+    for (const vector of vectors) {
+      const size = JSON.stringify(vector).length;
+      if (batch.length > 0 && (batch.length >= this.batchSize || bytes + size > MAX_BATCH_BYTES)) {
+        await this._request('POST', '/vectors/upsert', this._withNamespace({ vectors: batch }));
+        batch = [];
+        bytes = 0;
+      }
+      batch.push(vector);
+      bytes += size;
+    }
+    if (batch.length > 0) await this._request('POST', '/vectors/upsert', this._withNamespace({ vectors: batch }));
+    return items.map((item) => item.id);
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    const filter = params.nativeFilter || toPineconeFilter(params.filter);
+    const body = this._withNamespace({ vector, topK: params.topK || 5, includeMetadata: true, includeValues: false });
+    if (filter) body.filter = filter;
+    const data = await this._request('POST', '/query', body);
+    return ((data && data.matches) || []).map((match) => {
+      const { [this.textKey]: text = null, ...metadata } = match.metadata || {};
+      // cosine and dotproduct scores are similarities; euclidean is a distance
+      const score = this.metric === 'euclidean' ? 1 / (1 + match.score) : match.score;
+      return { id: match.id, score, text, metadata };
+    }).sort((a, b) => b.score - a.score);
+  }
+
+  async delete(ids) {
+    const list = (ids || []).map(String);
+    for (let start = 0; start < list.length; start += 1000) {
+      await this._request('POST', '/vectors/delete', this._withNamespace({ ids: list.slice(start, start + 1000) }));
+    }
+  }
+
+  _withNamespace(body) {
+    return this.namespace ? { ...body, namespace: this.namespace } : body;
+  }
+
+  async _request(method, path, body) {
+    try {
+      return await this.client.request(method, path, body);
+    } catch (error) {
+      throw pineconeError(error);
+    }
+  }
+}
+
+function toItems(records) {
+  return (records || []).map((record) => {
+    if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+    return { id: String(record.id), vector: record.vector, text: record.text ?? null, metadata: record.metadata || {} };
+  });
+}
+
+module.exports = { PineconeVectorStore };
+
+},{"../utils/ConnHelper":52,"../utils/FetchClient":53,"./VectorStore":46}],45:[function(require,module,exports){
+(function (process){(function (){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const FetchClient = require('../utils/FetchClient');
+const ConnHelper = require('../utils/ConnHelper');
+const { VectorStore } = require('./VectorStore');
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// RFC 4122 DNS namespace: the same mapping as uuid.uuid5(uuid.NAMESPACE_DNS, id) in Python and Weaviate's generate_uuid5(id)
+const NAMESPACE_BYTES = [0x6b, 0xa7, 0xb8, 0x10, 0x9d, 0xad, 0x11, 0xd1, 0x80, 0xb4, 0x00, 0xc0, 0x4f, 0xd4, 0x30, 0xc8];
+const DISTANCE_METRICS = new Set(['Euclid', 'Manhattan']);
+
+function sha1(bytes) {
+  // process.getBuiltinModule (Node 20.16+) reaches crypto without a require() that browserify would bundle
+  const crypto = typeof process !== 'undefined' && typeof process.getBuiltinModule === 'function'
+    ? process.getBuiltinModule('crypto') : null;
+  if (crypto && typeof crypto.createHash === 'function') {
+    return Array.from(crypto.createHash('sha1').update(Uint8Array.from(bytes)).digest());
+  }
+  return sha1Fallback(bytes);
+}
+
+function sha1Fallback(bytes) {
+  const length = bytes.length;
+  const words = new Uint32Array((((length + 8) >> 6) + 1) * 16);
+  for (let i = 0; i < length; i++) words[i >> 2] |= bytes[i] << (24 - (i % 4) * 8);
+  words[length >> 2] |= 0x80 << (24 - (length % 4) * 8);
+  words[words.length - 1] = length * 8;
+  const state = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0];
+  const w = new Uint32Array(80);
+  for (let block = 0; block < words.length; block += 16) {
+    for (let t = 0; t < 16; t++) w[t] = words[block + t];
+    for (let t = 16; t < 80; t++) {
+      const x = w[t - 3] ^ w[t - 8] ^ w[t - 14] ^ w[t - 16];
+      w[t] = (x << 1) | (x >>> 31);
+    }
+    let [a, b, c, d, e] = state;
+    for (let t = 0; t < 80; t++) {
+      const f = t < 20 ? ((b & c) | (~b & d)) + 0x5a827999
+        : t < 40 ? (b ^ c ^ d) + 0x6ed9eba1
+          : t < 60 ? ((b & c) | (b & d) | (c & d)) + 0x8f1bbcdc
+            : (b ^ c ^ d) + 0xca62c1d6;
+      const next = (((a << 5) | (a >>> 27)) + f + e + w[t]) >>> 0;
+      e = d;
+      d = c;
+      c = ((b << 30) | (b >>> 2)) >>> 0;
+      b = a;
+      a = next;
+    }
+    state[0] = (state[0] + a) >>> 0;
+    state[1] = (state[1] + b) >>> 0;
+    state[2] = (state[2] + c) >>> 0;
+    state[3] = (state[3] + d) >>> 0;
+    state[4] = (state[4] + e) >>> 0;
+  }
+  const digest = [];
+  for (const word of state) digest.push(word >>> 24, (word >>> 16) & 0xff, (word >>> 8) & 0xff, word & 0xff);
+  return digest;
+}
+
+/**
+ * The UUID a store that only accepts UUID ids (Qdrant, Weaviate) keeps for a record id: the id itself when it
+ * already is a UUID, otherwise its UUID v5 (so upsert, query and delete always map an id to the same point).
+ */
+function stableUuid(id) {
+  const text = String(id);
+  if (UUID_PATTERN.test(text)) return text.toLowerCase();
+  const bytes = sha1([...NAMESPACE_BYTES, ...new TextEncoder().encode(text)]).slice(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function toQdrantFilter(filter) {
+  const conditions = Object.entries(filter || {}).map(([key, value]) => ({
+    key: `metadata.${key}`,
+    match: Array.isArray(value) ? { any: value } : { value },
+  }));
+  return conditions.length > 0 ? { must: conditions } : null;
+}
+
+function qdrantError(error) {
+  const wrapped = ConnHelper.wrapError(error);
+  wrapped.message = `Qdrant error: ${wrapped.message}`;
+  return wrapped;
+}
+
+/**
+ * Qdrant (self-hosted or Qdrant Cloud) through its REST API.
+ *
+ *   const store = new QdrantVectorStore({ url: 'http://localhost:6333', collection: 'docs', embedder });
+ *
+ * Qdrant point ids must be unsigned integers or UUIDs, so every record id is stored as its UUID v5 (see stableUuid)
+ * and the original id is kept in the payload: { text, metadata, id }. Query results return the original id.
+ * filter matches payload.metadata keys with match.value (keyword, integer, bool) or match.any for arrays;
+ * nativeFilter is a Qdrant filter object ({ must, should, must_not }).
+ */
+class QdrantVectorStore extends VectorStore {
+  // API: https://api.qdrant.tech/api-reference/points/upsert-points
+  /**
+   * @param {object} options - { url = 'http://localhost:6333', apiKey, collection, distance = 'Cosine' (Cosine,
+   *   Dot, Euclid, Manhattan), createCollection = true, dimension, vectorName (a named vector), textKey = 'text',
+   *   batchSize = 256, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    if (!options.collection) throw new Error('QdrantVectorStore needs a collection name.');
+    this.collection = options.collection;
+    this.distance = options.distance || 'Cosine';
+    this.createCollection = options.createCollection !== false;
+    this.dimension = options.dimension || null;
+    this.vectorName = options.vectorName || null;
+    this.textKey = options.textKey || 'text';
+    this.batchSize = options.batchSize || 256;
+    this._ready = null;
+    const headers = { 'Content-Type': 'application/json' };
+    if (options.apiKey) headers['api-key'] = options.apiKey;
+    this.client = new FetchClient({ baseURL: String(options.url || 'http://localhost:6333').replace(/\/+$/, ''), headers });
+  }
+
+  /** Create the collection when it does not exist. Returns true when it was created. */
+  async ensureCollection(dimension = this.dimension) {
+    if (await this._exists()) return false;
+    if (!dimension) throw new Error(`Qdrant collection '${this.collection}' does not exist and no dimension is known to create it.`);
+    const vectors = { size: dimension, distance: this.distance };
+    try {
+      // a conflict means another call created it: no retries, then check again
+      await this._request('PUT', this._path(), { vectors: this.vectorName ? { [this.vectorName]: vectors } : vectors }, { retries: 0 });
+    } catch (error) {
+      if (await this._exists().catch(() => false)) return false;
+      throw error;
+    }
+    return true;
+  }
+
+  async upsert(records) {
+    const items = toItems(records);
+    if (items.length === 0) return [];
+    if (this.createCollection) await this._prepare(items[0].vector.length);
+    const points = items.map((item) => ({
+      id: stableUuid(item.id),
+      vector: this.vectorName ? { [this.vectorName]: item.vector } : item.vector,
+      payload: { [this.textKey]: item.text, metadata: item.metadata, id: item.id },
+    }));
+    for (let start = 0; start < points.length; start += this.batchSize) {
+      await this._request('PUT', `${this._path()}/points?wait=true`, { points: points.slice(start, start + this.batchSize) });
+    }
+    return items.map((item) => item.id);
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    const filter = params.nativeFilter || toQdrantFilter(params.filter);
+    const body = { query: vector, limit: params.topK || 5, with_payload: true };
+    if (this.vectorName) body.using = this.vectorName;
+    if (filter) body.filter = filter;
+    const data = await this._request('POST', `${this._path()}/points/query`, body);
+    const points = (data && data.result && data.result.points) || [];
+    return points.map((point) => {
+      const payload = point.payload || {};
+      return {
+        id: payload.id !== undefined && payload.id !== null ? String(payload.id) : String(point.id),
+        // Cosine and Dot are similarities; Euclid and Manhattan are distances
+        score: DISTANCE_METRICS.has(this.distance) ? 1 / (1 + point.score) : point.score,
+        text: payload[this.textKey] ?? null,
+        metadata: payload.metadata || {},
+      };
+    }).sort((a, b) => b.score - a.score);
+  }
+
+  async delete(ids) {
+    const points = (ids || []).map(stableUuid);
+    for (let start = 0; start < points.length; start += 1000) {
+      await this._request('POST', `${this._path()}/points/delete?wait=true`, { points: points.slice(start, start + 1000) });
+    }
+  }
+
+  _path() {
+    return `/collections/${encodeURIComponent(this.collection)}`;
+  }
+
+  async _exists() {
+    const data = await this._request('GET', `${this._path()}/exists`);
+    return Boolean(data && data.result && data.result.exists);
+  }
+
+  _prepare(dimension) {
+    if (!this._ready) {
+      this._ready = this.ensureCollection(this.dimension || dimension).catch((error) => {
+        this._ready = null;
+        throw error;
+      });
+    }
+    return this._ready;
+  }
+
+  async _request(method, path, body, extraConfig = {}) {
+    try {
+      return await this.client.request(method, path, body, extraConfig);
+    } catch (error) {
+      throw qdrantError(error);
+    }
+  }
+}
+
+function toItems(records) {
+  return (records || []).map((record) => {
+    if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+    return { id: String(record.id), vector: record.vector, text: record.text ?? null, metadata: record.metadata || {} };
+  });
+}
+
+module.exports = { QdrantVectorStore, stableUuid };
+
+}).call(this)}).call(this,require('_process'))
+},{"../utils/ConnHelper":52,"../utils/FetchClient":53,"./VectorStore":46,"_process":30}],46:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const { toEmbedder } = require('./Embedder');
+
+let idCounter = 0;
+
+/** A random-looking id for records added without one (no crypto dependency, so it also runs in the browser). */
+function newId() {
+  idCounter = (idCounter + 1) % 1e6;
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}${idCounter.toString(36)}`;
+}
+
+/**
+ * Base class of every vector store: Memory, Pinecone, Qdrant, Chroma, Weaviate, Milvus, Elasticsearch, pgvector,
+ * Firestore and Vertex AI Vector Search share this interface, so an Assistant or a RAG step can swap them.
+ *
+ * Records are { id, vector, text?, metadata? }. Query results are { id, score, text, metadata } sorted by score,
+ * where a higher score is more similar (each store converts its own distance to a similarity).
+ *
+ * Subclasses implement upsert(records), query({ vector, topK, filter }) and delete(ids); the base class adds
+ * text embedding (addDocuments, search) through the optional embedder.
+ */
+class VectorStore {
+  /**
+   * @param {object} options - { embedder }: an Embedder, a function async (texts, { kind }) => vectors, or
+   *   { provider, apiKey, model, options } to build one (see store/Embedder.js).
+   */
+  constructor(options = {}) {
+    this.embedder = options.embedder ? toEmbedder(options.embedder) : null;
+  }
+
+  /** Embed texts with the store's embedder. kind is 'document' or 'query' (Gemini and Cohere embed them differently). */
+  async embed(texts, kind = 'document') {
+    if (!this.embedder) {
+      throw new Error(`${this.constructor.name} has no embedder: pass { embedder } to the constructor, or give vectors.`);
+    }
+    const list = Array.isArray(texts) ? texts : [texts];
+    if (list.length === 0) return [];
+    const vectors = await this.embedder.embed(list, { kind });
+    if (!Array.isArray(vectors) || vectors.length !== list.length) {
+      throw new Error(`The embedder returned ${Array.isArray(vectors) ? vectors.length : 'no'} vectors for ${list.length} texts.`);
+    }
+    return vectors;
+  }
+
+  /**
+   * Add documents, embedding the ones without a vector. Returns the ids.
+   * @param {Array<{id?: string, text: string, metadata?: object, vector?: number[]}>|string[]} documents
+   */
+  async addDocuments(documents) {
+    const records = (documents || []).map((document) => (typeof document === 'string' ? { text: document } : { ...document }));
+    const missing = records.filter((record) => !Array.isArray(record.vector));
+    if (missing.length > 0) {
+      const vectors = await this.embed(missing.map((record) => String(record.text || '')), 'document');
+      missing.forEach((record, index) => { record.vector = vectors[index]; });
+    }
+    for (const record of records) {
+      if (record.id === undefined || record.id === null || record.id === '') record.id = newId();
+      record.id = String(record.id);
+      record.metadata = record.metadata || {};
+    }
+    await this.upsert(records);
+    return records.map((record) => record.id);
+  }
+
+  /** Embed the query text and return the topK closest records: [{ id, score, text, metadata }]. */
+  async search(text, topK = 5, filter = null) {
+    const [vector] = await this.embed([String(text)], 'query');
+    return this.query({ vector, topK, filter });
+  }
+
+  /** Upsert [{ id, vector, text?, metadata? }]. */
+  async upsert() {
+    throw new Error(`${this.constructor.name}.upsert is not implemented.`);
+  }
+
+  /**
+   * Nearest records to a vector (or to a text when an embedder is set).
+   * @param {{vector?: number[], text?: string, topK?: number, filter?: object}} params - filter is metadata
+   *   equality ({ key: value }, all must match); each store also accepts its own native filter as `nativeFilter`.
+   */
+  async query() {
+    throw new Error(`${this.constructor.name}.query is not implemented.`);
+  }
+
+  /** Delete records by id. */
+  async delete() {
+    throw new Error(`${this.constructor.name}.delete is not implemented.`);
+  }
+
+  // The vector of a query: params.vector, or the embedded params.text.
+  async _queryVector(params = {}) {
+    if (Array.isArray(params.vector)) return params.vector;
+    if (params.text !== undefined && params.text !== null) {
+      const [vector] = await this.embed([String(params.text)], 'query');
+      return vector;
+    }
+    throw new Error('query needs a vector, or a text and an embedder.');
+  }
+}
+
+/** True when every key of filter equals the same key of metadata (arrays in the filter mean "one of"). */
+function matchesFilter(metadata, filter) {
+  if (!filter) return true;
+  const data = metadata || {};
+  return Object.entries(filter).every(([key, expected]) => {
+    const actual = data[key];
+    if (Array.isArray(expected)) return expected.some((value) => value === actual);
+    return actual === expected;
+  });
+}
+
+function cosineSimilarity(a, b) {
+  if (a.length !== b.length) throw new Error(`Vector size mismatch: ${a.length} and ${b.length}.`);
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+module.exports = { VectorStore, matchesFilter, cosineSimilarity, newId };
+
+},{"./Embedder":36}],47:[function(require,module,exports){
+(function (Buffer){(function (){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+// API: https://cloud.google.com/vertex-ai/generative-ai/docs/rag-engine/rag-overview (REST v1: ragCorpora, ragFiles,
+// media.upload, projects.locations.retrieveContexts)
+const config = require('../config.json');
+const { VectorStore } = require('./VectorStore');
+const { GoogleCloudService } = require('./GoogleCloud');
+
+/**
+ * Vertex AI RAG Engine: a managed corpus that parses, chunks, embeds and indexes your files on Google Cloud.
+ * Use it as a knowledge store (query by text), or ground Gemini directly with store.tool().
+ *
+ *   const corpus = await VertexRAGStore.createCorpus({ projectId, displayName: 'handbook' });
+ *   const store = new VertexRAGStore({ projectId, corpus: corpus.name });
+ *   await store.uploadFile('handbook.pdf');                     // or importFiles(['gs://bucket/docs/'])
+ *   const hits = await store.query({ text: 'refund policy', topK: 5 });
+ *
+ * RAG Engine needs OAuth credentials (API keys are rejected) and a supported region; us-central1 needs an allowlist
+ * for new projects, europe-west3 / europe-west4 are generally available.
+ */
+class VertexRAGStore extends VectorStore {
+  /**
+   * @param {object} options - { projectId, location = 'us-central1', corpus (full name or id), topK, vectorDistanceThreshold,
+   *   accessToken, credentials }.
+   */
+  constructor(options = {}) {
+    super({});
+    this.service = new GoogleCloudService({ ...options, label: 'Vertex AI RAG Engine' });
+    this.client = this.service.client;
+    this.location = options.location || config.url.gemini.vertex.locations.rag;
+    this.corpus = options.corpus || null;
+    this.vectorDistanceThreshold = options.vectorDistanceThreshold ?? null;
+  }
+
+  _host() {
+    return `https://${this.location}-aiplatform.googleapis.com`;
+  }
+
+  async _parent() {
+    return `projects/${await this.service._project()}/locations/${this.location}`;
+  }
+
+  async corpusName() {
+    if (!this.corpus) throw new Error('VertexRAGStore needs a corpus (name or id).');
+    if (String(this.corpus).startsWith('projects/')) return this.corpus;
+    return `${await this._parent()}/ragCorpora/${this.corpus}`;
+  }
+
+  /**
+   * Create a corpus and wait for it. embeddingModel defaults to text-embedding-005 (the RAG Engine default).
+   * Returns the corpus ({ name, displayName, ... }).
+   */
+  static async createCorpus({ displayName, description = null, embeddingModel = null, ...options }) {
+    const store = new VertexRAGStore(options);
+    const parent = await store._parent();
+    const body = {
+      displayName,
+      ...(description && { description }),
+      ...(embeddingModel && {
+        vectorDbConfig: {
+          ragManagedDb: { knn: {} },
+          ragEmbeddingModelConfig: {
+            vertexPredictionEndpoint: {
+              endpoint: embeddingModel.startsWith('projects/') ? embeddingModel : `${parent}/publishers/google/models/${embeddingModel}`,
+            },
+          },
+        },
+      }),
+    };
+    const operation = await store.service._request('POST', `${store._host()}/v1/${parent}/ragCorpora`, body);
+    return store.service.waitForOperation(operation, (name) => `${store._host()}/v1/${name}`);
+  }
+
+  async listCorpora({ pageSize = null, pageToken = null } = {}) {
+    const query = [pageSize && `page_size=${pageSize}`, pageToken && `page_token=${encodeURIComponent(pageToken)}`].filter(Boolean).join('&');
+    return this.service._request('GET', `${this._host()}/v1/${await this._parent()}/ragCorpora${query ? `?${query}` : ''}`);
+  }
+
+  async getCorpus() {
+    return this.service._request('GET', `${this._host()}/v1/${await this.corpusName()}`);
+  }
+
+  /** Delete the corpus; force also deletes its files. */
+  async deleteCorpus({ force = true } = {}) {
+    return this.service._request('DELETE', `${this._host()}/v1/${await this.corpusName()}${force ? '?force=true' : ''}`);
+  }
+
+  /**
+   * Upload one local file (a path, or bytes with { displayName, mimeType }) into the corpus; RAG Engine parses,
+   * chunks and embeds it. Returns the RagFile.
+   */
+  async uploadFile(source, { displayName = null, description = null, mimeType = null, chunkSize = 512, chunkOverlap = 100 } = {}) {
+    const FormData = require('form-data');
+    let data = source;
+    let name = displayName;
+    if (typeof source === 'string') {
+      data = require('fs').readFileSync(source);
+      name = name || require('path').basename(source);
+    }
+    if (!name) throw new Error('displayName is required when uploading bytes.');
+    const form = new FormData();
+    form.append('metadata', JSON.stringify({
+      ragFile: { displayName: name, ...(description && { description }) },
+      uploadRagFileConfig: {
+        ragFileTransformationConfig: { ragFileChunkingConfig: { fixedLengthChunking: { chunkSize, chunkOverlap } } },
+      },
+    }), { contentType: 'application/json' });
+    form.append('file', Buffer.from(data), { filename: name, ...(mimeType && { contentType: mimeType }) });
+    const url = `${this._host()}/upload/v1/${await this.corpusName()}/ragFiles:upload`;
+    const result = await this.service._request('POST', url, form, { headers: { 'X-Goog-Upload-Protocol': 'multipart' } });
+    if (result && result.error) throw new Error(`Vertex AI RAG Engine upload error: ${JSON.stringify(result.error)}`);
+    return (result && result.ragFile) || result;
+  }
+
+  /**
+   * Import files from Cloud Storage (gs://bucket/path) or Google Drive (folder / file links) and wait for the
+   * import to finish. Returns the import result counts.
+   */
+  async importFiles(uris, { chunkSize = 512, chunkOverlap = 100, maxEmbeddingRequestsPerMin = 1000, wait = true } = {}) {
+    const list = Array.isArray(uris) ? uris : [uris];
+    const gcs = list.filter((uri) => uri.startsWith('gs://'));
+    const drive = list.filter((uri) => !uri.startsWith('gs://'));
+    const body = {
+      importRagFilesConfig: {
+        ...(gcs.length && { gcsSource: { uris: gcs } }),
+        ...(drive.length && {
+          googleDriveSource: {
+            resourceIds: drive.map((uri) => {
+              const id = (/\/folders\/([^/?#]+)/.exec(uri) || /\/d\/([^/?#]+)/.exec(uri) || [null, uri])[1];
+              return { resourceType: /\/folders\//.test(uri) ? 'RESOURCE_TYPE_FOLDER' : 'RESOURCE_TYPE_FILE', resourceId: id };
+            }),
+          },
+        }),
+        ragFileTransformationConfig: { ragFileChunkingConfig: { fixedLengthChunking: { chunkSize, chunkOverlap } } },
+        maxEmbeddingRequestsPerMin,
+      },
+    };
+    const operation = await this.service._request('POST', `${this._host()}/v1/${await this.corpusName()}/ragFiles:import`, body);
+    if (!wait) return operation;
+    return this.service.waitForOperation(operation, (name) => `${this._host()}/v1/${name}`);
+  }
+
+  async listFiles({ pageSize = null, pageToken = null } = {}) {
+    const query = [pageSize && `page_size=${pageSize}`, pageToken && `page_token=${encodeURIComponent(pageToken)}`].filter(Boolean).join('&');
+    return this.service._request('GET', `${this._host()}/v1/${await this.corpusName()}/ragFiles${query ? `?${query}` : ''}`);
+  }
+
+  /** Add text documents: each one is uploaded as a text file named after its id (or metadata.source). */
+  async addDocuments(documents, options = {}) {
+    const names = [];
+    for (const document of documents || []) {
+      const item = typeof document === 'string' ? { text: document } : document;
+      const base = String((item.metadata && item.metadata.source) || item.id || `document-${Date.now()}`);
+      const displayName = /\.[a-z0-9]+$/i.test(base) ? base : `${base}.txt`;
+      const file = await this.uploadFile(Buffer.from(String(item.text || ''), 'utf8'), { displayName, mimeType: 'text/plain', ...options });
+      names.push(file.name || displayName);
+    }
+    return names;
+  }
+
+  async upsert() {
+    throw new Error('VertexRAGStore embeds files itself: use addDocuments, uploadFile or importFiles.');
+  }
+
+  /**
+   * Retrieve chunks for a text query: [{ id, score, text, metadata: { source, title, pages } }].
+   * RAG Engine returns a cosine distance by default (0 = same); score is 1 - distance.
+   */
+  async query(params = {}) {
+    if (params.text === undefined || params.text === null) throw new Error('VertexRAGStore queries by text: query({ text }).');
+    const filter = params.nativeFilter || (this.vectorDistanceThreshold !== null ? { vectorDistanceThreshold: this.vectorDistanceThreshold } : null);
+    const body = {
+      vertexRagStore: { ragResources: [{ ragCorpus: await this.corpusName() }] },
+      query: { text: String(params.text), ragRetrievalConfig: { topK: params.topK || 5, ...(filter && { filter }) } },
+    };
+    const result = await this.service._request('POST', `${this._host()}/v1/${await this._parent()}:retrieveContexts`, body);
+    const contexts = (result.contexts && result.contexts.contexts) || [];
+    return contexts.map((context, index) => {
+      const chunk = context.chunk || {};
+      const distance = typeof context.score === 'number' ? context.score : typeof context.distance === 'number' ? context.distance : null;
+      return {
+        id: chunk.chunkId || `${context.sourceUri || 'context'}#${index}`,
+        score: distance === null ? null : 1 - distance,
+        text: context.text || chunk.text || '',
+        metadata: {
+          source: context.sourceUri || null,
+          title: context.sourceDisplayName || null,
+          ...(chunk.pageSpan && { pages: chunk.pageSpan }),
+        },
+      };
+    });
+  }
+
+  /** Delete RAG files by their resource names (from addDocuments / listFiles). */
+  async delete(fileNames) {
+    for (const name of fileNames || []) {
+      const fullName = String(name).startsWith('projects/') ? name : `${await this.corpusName()}/ragFiles/${name}`;
+      await this.service._request('DELETE', `${this._host()}/v1/${fullName}`);
+    }
+  }
+
+  /** A Gemini grounding tool for this corpus (Vertex AI generateContent): tools: [await store.tool()]. */
+  async tool({ topK = 5, vectorDistanceThreshold = null } = {}) {
+    return {
+      retrieval: {
+        vertexRagStore: {
+          ragResources: [{ ragCorpus: await this.corpusName() }],
+          ragRetrievalConfig: { topK, ...(vectorDistanceThreshold !== null && { filter: { vectorDistanceThreshold } }) },
+        },
+      },
+    };
+  }
+}
+
+module.exports = { VertexRAGStore };
+
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"../config.json":1,"./GoogleCloud":39,"./VectorStore":46,"buffer":25,"form-data":27,"fs":24,"path":29}],48:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+// API: Vector Search 2.0 (vectorsearch.googleapis.com v1: collections, dataObjects:batchCreate / search) and
+// Vector Search 1.0 (aiplatform v1: indexes:upsertDatapoints / removeDatapoints, indexEndpoints:findNeighbors)
+const { VectorStore } = require('./VectorStore');
+const { GoogleCloudService } = require('./GoogleCloud');
+
+const VECTOR_SEARCH_BASE = 'https://vectorsearch.googleapis.com/v1';
+
+// Data object ids must be 1-63 lowercase letters, digits or hyphens and start with a letter (RFC 1035).
+function dataObjectId(id) {
+  const text = String(id);
+  if (/^[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?$/.test(text)) return text;
+  // FNV-1a, two rounds, so any id maps to a stable valid id
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ code, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ code, 0x811c9dc5) >>> 0;
+  }
+  const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  return `d-${slug ? `${slug}-` : ''}${h1.toString(16)}${h2.toString(16)}`.slice(0, 63).replace(/-+$/, '');
+}
+
+/**
+ * Vertex AI Vector Search 2.0 collections: managed vector search that stores the data objects (text and metadata)
+ * with their vectors. Create the collection once with createCollection({ dimensions }).
+ * Metadata keys are stored as top-level data fields, so filters work on them ({ genre: 'sci-fi' }).
+ * Credentials: OAuth (accessToken, a service account, or `gcloud auth application-default login`).
+ */
+class VertexVectorSearchStore extends VectorStore {
+  /**
+   * @param {object} options - { projectId, location = 'us-central1', collection, vectorField = 'embedding',
+   *   distanceMetric = 'COSINE_DISTANCE' (or 'DOT_PRODUCT'), accessToken, credentials, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    if (!options.collection) throw new Error('VertexVectorSearchStore needs a collection id.');
+    this.service = new GoogleCloudService({ ...options, label: 'Vertex AI Vector Search' });
+    this.client = this.service.client;
+    this.location = options.location || 'us-central1';
+    this.collection = options.collection;
+    this.vectorField = options.vectorField || 'embedding';
+    this.distanceMetric = options.distanceMetric || 'COSINE_DISTANCE';
+  }
+
+  async _collectionName() {
+    if (this.collection.startsWith('projects/')) return this.collection;
+    return `projects/${await this.service._project()}/locations/${this.location}/collections/${this.collection}`;
+  }
+
+  /** Create the collection (once). Waits for the operation when the API returns one. */
+  async createCollection({ dimensions, displayName = null, description = null } = {}) {
+    if (!dimensions) throw new Error('createCollection needs the vector dimensions.');
+    const parent = `projects/${await this.service._project()}/locations/${this.location}`;
+    const body = {
+      displayName: displayName || this.collection,
+      ...(description && { description }),
+      vectorSchema: { [this.vectorField]: { denseVector: { dimensions } } },
+      dataSchema: { type: 'object', properties: { text: { type: 'string' }, sourceId: { type: 'string' } } },
+    };
+    const result = await this.service._request('POST', `${VECTOR_SEARCH_BASE}/${parent}/collections?collectionId=${encodeURIComponent(this.collection)}`, body);
+    if (result && result.name && result.done !== undefined) {
+      return this.service.waitForOperation(result, (name) => `${VECTOR_SEARCH_BASE}/${name}`);
+    }
+    return result;
+  }
+
+  async upsert(records) {
+    const collection = await this._collectionName();
+    // create fails on an existing id, so replaced records are deleted first
+    await this.delete((records || []).map((record) => record.id), { ignoreMissing: true });
+    for (let start = 0; start < (records || []).length; start += 1000) {
+      const requests = records.slice(start, start + 1000).map((record) => {
+        if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+        return {
+          dataObjectId: dataObjectId(record.id),
+          dataObject: {
+            data: { ...(record.metadata || {}), text: record.text ?? null, sourceId: String(record.id) },
+            vectors: { [this.vectorField]: { dense: { values: record.vector } } },
+          },
+        };
+      });
+      await this.service._request('POST', `${VECTOR_SEARCH_BASE}/${collection}/dataObjects:batchCreate`, { requests });
+    }
+    return (records || []).map((record) => String(record.id));
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    const filter = params.nativeFilter || VertexVectorSearchStore._filter(params.filter);
+    const body = {
+      vectorSearch: {
+        searchField: this.vectorField,
+        vector: { values: vector },
+        topK: params.topK || 5,
+        distanceMetric: this.distanceMetric,
+        ...(filter && { filter }),
+      },
+    };
+    const result = await this.service._request('POST', `${VECTOR_SEARCH_BASE}/${await this._collectionName()}/dataObjects:search`, body);
+    return (result.results || []).map((item) => {
+      const object = item.dataObject || {};
+      const { text = null, sourceId = null, ...metadata } = object.data || {};
+      return {
+        id: sourceId || object.dataObjectId || (object.name || '').split('/').pop(),
+        score: this._score(item.distance),
+        text,
+        metadata,
+      };
+    }).sort((a, b) => b.score - a.score);
+  }
+
+  _score(distance) {
+    if (typeof distance !== 'number') return 0;
+    return this.distanceMetric === 'COSINE_DISTANCE' ? 1 - distance : distance;
+  }
+
+  static _filter(filter) {
+    if (!filter) return null;
+    const clauses = Object.entries(filter).map(([key, value]) => ({ [key]: Array.isArray(value) ? { $in: value } : { $eq: value } }));
+    if (!clauses.length) return null;
+    return clauses.length === 1 ? clauses[0] : { $and: clauses };
+  }
+
+  async delete(ids, { ignoreMissing = false } = {}) {
+    const collection = await this._collectionName();
+    for (const id of ids || []) {
+      try {
+        await this.service._request('DELETE', `${VECTOR_SEARCH_BASE}/${collection}/dataObjects/${dataObjectId(id)}`);
+      } catch (error) {
+        if (!(ignoreMissing && error.status === 404)) throw error;
+      }
+    }
+  }
+}
+
+/**
+ * Vertex AI Vector Search 1.0: an index with stream updates deployed to a public index endpoint. Text and metadata
+ * travel in embeddingMetadata (up to 2 KB per datapoint); metadata equality filters use restricts.
+ */
+class VertexVectorSearchIndexStore extends VectorStore {
+  /**
+   * @param {object} options - { projectId, location = 'us-central1', index (id or name), indexEndpoint (id or name),
+   *   deployedIndexId, publicEndpointDomain (e.g. 123.us-central1-456.vdb.vertexai.goog), distanceMeasure =
+   *   'DOT_PRODUCT_DISTANCE' (or 'COSINE_DISTANCE', 'SQUARED_L2_DISTANCE'), restrictKeys (metadata keys sent as
+   *   restricts), accessToken, credentials, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    for (const key of ['index', 'indexEndpoint', 'deployedIndexId', 'publicEndpointDomain']) {
+      if (!options[key]) throw new Error(`VertexVectorSearchIndexStore needs ${key}.`);
+    }
+    this.service = new GoogleCloudService({ ...options, label: 'Vertex AI Vector Search' });
+    this.client = this.service.client;
+    this.location = options.location || 'us-central1';
+    this.index = options.index;
+    this.indexEndpoint = options.indexEndpoint;
+    this.deployedIndexId = options.deployedIndexId;
+    this.publicEndpointDomain = String(options.publicEndpointDomain).replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    this.distanceMeasure = options.distanceMeasure || 'DOT_PRODUCT_DISTANCE';
+    this.restrictKeys = options.restrictKeys || [];
+  }
+
+  async _name(kind, value) {
+    if (String(value).startsWith('projects/')) return value;
+    return `projects/${await this.service._project()}/locations/${this.location}/${kind}/${value}`;
+  }
+
+  async upsert(records) {
+    const index = await this._name('indexes', this.index);
+    const datapoints = (records || []).map((record) => {
+      if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+      const metadata = record.metadata || {};
+      const restricts = this.restrictKeys
+        .filter((key) => metadata[key] !== undefined && metadata[key] !== null)
+        .map((key) => ({ namespace: key, allowList: (Array.isArray(metadata[key]) ? metadata[key] : [metadata[key]]).map(String) }));
+      return {
+        datapointId: String(record.id),
+        featureVector: record.vector,
+        ...(restricts.length && { restricts }),
+        embeddingMetadata: { text: record.text ?? null, metadata },
+      };
+    });
+    const url = `https://${this.location}-aiplatform.googleapis.com/v1/${index}:upsertDatapoints`;
+    for (let start = 0; start < datapoints.length; start += 1000) {
+      await this.service._request('POST', url, { datapoints: datapoints.slice(start, start + 1000) });
+    }
+    return datapoints.map((datapoint) => datapoint.datapointId);
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    const restricts = Object.entries(params.filter || {}).map(([key, value]) => ({ namespace: key, allowList: (Array.isArray(value) ? value : [value]).map(String) }));
+    const endpoint = await this._name('indexEndpoints', this.indexEndpoint);
+    const body = {
+      deployedIndexId: this.deployedIndexId,
+      returnFullDatapoint: true,
+      queries: [{
+        datapoint: { datapointId: 'query', featureVector: vector, ...(restricts.length && { restricts }), ...(params.nativeFilter || {}) },
+        neighborCount: params.topK || 5,
+      }],
+    };
+    const result = await this.service._request('POST', `https://${this.publicEndpointDomain}/v1/${endpoint}:findNeighbors`, body);
+    const neighbors = (result.nearestNeighbors && result.nearestNeighbors[0] && result.nearestNeighbors[0].neighbors) || [];
+    return neighbors.map((neighbor) => {
+      const datapoint = neighbor.datapoint || {};
+      const payload = datapoint.embeddingMetadata || {};
+      return { id: datapoint.datapointId, score: this._score(neighbor.distance), text: payload.text ?? null, metadata: payload.metadata || {} };
+    }).sort((a, b) => b.score - a.score);
+  }
+
+  // DOT_PRODUCT_DISTANCE comes back as the dot product (higher is closer); the others are distances.
+  _score(distance) {
+    if (typeof distance !== 'number') return 0;
+    if (this.distanceMeasure === 'COSINE_DISTANCE') return 1 - distance;
+    if (this.distanceMeasure === 'SQUARED_L2_DISTANCE') return 1 / (1 + distance);
+    return distance;
+  }
+
+  async delete(ids) {
+    const index = await this._name('indexes', this.index);
+    await this.service._request('POST', `https://${this.location}-aiplatform.googleapis.com/v1/${index}:removeDatapoints`, { datapointIds: (ids || []).map(String) });
+  }
+}
+
+module.exports = { VertexVectorSearchStore, VertexVectorSearchIndexStore, dataObjectId };
+
+},{"./GoogleCloud":39,"./VectorStore":46}],49:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+const FetchClient = require('../utils/FetchClient');
+const ConnHelper = require('../utils/ConnHelper');
+const { VectorStore } = require('./VectorStore');
+const { stableUuid } = require('./QdrantVectorStore');
+
+const ID_PROPERTY = 'recordId';
+const METADATA_PROPERTY = 'metadataJson';
+// metadata keys that can also be stored as their own (filterable) property
+const PROPERTY_NAME = /^[_a-z][_0-9A-Za-z]*$/;
+const RESERVED = new Set(['id', '_id', '_additional', ID_PROPERTY, METADATA_PROPERTY]);
+
+function isScalar(value) {
+  return typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value));
+}
+
+function valueKey(value) {
+  if (typeof value === 'boolean') return 'valueBoolean';
+  if (typeof value === 'number') return 'valueNumber';
+  return 'valueText';
+}
+
+function toWeaviateWhere(filter) {
+  const operands = Object.entries(filter || {}).map(([key, value]) => {
+    if (!Array.isArray(value)) return { path: [key], operator: 'Equal', [valueKey(value)]: value };
+    const options = value.map((item) => ({ path: [key], operator: 'Equal', [valueKey(item)]: item }));
+    return options.length === 1 ? options[0] : { operator: 'Or', operands: options };
+  });
+  if (operands.length === 0) return null;
+  return operands.length === 1 ? operands[0] : { operator: 'And', operands };
+}
+
+// GraphQL input literal: object keys are bare names and `operator` values are enums.
+function gql(value, key) {
+  if (Array.isArray(value)) return `[${value.map((item) => gql(item)).join(', ')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value).map(([name, item]) => `${name}: ${gql(item, name)}`).join(', ')}}`;
+  }
+  if (key === 'operator' && /^[A-Za-z]+$/.test(String(value))) return String(value);
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error(`Weaviate cannot take the number ${value}.`);
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+function parseMetadata(value) {
+  if (!value) return {};
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return {};
+  }
+}
+
+function weaviateError(error) {
+  const wrapped = ConnHelper.wrapError(error);
+  wrapped.message = `Weaviate error: ${wrapped.message}`;
+  return wrapped;
+}
+
+/**
+ * A Weaviate collection (class) through the REST and GraphQL APIs, with vectors you provide.
+ *
+ *   const store = new WeaviateVectorStore({ url: 'http://localhost:8080', className: 'Docs', embedder });
+ *
+ * Objects need UUIDs, so each record id is stored as its UUID v5 (the same as the Python client's
+ * generate_uuid5(id)) and the original id goes in the recordId property. Metadata is kept whole as JSON in
+ * metadataJson, and its scalar keys (lowercase names) are also written as their own properties so `filter` can
+ * match them (Equal; a text property follows its tokenization). nativeFilter is a Weaviate where object, e.g.
+ * { path: ['year'], operator: 'GreaterThan', valueInt: 2020 }.
+ *
+ * A new class is created with a self-provided named vector (vectorName = 'default'); an existing class keeps its
+ * own vector setup (named or legacy). Scores: cosine 1 - distance, dot -distance, other metrics 1 / (1 + distance).
+ */
+class WeaviateVectorStore extends VectorStore {
+  // API: https://docs.weaviate.io/weaviate/api/graphql/search-operators (GraphQL), /v1/batch/objects and /v1/schema (REST)
+  /**
+   * @param {object} options - { url = 'http://localhost:8080', apiKey, className, textKey = 'text',
+   *   vectorName = 'default' (null for the legacy unnamed vector), distance = 'cosine', createClass = true,
+   *   headers (e.g. module API keys), batchSize = 100, embedder }.
+   */
+  constructor(options = {}) {
+    super(options);
+    if (!options.className) throw new Error('WeaviateVectorStore needs a className.');
+    const name = String(options.className);
+    this.className = name.charAt(0).toUpperCase() + name.slice(1);
+    if (!/^[A-Z][_0-9A-Za-z]*$/.test(this.className)) throw new Error(`Invalid Weaviate class name '${options.className}'.`);
+    this.textKey = options.textKey || 'text';
+    this.vectorName = options.vectorName === undefined ? 'default' : options.vectorName;
+    this.distance = options.distance || 'cosine';
+    this.createClass = options.createClass !== false;
+    this.batchSize = options.batchSize || 100;
+    this._classReady = false;
+    this._loading = null;
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (options.apiKey) headers.Authorization = `Bearer ${options.apiKey}`;
+    this.client = new FetchClient({ baseURL: String(options.url || 'http://localhost:8080').replace(/\/+$/, ''), headers });
+  }
+
+  async upsert(records) {
+    const items = toItems(records);
+    if (items.length === 0) return [];
+    await this._prepare(true);
+    const objects = items.map((item) => {
+      const properties = { [this.textKey]: item.text, [ID_PROPERTY]: item.id, [METADATA_PROPERTY]: JSON.stringify(item.metadata) };
+      for (const [key, value] of Object.entries(item.metadata)) {
+        if (key === this.textKey || RESERVED.has(key) || !PROPERTY_NAME.test(key)) continue;
+        if (isScalar(value) || (Array.isArray(value) && value.length > 0 && value.every(isScalar))) properties[key] = value;
+      }
+      const object = { class: this.className, id: stableUuid(item.id), properties };
+      if (this.vectorName) object.vectors = { [this.vectorName]: item.vector };
+      else object.vector = item.vector;
+      return object;
+    });
+    for (let start = 0; start < objects.length; start += this.batchSize) {
+      const results = await this._request('POST', '/v1/batch/objects', { objects: objects.slice(start, start + this.batchSize) });
+      // the batch answers 200 and reports failures per object
+      const failed = (Array.isArray(results) ? results : []).find((result) => result.result && result.result.errors);
+      if (failed) {
+        const messages = (failed.result.errors.error || []).map((error) => error.message).join('; ');
+        throw new Error(`Weaviate error: object ${failed.id}: ${messages || JSON.stringify(failed.result.errors)}`);
+      }
+    }
+    return items.map((item) => item.id);
+  }
+
+  async query(params = {}) {
+    const vector = await this._queryVector(params);
+    await this._prepare(false);
+    const near = { vector };
+    if (this.vectorName) near.targetVectors = [this.vectorName];
+    const args = [`nearVector: ${gql(near)}`, `limit: ${Math.floor(params.topK || 5)}`];
+    const where = params.nativeFilter || toWeaviateWhere(params.filter);
+    if (where) args.push(`where: ${gql(where)}`);
+    const fields = `${this.textKey} ${ID_PROPERTY} ${METADATA_PROPERTY} _additional { id distance }`;
+    const data = await this._request('POST', '/v1/graphql', { query: `{ Get { ${this.className}(${args.join(', ')}) { ${fields} } } }` });
+    if (data && Array.isArray(data.errors) && data.errors.length > 0) {
+      throw new Error(`Weaviate error: ${data.errors.map((error) => error.message).join('; ')}`);
+    }
+    const objects = (data && data.data && data.data.Get && data.data.Get[this.className]) || [];
+    return objects.map((object) => {
+      const additional = object._additional || {};
+      return {
+        id: object[ID_PROPERTY] ?? additional.id,
+        score: this._score(additional.distance),
+        text: object[this.textKey] ?? null,
+        metadata: parseMetadata(object[METADATA_PROPERTY]),
+      };
+    }).sort((a, b) => b.score - a.score);
+  }
+
+  async delete(ids) {
+    const uuids = (ids || []).map(stableUuid);
+    for (let start = 0; start < uuids.length; start += 1000) {
+      await this._request('DELETE', '/v1/batch/objects', {
+        match: { class: this.className, where: { path: ['id'], operator: 'ContainsAny', valueTextArray: uuids.slice(start, start + 1000) } },
+        output: 'minimal',
+      });
+    }
+  }
+
+  _score(distance) {
+    if (this.distance === 'cosine') return 1 - distance;
+    if (this.distance === 'dot') return -distance;
+    return 1 / (1 + distance);
+  }
+
+  // Read the class once: an existing class decides the vector setup; a missing one is created on the first upsert.
+  async _prepare(create) {
+    if (this._classReady) return;
+    if (!this._loading) this._loading = this._loadClass().finally(() => { this._loading = null; });
+    if (await this._loading) {
+      this._classReady = true;
+    } else if (create && this.createClass) {
+      await this._createClass();
+      this._classReady = true;
+    }
+  }
+
+  async _loadClass() {
+    let schema;
+    try {
+      schema = await this._request('GET', `/v1/schema/${this.className}`);
+    } catch (error) {
+      if (error.status === 404) return false;
+      throw error;
+    }
+    const named = schema && schema.vectorConfig ? Object.keys(schema.vectorConfig) : [];
+    if (named.length === 0) {
+      this.vectorName = null;
+    } else if (!named.includes(this.vectorName)) {
+      this.vectorName = named[0];
+    }
+    const indexConfig = this.vectorName ? schema.vectorConfig[this.vectorName].vectorIndexConfig : schema && schema.vectorIndexConfig;
+    if (indexConfig && indexConfig.distance) this.distance = indexConfig.distance;
+    return true;
+  }
+
+  async _createClass() {
+    const vectorIndexConfig = { distance: this.distance };
+    const definition = {
+      class: this.className,
+      properties: [
+        { name: this.textKey, dataType: ['text'] },
+        { name: ID_PROPERTY, dataType: ['text'], tokenization: 'field' },
+        { name: METADATA_PROPERTY, dataType: ['text'], indexFilterable: false, indexSearchable: false },
+      ],
+    };
+    if (this.vectorName) {
+      definition.vectorConfig = { [this.vectorName]: { vectorizer: { none: {} }, vectorIndexType: 'hnsw', vectorIndexConfig } };
+    } else {
+      Object.assign(definition, { vectorizer: 'none', vectorIndexType: 'hnsw', vectorIndexConfig });
+    }
+    try {
+      await this._request('POST', '/v1/schema', definition, { retries: 0 });
+    } catch (error) {
+      // created meanwhile by another call
+      if (!(await this._loadClass().catch(() => false))) throw error;
+    }
+  }
+
+  async _request(method, path, body, extraConfig = {}) {
+    try {
+      return await this.client.request(method, path, body, extraConfig);
+    } catch (error) {
+      throw weaviateError(error);
+    }
+  }
+}
+
+function toItems(records) {
+  return (records || []).map((record) => {
+    if (!Array.isArray(record.vector)) throw new Error(`Record '${record.id}' has no vector.`);
+    return { id: String(record.id), vector: record.vector, text: record.text ?? null, metadata: record.metadata || {} };
+  });
+}
+
+module.exports = { WeaviateVectorStore };
+
+},{"../utils/ConnHelper":52,"../utils/FetchClient":53,"./QdrantVectorStore":45,"./VectorStore":46}],50:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -8411,7 +12257,7 @@ class AudioHelper {
 module.exports = AudioHelper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./FileHelper":36,"buffer":24}],33:[function(require,module,exports){
+},{"./FileHelper":54,"buffer":25}],51:[function(require,module,exports){
 /* Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode */
 const { SemanticSearch } = require('../function/SemanticSearch');
@@ -8495,7 +12341,7 @@ class ChatContext {
 }
 
 module.exports = ChatContext;
-},{"../controller/RemoteEmbedModel":2,"../function/SemanticSearch":9}],34:[function(require,module,exports){
+},{"../controller/RemoteEmbedModel":2,"../function/SemanticSearch":10}],52:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -8595,7 +12441,7 @@ class ConnHelper {
 module.exports = ConnHelper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":24}],35:[function(require,module,exports){
+},{"buffer":25}],53:[function(require,module,exports){
 (function (process,Buffer){(function (){
 const fetch = require('cross-fetch');
 const FormData = require('form-data');
@@ -8882,7 +12728,7 @@ function abortError() {
 module.exports = FetchClient;
 
 }).call(this)}).call(this,require('_process'),require("buffer").Buffer)
-},{"_process":29,"buffer":24,"cross-fetch":25,"form-data":26}],36:[function(require,module,exports){
+},{"_process":30,"buffer":25,"cross-fetch":26,"form-data":27}],54:[function(require,module,exports){
 const fs = require('fs');
 
 
@@ -8904,7 +12750,7 @@ class FileHelper {
 
 module.exports = FileHelper
 
-},{"fs":23}],37:[function(require,module,exports){
+},{"fs":24}],55:[function(require,module,exports){
 const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/RemoteEmbedModel');
 const LanguageModelInput = require('../model/input/LanguageModelInput');
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
@@ -8949,7 +12795,7 @@ class LLMEvaluation extends ModelEvaluation {
         input = new LLamaReplicateInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.SAGEMAKER == provider.toLowerCase()) {
         input = new LLamaSageInput("provide direct answer", { maxTokens: maxTokens });
-      } else if (SupportedChatModels.GEMINI == provider.toLowerCase()) {
+      } else if (SupportedChatModels.GEMINI == provider.toLowerCase() || SupportedChatModels.VERTEX == provider.toLowerCase()) {
         input = new GeminiInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.COHERE == provider.toLowerCase()) {
         input = new CohereInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
@@ -9066,7 +12912,7 @@ class LLMEvaluation extends ModelEvaluation {
 module.exports = {
   LLMEvaluation
 };
-},{"../config.json":1,"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":7,"../model/input/ChatModelInput":14,"../model/input/EmbedInput":15,"../model/input/LanguageModelInput":19,"../utils/MatchHelpers":39,"./ModelEvaluation":40,"./ModelHelper":41}],38:[function(require,module,exports){
+},{"../config.json":1,"../controller/RemoteEmbedModel":2,"../controller/RemoteLanguageModel":5,"../function/Chatbot":8,"../model/input/ChatModelInput":15,"../model/input/EmbedInput":16,"../model/input/LanguageModelInput":20,"../utils/MatchHelpers":57,"./ModelEvaluation":58,"./ModelHelper":59}],56:[function(require,module,exports){
 (function (process){(function (){
 /*
 Apache License
@@ -9745,7 +13591,7 @@ MCPClient.JsonRpcError = JsonRpcError;
 module.exports = MCPClient;
 
 }).call(this)}).call(this,require('_process'))
-},{"../mcp/jsonrpc":13,"../package.json":30,"_process":29,"child_process":23,"cross-fetch":25,"readline":23}],39:[function(require,module,exports){
+},{"../mcp/jsonrpc":14,"../package.json":31,"_process":30,"child_process":24,"cross-fetch":26,"readline":24}],57:[function(require,module,exports){
 /*
 Apache License
 
@@ -9791,7 +13637,7 @@ class MatchHelpers {
 }
 
 module.exports = MatchHelpers;
-},{}],40:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 class ModelEvaluation {
 
   constructor() {}
@@ -9800,7 +13646,7 @@ class ModelEvaluation {
 module.exports = {
   ModelEvaluation
 };
-},{}],41:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 /*
 Apache License
 
@@ -9981,7 +13827,7 @@ module.exports = {
   functionCallToToolChoice,
 };
 
-},{}],42:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 /*
 Apache License
 
@@ -10330,7 +14176,7 @@ function extractSvg(text) {
 
 module.exports = { stripThinking, extractBlocks, extractCode, extractMarkdown, repairJson, parseJson, extractSvg };
 
-},{}],43:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 const FileHelper = require('./FileHelper')
 const { Chatbot, SupportedChatModels } = require("../function/Chatbot");
 const { ChatGPTInput, ChatGPTMessage } = require("../model/input/ChatModelInput");
@@ -10384,7 +14230,7 @@ class Prompt {
 
 module.exports = Prompt;
 
-},{"../config.json":1,"../function/Chatbot":7,"../model/input/ChatModelInput":14,"../utils/SystemHelper":46,"./FileHelper":36,"./ModelHelper":41}],44:[function(require,module,exports){
+},{"../config.json":1,"../function/Chatbot":8,"../model/input/ChatModelInput":15,"../utils/SystemHelper":64,"./FileHelper":54,"./ModelHelper":59}],62:[function(require,module,exports){
 const config = require('../config.json');
 
 
@@ -10592,7 +14438,7 @@ ProxyHelper.API_VERSION = '2023-12-01-preview'
 
 module.exports = ProxyHelper;
 
-},{"../config.json":1}],45:[function(require,module,exports){
+},{"../config.json":1}],63:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 Apache License
@@ -10847,7 +14693,7 @@ module.exports = {
 };
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":24}],46:[function(require,module,exports){
+},{"buffer":25}],64:[function(require,module,exports){
 (function (__dirname){(function (){
 const FileHelper = require('./FileHelper')
 const path = require("path");
@@ -10905,7 +14751,82 @@ class SystemHelper {
 module.exports = SystemHelper;
 
 }).call(this)}).call(this,"/utils")
-},{"../resource/templates/templates":31,"./FileHelper":36,"path":28}],47:[function(require,module,exports){
+},{"../resource/templates/templates":32,"./FileHelper":54,"path":29}],65:[function(require,module,exports){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
+
+// Separators tried in order: paragraphs, lines, sentences, words.
+const SEPARATORS = ['\n\n', '\n', '. ', '? ', '! ', '; ', ', ', ' '];
+
+/**
+ * Split long text into overlapping chunks for embeddings and RAG. Chunks break at paragraphs, then lines, then
+ * sentences, then words, so a chunk rarely cuts a sentence in half. Sizes are in characters.
+ *
+ *   TextSplitter.split(text, { chunkSize: 1200, chunkOverlap: 150 })
+ *   TextSplitter.toDocuments(text, { source: 'handbook.md' })  // [{ id, text, metadata: { source, chunk } }]
+ */
+class TextSplitter {
+  static split(text, { chunkSize = 1200, chunkOverlap = 150 } = {}) {
+    const clean = String(text || '').replace(/\r\n/g, '\n').trim();
+    if (!clean) return [];
+    if (chunkOverlap >= chunkSize) throw new Error('chunkOverlap must be smaller than chunkSize.');
+    const pieces = TextSplitter._pieces(clean, chunkSize, 0);
+    const chunks = [];
+    let current = '';
+    for (const piece of pieces) {
+      if (current && current.length + piece.length > chunkSize) {
+        chunks.push(current.trim());
+        // start the next chunk with the tail of the previous one
+        const tail = current.slice(Math.max(0, current.length - chunkOverlap));
+        const boundary = tail.search(/\s/);
+        current = chunkOverlap > 0 && boundary >= 0 ? tail.slice(boundary + 1) : '';
+      }
+      current += piece;
+    }
+    if (current.trim()) chunks.push(current.trim());
+    return chunks;
+  }
+
+  // Pieces no longer than size, each keeping its trailing separator.
+  static _pieces(text, size, level) {
+    if (text.length <= size) return [text];
+    if (level >= SEPARATORS.length) {
+      const parts = [];
+      for (let start = 0; start < text.length; start += size) parts.push(text.slice(start, start + size));
+      return parts;
+    }
+    const separator = SEPARATORS[level];
+    const split = text.split(separator);
+    if (split.length === 1) return TextSplitter._pieces(text, size, level + 1);
+    const pieces = [];
+    split.forEach((part, index) => {
+      const piece = index < split.length - 1 ? part + separator : part;
+      if (!piece) return;
+      if (piece.length > size) pieces.push(...TextSplitter._pieces(piece, size, level + 1));
+      else pieces.push(piece);
+    });
+    return pieces;
+  }
+
+  /** Chunks as vector store documents: [{ id, text, metadata: { ...metadata, chunk } }]. */
+  static toDocuments(text, metadata = {}, options = {}) {
+    const prefix = options.idPrefix || (metadata.source ? String(metadata.source) : null);
+    return TextSplitter.split(text, options).map((chunk, index) => ({
+      ...(prefix && { id: `${prefix}#${index}` }),
+      text: chunk,
+      metadata: { ...metadata, chunk: index },
+    }));
+  }
+}
+
+module.exports = TextSplitter;
+
+},{}],66:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 
 class AWSEndpointWrapper {
@@ -10938,7 +14859,7 @@ class AWSEndpointWrapper {
 
 module.exports = AWSEndpointWrapper;
 
-},{"../utils/FetchClient":35}],48:[function(require,module,exports){
+},{"../utils/FetchClient":53}],67:[function(require,module,exports){
 /*
 Apache License
 
@@ -11006,7 +14927,7 @@ class AnthropicWrapper {
 
 module.exports = AnthropicWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],49:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53}],68:[function(require,module,exports){
 /*
 Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
@@ -11063,24 +14984,213 @@ class CohereAIWrapper {
 module.exports = CohereAIWrapper;
 
 
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],50:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53}],69:[function(require,module,exports){
+(function (process,Buffer){(function (){
+/*
+Apache License
+
+Copyright 2023 Github.com/Barqawiz/IntelliNode
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+*/
 const config = require('../config.json');
-const { readFileSync } = require('fs');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
+const { readStreamChunks } = require('../utils/StreamParser');
 
+const IS_NODE = typeof process !== 'undefined' && Boolean(process.versions && process.versions.node);
+
+// snake_case keys that are renamed to camelCase in request bodies (Google accepts both; one form keeps the
+// body predictable for the checks below).
+const KEY_MAP = {
+  system_instruction: 'systemInstruction',
+  generation_config: 'generationConfig',
+  safety_settings: 'safetySettings',
+  tool_config: 'toolConfig',
+  cached_content: 'cachedContent',
+  response_modalities: 'responseModalities',
+  speech_config: 'speechConfig',
+  voice_config: 'voiceConfig',
+  multi_speaker_voice_config: 'multiSpeakerVoiceConfig',
+  speaker_voice_configs: 'speakerVoiceConfigs',
+  prebuilt_voice_config: 'prebuiltVoiceConfig',
+  voice_name: 'voiceName',
+  response_mime_type: 'responseMimeType',
+  response_schema: 'responseSchema',
+  inline_data: 'inlineData',
+  file_data: 'fileData',
+  mime_type: 'mimeType',
+  file_uri: 'fileUri',
+};
+
+// Values under these keys belong to the caller (function arguments and schemas), so they are never renamed.
+const USER_DATA_KEYS = new Set(['args', 'response', 'parameters', 'parametersJsonSchema', 'responseSchema',
+  'response_schema', 'responseJsonSchema']);
+
+const MIME_TYPES = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif',
+  gif: 'image/gif', mp4: 'video/mp4', mov: 'video/quicktime', avi: 'video/x-msvideo', webm: 'video/webm',
+  mpeg: 'video/mpeg', mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac', ogg: 'audio/ogg', m4a: 'audio/mp4',
+  aac: 'audio/aac', pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown', html: 'text/html',
+  csv: 'text/csv', json: 'application/json',
+};
+
+// Hosts that may receive the wrapper credentials (downloadMedia).
+const GOOGLE_API_HOST = /(^|\.)(generativelanguage|([a-z0-9-]+-)?aiplatform)\.googleapis\.com$|^aiplatform\.[a-z0-9-]+\.rep\.googleapis\.com$/;
+
+/**
+ * Error from the Gemini / Vertex AI methods. It keeps `status` and `body` like the errors of the other wrappers,
+ * adds `details` (the parsed error body), and never contains the API key or access token.
+ */
+class GoogleAIError extends Error {
+  constructor(message, status = null, details = null) {
+    super(message);
+    this.name = 'GoogleAIError';
+    this.status = status;
+    this.statusCode = status;
+    this.details = details;
+  }
+}
+
+function camelize(value) {
+  if (Array.isArray(value)) return value.map(camelize);
+  if (!value || typeof value !== 'object' || isBinary(value)) return value;
+  const result = {};
+  for (const [key, item] of Object.entries(value)) {
+    result[KEY_MAP[key] || key] = USER_DATA_KEYS.has(key) ? item : camelize(item);
+  }
+  return result;
+}
+
+function isBinary(value) {
+  return (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) || value instanceof Uint8Array || value instanceof ArrayBuffer;
+}
+
+function toBuffer(value) {
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) return value;
+  if (value instanceof ArrayBuffer) return Buffer.from(new Uint8Array(value));
+  return Buffer.from(value);
+}
+
+function extensionOf(source) {
+  const clean = String(source).split('?')[0].split('#')[0];
+  const match = /\.([a-z0-9]+)$/i.exec(clean);
+  return match ? match[1].toLowerCase() : '';
+}
+
+function knownMimeType(source) {
+  return MIME_TYPES[extensionOf(source)] || null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Gemini models on the Gemini Developer API (AI Studio key) or on Vertex AI / the Gemini Enterprise Agent Platform.
+ *
+ *   new GeminiAIWrapper(GEMINI_API_KEY)                                        // Gemini Developer API
+ *   new GeminiAIWrapper(VERTEX_API_KEY, { vertex: true })                      // Vertex express mode (API key)
+ *   new GeminiAIWrapper(VERTEX_API_KEY, { vertex: true, projectId })           // project scoped (Veo, Live, Lyria)
+ *   new GeminiAIWrapper(null, { projectId, location: 'global' })               // Application Default Credentials
+ *   new GeminiAIWrapper(null, { projectId, accessToken: () => getToken() })   // your own OAuth token
+ *
+ * Covers text, chat sessions, streaming, structured output, function calling, Google Search / URL context /
+ * code execution / RAG grounding, image, audio, video and PDF understanding, Gemini image generation and editing,
+ * Veo video, Lyria music, Gemini TTS, embeddings, token counting, the Files API, context caching, model listing,
+ * Agent Engine and the Live API. GoogleAIWrapper extends this class with the Google Cloud APIs.
+ */
 class GeminiAIWrapper {
-  constructor(apiKey) {
+  /**
+   * @param {string|null} apiKey - AI Studio key (Developer API) or Agent Platform key (Vertex).
+   * @param {object} options - { vertex, projectId, location, accessToken, credentials, apiVersion, baseUrl,
+   *   quotaProjectId, timeout, retries, retryDelay, WebSocket }.
+   */
+  constructor(apiKey = null, options = {}) {
     this.API_BASE_URL = config.url.gemini.base;
-    this.API_KEY = apiKey;
+    this.API_KEY = typeof apiKey === 'string' ? apiKey.trim() || null : apiKey || null;
 
     this.client = new FetchClient({
       baseURL: this.API_BASE_URL,
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      }
+        ...(this.API_KEY && { 'x-goog-api-key': this.API_KEY }),
+      },
+      timeout: options.timeout,
+      retries: options.retries,
+      retryDelay: options.retryDelay,
     });
+    // the client for Gemini calls; GoogleAIWrapper keeps `client` for the Cloud APIs
+    this.genaiClient = this.client;
+    this._initGenAI(options || {});
+  }
+
+  /**
+   * A wrapper from Chatbot / controller options. Vertex AI is used only when the options ask for it (vertex,
+   * projectId, credentials or accessToken), never because of an environment variable.
+   */
+  static fromOptions(apiKey = null, options = {}) {
+    const opts = { ...(options || {}) };
+    if (opts.projectId === undefined) opts.projectId = opts.project_id || opts.vertexProject || undefined;
+    if (opts.location === undefined) opts.location = opts.vertexLocation || undefined;
+    if (opts.accessToken === undefined) opts.accessToken = opts.access_token || undefined;
+    if (opts.vertex === undefined || opts.vertex === null) {
+      opts.vertex = Boolean(opts.projectId || opts.credentials || opts.accessToken);
+    }
+    return new this(apiKey, opts);
+  }
+
+  _initGenAI(options) {
+    const env = IS_NODE ? process.env : {};
+    const vertexConfig = config.url.gemini.vertex;
+    const projectOption = options.projectId || options.project_id || options.vertexProject || null;
+    const accessToken = options.accessToken || options.access_token || null;
+    let vertex = options.vertex;
+    if (vertex === undefined || vertex === null) {
+      const envVertex = ['1', 'true', 'yes'].includes(String(env.GOOGLE_GENAI_USE_VERTEXAI || env.GOOGLE_GENAI_USE_ENTERPRISE || '').trim().toLowerCase());
+      vertex = Boolean(projectOption || options.credentials || accessToken || envVertex);
+    }
+    this.vertex = Boolean(vertex);
+
+    let projectId = projectOption;
+    if (this.vertex && !projectId && !this.API_KEY) projectId = env.GOOGLE_CLOUD_PROJECT || null;
+    this.projectId = projectId || null;
+
+    let location = options.location || options.vertexLocation || null;
+    if (!location && this.vertex && env.GOOGLE_CLOUD_LOCATION) location = env.GOOGLE_CLOUD_LOCATION;
+    this._locationExplicit = Boolean(location);
+    if (!location && this.vertex && this.projectId) location = vertexConfig.default_location;
+    this.location = location || null;
+
+    this._accessToken = accessToken;
+    this._credentials = options.credentials || null;
+    this.quotaProjectId = options.quotaProjectId || null;
+    this.baseUrl = options.baseUrl ? String(options.baseUrl).replace(/\/+$/, '') : null;
+    this.WebSocket = options.WebSocket || null;
+    this._auth = null;
+
+    this._devApiBase = config.url.gemini.base.replace(/\/models\/?$/, '');
+    this._devUploadBase = config.url.gemini.upload_base;
+    if (this.vertex) {
+      this.apiVersion = options.apiVersion || vertexConfig.api_version;
+      this.models = { ...config.url.gemini.models, ...vertexConfig.models };
+    } else {
+      if (options.apiVersion) {
+        this._devApiBase = this._devApiBase.replace(/\/v[^/]+$/, `/${options.apiVersion}`);
+        this._devUploadBase = this._devUploadBase.replace(/\/v[^/]+\/files$/, `/${options.apiVersion}/files`);
+      }
+      this.apiVersion = this._devApiBase.split('/').pop();
+      // shared with config, so a changed default applies to existing wrappers
+      this.models = config.url.gemini.models;
+    }
+    this._capabilityLocations = { ...vertexConfig.locations };
+  }
+
+  /** Apply timeout (ms), retries, retryDelay (ms) or an AbortSignal to every Gemini request. */
+  setRequestOptions(options = {}) {
+    this.genaiClient.setRequestOptions(options);
+    if (this.client !== this.genaiClient) this.client.setRequestOptions(options);
+    return this;
   }
 
   // Accepts both 'gemini-3.6-flash' and 'models/gemini-3.6-flash'.
@@ -11088,26 +15198,631 @@ class GeminiAIWrapper {
     return String(model).replace(/^models\//, '');
   }
 
+  // ------------------------------------------------------------------
+  // Auth, URLs and errors
+  // ------------------------------------------------------------------
+
+  // Headers added to a request: none with an API key (the client sends it), a Bearer token otherwise.
+  async _authHeaders() {
+    if (this.API_KEY) return {};
+    return this._bearerHeaders();
+  }
+
+  // Explicit credential headers, for requests that do not go through the client (Live API, downloads, uploads).
+  async _credentialHeaders() {
+    if (this.API_KEY) return { 'x-goog-api-key': this.API_KEY };
+    return this._bearerHeaders();
+  }
+
+  async _bearerHeaders() {
+    if (!this.vertex && !this._accessToken) {
+      throw new GoogleAIError('The Gemini Developer API needs an API key. Pass apiKey, or use { vertex: true, projectId } '
+        + 'with an access token or Application Default Credentials.');
+    }
+    if (this._accessToken) {
+      const token = typeof this._accessToken === 'function' ? await this._accessToken() : this._accessToken;
+      if (!token) throw new GoogleAIError('The accessToken function returned no token.');
+      this._lastToken = String(token).trim();
+      return { Authorization: `Bearer ${this._lastToken}`, ...(this.quotaProjectId && { 'x-goog-user-project': this.quotaProjectId }) };
+    }
+    const auth = this._getAuth();
+    const headers = await auth.getHeaders();
+    this._lastToken = headers.Authorization.slice(7);
+    if (this.quotaProjectId) headers['x-goog-user-project'] = this.quotaProjectId;
+    return headers;
+  }
+
+  _getAuth() {
+    if (this._auth) return this._auth;
+    const GoogleAuth = require('../utils/GoogleAuth');
+    if (typeof GoogleAuth !== 'function') {
+      throw new GoogleAIError('Google service account and ADC credentials need Node.js. In the browser pass an apiKey or accessToken.');
+    }
+    this._auth = new GoogleAuth({ credentials: this._credentials, quotaProjectId: this.quotaProjectId });
+    return this._auth;
+  }
+
+  // The project for Vertex calls without one: the credentials' project when using OAuth.
+  async _ensureProject(feature) {
+    if (this.projectId) return this.projectId;
+    if (this.vertex && !this.API_KEY && !this._accessToken) {
+      this.projectId = await this._getAuth().getProjectId();
+      if (this.projectId && !this.location) this.location = config.url.gemini.vertex.default_location;
+    }
+    if (!this.projectId && feature) {
+      throw new GoogleAIError(`${feature} needs a Google Cloud project. Create the wrapper with { vertex: true, projectId }.`);
+    }
+    return this.projectId;
+  }
+
+  _vertexHost(location) {
+    const vertexConfig = config.url.gemini.vertex;
+    if (!location || location === 'global') return vertexConfig.global_host;
+    if (location === 'us' || location === 'eu') return vertexConfig.multi_regional_host.replace('{location}', location);
+    return vertexConfig.regional_host.replace('{location}', location);
+  }
+
+  _locationFor(capability, location = null) {
+    if (location) return location;
+    if (capability && !this._locationExplicit && this._capabilityLocations[capability]) return this._capabilityLocations[capability];
+    return this.location;
+  }
+
+  static _vertexModelPath(model) {
+    const name = String(model || '').trim();
+    if (!name) throw new Error('A model name is required');
+    if (name.startsWith('projects/') || name.startsWith('publishers/')) return name;
+    if (name.startsWith('models/')) return `publishers/google/${name}`;
+    if (name.includes('/')) {
+      const [publisher, ...rest] = name.split('/');
+      return `publishers/${publisher}/models/${rest.join('/')}`;
+    }
+    return `publishers/google/models/${name}`;
+  }
+
+  _modelPath(model) {
+    if (this.vertex) return GeminiAIWrapper._vertexModelPath(model);
+    const name = String(model || '').trim();
+    if (!name) throw new Error('A model name is required');
+    return name.startsWith('models/') || name.startsWith('tunedModels/') ? name : `models/${name}`;
+  }
+
+  /** Full URL of a resource path such as 'publishers/google/models/x:generateContent'. */
+  async _resourceUrl(path, location = null) {
+    let resource = String(path).replace(/^\/+/, '');
+    if (!this.vertex) return `${this.baseUrl || this._devApiBase}/${resource}`;
+    const match = /^projects\/[^/]+\/locations\/([^/]+)\//.exec(resource);
+    let hostLocation;
+    if (match) {
+      hostLocation = match[1];
+    } else {
+      if (!this.API_KEY && !this.projectId) {
+        await this._ensureProject();
+        if (!this.projectId) {
+          throw new GoogleAIError('Vertex AI with OAuth credentials needs a project. Pass projectId (or set GOOGLE_CLOUD_PROJECT); '
+            + 'only API keys can use express mode.');
+        }
+      }
+      if (this.projectId) {
+        const resourceLocation = location || this.location || 'global';
+        resource = `projects/${this.projectId}/locations/${resourceLocation}/${resource}`;
+        hostLocation = resourceLocation;
+      } else {
+        hostLocation = location;
+      }
+    }
+    return `${this.baseUrl || `${this._vertexHost(hostLocation)}/${this.apiVersion}`}/${resource}`;
+  }
+
+  async _modelUrl(model, method, location = null) {
+    return this._resourceUrl(`${this._modelPath(model)}:${method}`, location);
+  }
+
+  _vertexProjectUrl(project, location, path) {
+    const root = this.baseUrl && this.vertex ? this.baseUrl : `${this._vertexHost(location)}/${config.url.gemini.vertex.api_version}`;
+    return `${root}/projects/${project}/locations/${location}/${path}`;
+  }
+
+  // URL of a full Vertex resource name (projects/.../locations/<loc>/...).
+  _nameUrl(name) {
+    const match = /^projects\/[^/]+\/locations\/([^/]+)\//.exec(name);
+    const root = this.baseUrl && this.vertex ? this.baseUrl : `${this._vertexHost(match ? match[1] : null)}/${config.url.gemini.vertex.api_version}`;
+    return `${root}/${name}`;
+  }
+
+  async _requireProject(feature) {
+    if (!this.vertex) {
+      throw new GoogleAIError(`${feature} needs Vertex AI. Create the wrapper with { vertex: true, projectId }.`);
+    }
+    return this._ensureProject(feature);
+  }
+
+  _defaultModel(kind) {
+    const model = this.models[kind] || config.url.gemini.models[kind];
+    if (!model) throw new Error(`No default Gemini model is configured for '${kind}'. Pass the model explicitly.`);
+    return model;
+  }
+
+  _secrets() {
+    const values = [this.API_KEY, typeof this._accessToken === 'string' ? this._accessToken : null, this._lastToken];
+    return values.filter((value) => typeof value === 'string' && value.length >= 6).sort((a, b) => b.length - a.length);
+  }
+
+  _redact(text) {
+    let result = String(text);
+    for (const secret of this._secrets()) result = result.split(secret).join('<redacted>');
+    return result.replace(/([?&]key=)[^&\s"']+/g, '$1<redacted>');
+  }
+
+  _hint(text) {
+    if (!this.vertex && text.includes('API_KEY_SERVICE_BLOCKED')) {
+      return 'hint: this key is not enabled for the Gemini Developer API; if it is a Vertex AI / Agent Platform key, pass { vertex: true }';
+    }
+    if (this.vertex && text.includes('API keys are not supported by this API')) {
+      return 'hint: this Vertex AI endpoint needs OAuth; use Application Default Credentials (gcloud auth application-default login) or pass accessToken';
+    }
+    if (this.vertex && text.includes('RESOURCE_PROJECT_INVALID')) {
+      return 'hint: this endpoint needs a project; pass { projectId }';
+    }
+    return null;
+  }
+
+  _apiError(prefix, error) {
+    if (error instanceof GoogleAIError) return error;
+    // timeouts and cancellation keep their name and code
+    if (error && (error.name === 'AbortError' || error.code === 'ETIMEDOUT')) return connHelper.wrapError(error);
+    const raw = error && error.message !== undefined ? error.message : String(error);
+    const hint = this._hint(raw);
+    let details = null;
+    if (error && error.body) {
+      try {
+        details = JSON.parse(this._redact(error.body));
+      } catch (parseError) {
+        details = this._redact(error.body).slice(0, 2000);
+      }
+    }
+    // the provider JSON stays at the end of the message, where apps look for it
+    const wrapped = new GoogleAIError(this._redact(`${prefix}${hint ? ` (${hint})` : ''}: ${raw}`), error && error.status ? error.status : null, details);
+    if (error && error.body !== undefined) wrapped.body = this._redact(error.body);
+    if (error && error.code !== undefined) wrapped.code = error.code;
+    wrapped.cause = error;
+    return wrapped;
+  }
+
+  async _post(url, body, prefix, extra = {}) {
+    try {
+      const headers = { ...(await this._authHeaders()), ...(extra.headers || {}) };
+      return await this.genaiClient.post(url, body, { ...extra, headers });
+    } catch (error) {
+      throw this._apiError(prefix, error);
+    }
+  }
+
+  async _get(url, prefix, extra = {}) {
+    try {
+      const headers = { ...(await this._authHeaders()), ...(extra.headers || {}) };
+      return await this.genaiClient.get(url, { ...extra, headers });
+    } catch (error) {
+      throw this._apiError(prefix, error);
+    }
+  }
+
+  async _delete(url, prefix) {
+    try {
+      const headers = await this._authHeaders();
+      const text = await this.genaiClient.request('DELETE', url, undefined, { headers, responseType: 'text' });
+      return text && String(text).trim() ? JSON.parse(text) : { status: 'deleted' };
+    } catch (error) {
+      throw this._apiError(prefix, error);
+    }
+  }
+
+  static _query(params) {
+    const entries = Object.entries(params || {}).filter(([, value]) => value !== undefined && value !== null && value !== '');
+    return entries.length ? `?${entries.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join('&')}` : '';
+  }
+
+  // ------------------------------------------------------------------
+  // Request bodies
+  // ------------------------------------------------------------------
+
+  // One content item; Vertex AI rejects contents without a role.
+  _content(content) {
+    if (typeof content === 'string') return { role: 'user', parts: [{ text: content }] };
+    if (content && typeof content === 'object' && this.vertex && !content.role) {
+      const parts = content.parts || [];
+      const isModel = parts.some((part) => part && (part.functionCall || part.function_call));
+      return { ...content, role: isModel ? 'model' : 'user' };
+    }
+    return content;
+  }
+
+  // Body for generateContent-style calls: camelCase keys, string prompts, roles on Vertex, no 'model' key.
+  _prepareBody(params) {
+    const source = typeof params === 'string' ? { contents: [{ role: 'user', parts: [{ text: params }] }] } : params || {};
+    const { model, ...rest } = source;
+    const body = camelize(rest);
+    let contents = body.contents;
+    if (typeof contents === 'string' || (contents && !Array.isArray(contents))) contents = [contents];
+    if (Array.isArray(contents)) body.contents = contents.map((content) => this._content(content));
+    if (typeof body.systemInstruction === 'string') body.systemInstruction = { parts: [{ text: body.systemInstruction }] };
+    return body;
+  }
+
   /**
-   * @param {object} params - generateContent body; an optional `model` key selects the model and is not sent.
+   * One content part for an image, audio, video or document.
+   * @param {object|string|Buffer|Uint8Array} source - a part object (returned as is), { data, mimeType }, bytes,
+   *   a local path (Node), or a gs://, https:// or YouTube URI.
+   * @param {string} mimeType - needed for bytes and for URIs without an extension (Files API URIs).
+   */
+  mediaPart(source, mimeType = null, { videoMetadata = null } = {}) {
+    let part;
+    if (source && typeof source === 'object' && !isBinary(source)) {
+      if (source.inlineData || source.inline_data || source.fileData || source.file_data || source.text !== undefined) {
+        return camelize(source);
+      }
+      if (source.data !== undefined) {
+        const type = source.mimeType || source.mime_type || mimeType;
+        if (typeof source.data !== 'string') return this.mediaPart(source.data, type, { videoMetadata: source.videoMetadata || videoMetadata });
+        // string data is base64 (a data URL prefix is dropped)
+        if (!type) throw new Error('mimeType is required for raw bytes');
+        part = { inlineData: { mimeType: type, data: source.data.replace(/^data:[^,]*,/, '') } };
+        if (source.videoMetadata || videoMetadata) part.videoMetadata = source.videoMetadata || videoMetadata;
+        return part;
+      }
+      if (source.uri || source.fileUri) {
+        return this.mediaPart(source.uri || source.fileUri, source.mimeType || mimeType, { videoMetadata: source.videoMetadata || videoMetadata });
+      }
+      throw new Error('A media object needs data, uri or a Gemini part (inlineData / fileData).');
+    }
+    if (isBinary(source)) {
+      if (!mimeType) throw new Error('mimeType is required for raw bytes');
+      part = { inlineData: { mimeType, data: toBuffer(source).toString('base64') } };
+    } else if (typeof source === 'string') {
+      if (/^(gs|https?):\/\//i.test(source)) {
+        const isYouTube = /youtube\.com|youtu\.be/i.test(source);
+        const type = mimeType || (isYouTube ? 'video/mp4' : knownMimeType(source));
+        if (!type) {
+          throw new Error(`Could not tell the file type of ${source.slice(0, 80)}; pass mimeType (for a Files API URI use getFile(name).mimeType).`);
+        }
+        part = { fileData: { mimeType: type, fileUri: source } };
+      } else if (source.startsWith('data:')) {
+        const match = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(source);
+        if (!match) throw new Error('Invalid data URL');
+        const data = match[2] ? match[3] : Buffer.from(decodeURIComponent(match[3])).toString('base64');
+        part = { inlineData: { mimeType: mimeType || match[1] || 'application/octet-stream', data } };
+      } else {
+        const fs = require('fs');
+        if (!IS_NODE || !fs.existsSync || !fs.existsSync(source)) {
+          throw new Error(`Not a file path or URI: ${source.slice(0, 80)}`);
+        }
+        part = { inlineData: { mimeType: mimeType || knownMimeType(source) || 'application/octet-stream', data: fs.readFileSync(source).toString('base64') } };
+      }
+    } else {
+      throw new Error('Provide bytes, a file path, a URI or a part object.');
+    }
+    if (videoMetadata) part.videoMetadata = videoMetadata;
+    return part;
+  }
+
+  _toParts(prompt = null, media = null) {
+    const parts = [];
+    const prompts = prompt === null || prompt === undefined ? [] : Array.isArray(prompt) ? prompt : [prompt];
+    for (const item of prompts) parts.push(typeof item === 'string' ? { text: item } : camelize(item));
+    const mediaList = media === null || media === undefined ? [] : Array.isArray(media) ? media : [media];
+    for (const item of mediaList) parts.push(this.mediaPart(item));
+    return parts;
+  }
+
+  _buildRequest(prompt, { systemInstruction, media, generationConfig, tools, toolConfig, safetySettings, history, cachedContent } = {}) {
+    const contents = (history || []).map((content) => this._content(content));
+    if ((prompt !== null && prompt !== undefined) || (media && media.length !== 0)) {
+      contents.push({ role: 'user', parts: this._toParts(prompt, media) });
+    }
+    const body = { contents };
+    if (systemInstruction) {
+      body.systemInstruction = typeof systemInstruction === 'string' ? { parts: [{ text: systemInstruction }] } : systemInstruction;
+    }
+    if (generationConfig) body.generationConfig = { ...generationConfig };
+    if (tools) body.tools = tools;
+    if (toolConfig) body.toolConfig = toolConfig;
+    if (safetySettings) body.safetySettings = safetySettings;
+    if (cachedContent) body.cachedContent = cachedContent;
+    return body;
+  }
+
+  // ------------------------------------------------------------------
+  // Response helpers
+  // ------------------------------------------------------------------
+
+  static* _parts(response) {
+    for (const candidate of (response && response.candidates) || []) {
+      for (const part of (candidate && candidate.content && candidate.content.parts) || []) {
+        if (part && typeof part === 'object') yield part;
+      }
+    }
+  }
+
+  /** The text of the first candidate (thought summaries are skipped unless includeThoughts). */
+  static extractText(response, includeThoughts = false) {
+    const candidates = (response && response.candidates) || [];
+    if (!candidates.length) return '';
+    const parts = (candidates[0] && candidates[0].content && candidates[0].content.parts) || [];
+    return parts.filter((part) => part && typeof part.text === 'string' && (includeThoughts || !part.thought)).map((part) => part.text).join('');
+  }
+
+  /** finishReason of the first candidate (STOP, MAX_TOKENS, SAFETY, ...), or the prompt blockReason, or null. */
+  static extractFinishReason(response) {
+    const candidates = (response && response.candidates) || [];
+    if (candidates.length) return (candidates[0] && candidates[0].finishReason) || null;
+    return (response && response.promptFeedback && response.promptFeedback.blockReason) || null;
+  }
+
+  /** [{ name, args, id? }] for every functionCall part. */
+  static extractFunctionCalls(response) {
+    const calls = [];
+    for (const part of GeminiAIWrapper._parts(response)) {
+      const call = part.functionCall || part.function_call;
+      if (call) calls.push({ ...call });
+    }
+    return calls;
+  }
+
+  /** groundingMetadata of the first candidate (search queries, sources, supports), or {}. */
+  static extractGrounding(response) {
+    const candidates = (response && response.candidates) || [];
+    return (candidates.length && candidates[0] && candidates[0].groundingMetadata) || {};
+  }
+
+  /** The sources the answer was grounded on: [{ title, uri, text? }] from Google Search, URL context or RAG. */
+  static extractCitations(response) {
+    const metadata = GeminiAIWrapper.extractGrounding(response);
+    const seen = new Set();
+    const citations = [];
+    for (const chunk of metadata.groundingChunks || []) {
+      const source = chunk.web || chunk.retrievedContext || chunk.maps || {};
+      const uri = source.uri || null;
+      const key = uri || source.title;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      citations.push({ title: source.title || uri, uri, ...(source.domain && { domain: source.domain }), ...(source.text && { text: source.text }) });
+    }
+    return citations;
+  }
+
+  /** usageMetadata (promptTokenCount, candidatesTokenCount, thoughtsTokenCount, totalTokenCount), or null. */
+  static extractUsage(response) {
+    return (response && response.usageMetadata) || null;
+  }
+
+  static _extractMedia(response, prefix) {
+    const items = [];
+    for (const part of GeminiAIWrapper._parts(response)) {
+      const inline = part.inlineData || part.inline_data;
+      if (inline) {
+        const mimeType = inline.mimeType || inline.mime_type || '';
+        if (mimeType.startsWith(prefix)) items.push({ mimeType, data: inline.data });
+      }
+    }
+    for (const prediction of (response && response.predictions) || []) {
+      if (prediction && prediction.bytesBase64Encoded) {
+        const mimeType = prediction.mimeType || (prefix === 'audio/' ? 'audio/wav' : 'image/png');
+        if (mimeType.startsWith(prefix)) items.push({ mimeType, data: prediction.bytesBase64Encoded });
+      }
+    }
+    return items;
+  }
+
+  /** Images from a Gemini response or an Imagen prediction: [{ mimeType, data (base64) }]. */
+  static extractImages(response) {
+    return GeminiAIWrapper._extractMedia(response, 'image/');
+  }
+
+  /** Audio from a Gemini TTS / music response or a Lyria prediction: [{ mimeType, data (base64) }]. */
+  static extractAudio(response) {
+    return GeminiAIWrapper._extractMedia(response, 'audio/');
+  }
+
+  /** Videos from a finished Veo operation: [{ mimeType, data (base64) or null, uri or null }]. */
+  static extractVideos(operation) {
+    const response = (operation && operation.response) || {};
+    const videos = [];
+    for (const video of response.videos || []) {
+      videos.push({ mimeType: video.mimeType || 'video/mp4', data: video.bytesBase64Encoded || null, uri: video.gcsUri || null });
+    }
+    const samples = (response.generateVideoResponse && response.generateVideoResponse.generatedSamples) || response.generatedVideos || [];
+    for (const sample of samples) {
+      const video = sample.video || {};
+      videos.push({ mimeType: video.mimeType || 'video/mp4', data: video.encodedVideo || video.bytesBase64Encoded || null, uri: video.uri || null });
+    }
+    return videos;
+  }
+
+  /** Wrap raw 16-bit PCM (Gemini TTS, Live API) in a WAV container. pcm is bytes or base64. Returns a Buffer. */
+  static pcmToWav(pcm, sampleRate = 24000, channels = 1, sampleWidth = 2) {
+    const data = typeof pcm === 'string' ? Buffer.from(pcm, 'base64') : toBuffer(pcm);
+    const header = Buffer.alloc(44);
+    header.write('RIFF', 0);
+    header.writeUInt32LE(36 + data.length, 4);
+    header.write('WAVE', 8);
+    header.write('fmt ', 12);
+    header.writeUInt32LE(16, 16);
+    header.writeUInt16LE(1, 20);
+    header.writeUInt16LE(channels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(sampleRate * channels * sampleWidth, 28);
+    header.writeUInt16LE(channels * sampleWidth, 32);
+    header.writeUInt16LE(sampleWidth * 8, 34);
+    header.write('data', 36);
+    header.writeUInt32LE(data.length, 40);
+    return Buffer.concat([header, data]);
+  }
+
+  /** WAV bytes (Buffer) for an item from extractAudio: raw L16 PCM is wrapped, WAV is returned as is. */
+  static audioToWav(audio) {
+    const raw = typeof audio.data === 'string' ? Buffer.from(audio.data, 'base64') : toBuffer(audio.data);
+    const mimeType = String(audio.mimeType || audio.mime_type || '').toLowerCase();
+    if (raw.slice(0, 4).toString('latin1') === 'RIFF') return GeminiAIWrapper._fixWavSizes(raw);
+    if (mimeType.includes('l16') || mimeType.includes('pcm')) {
+      const rate = /rate=(\d+)/.exec(mimeType);
+      return GeminiAIWrapper.pcmToWav(raw, rate ? Number(rate[1]) : 24000);
+    }
+    return raw;
+  }
+
+  // Correct the RIFF and data sizes when a streamed WAV header claims more audio than is present.
+  static _fixWavSizes(raw) {
+    const position = raw.indexOf('data', 12, 'latin1');
+    if (raw.slice(8, 12).toString('latin1') !== 'WAVE' || position < 0 || position + 8 > raw.length) return raw;
+    const actual = raw.length - (position + 8);
+    if (raw.readUInt32LE(position + 4) <= actual) return raw;
+    const fixed = Buffer.from(raw);
+    fixed.writeUInt32LE(raw.length - 8, 4);
+    fixed.writeUInt32LE(actual, position + 4);
+    return fixed;
+  }
+
+  // ------------------------------------------------------------------
+  // Text, chat and multimodal generation
+  // ------------------------------------------------------------------
+
+  /**
+   * Call generateContent and return the JSON response.
+   * @param {object|string} params - a generateContent body (an optional `model` key selects the model and is not
+   *   sent), or a plain prompt.
    * @param {boolean} vision - use the configured vision model when no model is given.
    * @param {string} modelOverride - model id that takes precedence over params.model.
    */
   async generateContent(params, vision = false, modelOverride = null) {
-    const { model: paramsModel, ...body } = params || {};
-    const defaultModel = vision ? config.url.gemini.models.vision : config.url.gemini.models.chat;
-    const model = GeminiAIWrapper.getModelId(modelOverride || paramsModel || defaultModel);
-    const endpoint = `${model}${config.url.gemini.generateContent}`;
+    const paramsModel = params && typeof params === 'object' ? params.model : null;
+    const model = GeminiAIWrapper.getModelId(modelOverride || paramsModel || this._defaultModel(vision ? 'vision' : 'chat'));
+    return this._post(await this._modelUrl(model, 'generateContent'), this._prepareBody(params), 'Gemini API error');
+  }
 
-    try {
-      return await this.client.post(endpoint, body);
-    } catch (error) {
-      throw connHelper.wrapError(error);
+  /** Call streamGenerateContent (server-sent events) and yield each response chunk. */
+  async* streamGenerateContent(params, vision = false, modelOverride = null) {
+    const paramsModel = params && typeof params === 'object' ? params.model : null;
+    const model = GeminiAIWrapper.getModelId(modelOverride || paramsModel || this._defaultModel(vision ? 'vision' : 'chat'));
+    const url = `${await this._modelUrl(model, 'streamGenerateContent')}?alt=sse`;
+    const stream = await this._post(url, this._prepareBody(params), 'Gemini stream error', { responseType: 'stream' });
+    for await (const event of GeminiAIWrapper._sseEvents(stream)) {
+      if (event && typeof event === 'object' && event.error && typeof event.error === 'object') {
+        throw new GoogleAIError(this._redact(`Gemini stream error: ${JSON.stringify(event.error)}`), event.error.code || null, event);
+      }
+      yield event;
     }
   }
 
+  // Parse a server-sent events stream into JSON objects (text that is not JSON is yielded as a string).
+  static async* _sseEvents(stream) {
+    let buffer = '';
+    const parse = (block) => {
+      const data = block.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trimStart()).join('\n');
+      if (!data || data === '[DONE]') return undefined;
+      try {
+        return JSON.parse(data);
+      } catch (error) {
+        return data;
+      }
+    };
+    for await (const chunk of readStreamChunks(stream)) {
+      buffer += chunk;
+      let match;
+      while ((match = /\r?\n\r?\n/.exec(buffer))) {
+        const block = buffer.slice(0, match.index);
+        buffer = buffer.slice(match.index + match[0].length);
+        const event = parse(block);
+        if (event !== undefined) yield event;
+      }
+    }
+    const last = parse(buffer);
+    if (last !== undefined) yield last;
+  }
+
+  /**
+   * Generate and return text.
+   * @param {string|Array} prompt - text, or parts.
+   * @param {object} options - { model, systemInstruction, media, generationConfig, tools, toolConfig, safetySettings,
+   *   history, cachedContent }. media takes paths, bytes ({ data, mimeType }), gs:// / https URIs or parts.
+   */
+  async generateText(prompt, options = {}) {
+    const body = this._buildRequest(prompt, options);
+    return GeminiAIWrapper.extractText(await this.generateContent(body, false, options.model || this._defaultModel('chat')));
+  }
+
+  /** Yield the text of the reply as the model writes it. Same options as generateText. */
+  async* streamText(prompt, options = {}) {
+    const body = this._buildRequest(prompt, options);
+    for await (const chunk of this.streamGenerateContent(body, false, options.model || this._defaultModel('chat'))) {
+      const text = GeminiAIWrapper.extractText(chunk);
+      if (text) yield text;
+    }
+  }
+
+  /**
+   * A multi-turn chat that keeps the history, including the thought signatures Gemini 3 needs for tool use
+   * and image editing. Save chat.history (JSON) to resume later with startChat({ history }).
+   * @param {object} options - { model, systemInstruction, generationConfig, tools, toolConfig, safetySettings, history }.
+   */
+  startChat(options = {}) {
+    return new GoogleAIChatSession(this, options);
+  }
+
+  /** generateContent with a system instruction (content parts in, raw response out). */
+  async generateContentWithSystemInstructions(contentParts, systemInstruction = null, modelOverride = null) {
+    return this.generateContent({
+      contents: [{ role: 'user', parts: contentParts }],
+      ...(systemInstruction && { systemInstruction: { parts: [{ text: systemInstruction }] } }),
+    }, false, modelOverride);
+  }
+
+  /** JSON output that follows responseSchema (OpenAPI-style or JSON Schema types). Returns the raw response. */
+  async generateStructuredContent(contentParts, responseSchema, { systemInstruction = null, model = null, generationConfig = null, tools = null, toolConfig = null } = {}) {
+    const parts = typeof contentParts === 'string' ? [{ text: contentParts }] : contentParts;
+    return this.generateContent({
+      contents: [{ role: 'user', parts }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema, ...(generationConfig || {}) },
+      ...(systemInstruction && { systemInstruction: { parts: [{ text: systemInstruction }] } }),
+      ...(tools && { tools }),
+      ...(toolConfig && { toolConfig }),
+    }, false, model);
+  }
+
+  /** Count the tokens of a prompt or a request body: { totalTokens, ... }. */
+  async countTokens(params, model = null) {
+    const body = this._prepareBody(params);
+    const target = model || (params && params.model) || this._defaultModel('chat');
+    let request;
+    if (this.vertex) {
+      request = {};
+      for (const key of ['contents', 'systemInstruction', 'tools', 'generationConfig']) if (body[key] !== undefined) request[key] = body[key];
+    } else {
+      // the Developer API takes the other request fields only inside generateContentRequest
+      const extra = {};
+      for (const key of ['systemInstruction', 'tools', 'generationConfig', 'toolConfig', 'safetySettings', 'cachedContent']) {
+        if (body[key] !== undefined) {
+          extra[key] = body[key];
+          delete body[key];
+        }
+      }
+      request = Object.keys(extra).length ? { generateContentRequest: { model: this._modelPath(target), ...body, ...extra } } : body;
+    }
+    return this._post(await this._modelUrl(target, 'countTokens'), request, 'Gemini countTokens error');
+  }
+
+  /** Token ids and pieces of a request (Vertex AI only). */
+  async computeTokens(params, model = null) {
+    if (!this.vertex) throw new GoogleAIError('computeTokens is only available on Vertex AI. Create the wrapper with { vertex: true }.');
+    const body = this._prepareBody(params);
+    return this._post(await this._modelUrl(model || this._defaultModel('chat'), 'computeTokens'), { contents: body.contents || [] }, 'Gemini computeTokens error');
+  }
+
+  // ------------------------------------------------------------------
+  // Image, audio, video and document understanding
+  // ------------------------------------------------------------------
+
   async imageToText(userInput, filePath, extension, modelOverride = null) {
-    const imageData = readFileSync(filePath, { encoding: 'base64' });
+    const imageData = require('fs').readFileSync(filePath, { encoding: 'base64' });
     const params = {
       contents: [
         {
@@ -11126,65 +15841,957 @@ class GeminiAIWrapper {
     return this.generateContent(params, true, modelOverride);
   }
 
-  async getEmbeddings(params) {
-    const model = GeminiAIWrapper.getModelId(params.model || config.url.gemini.models.embed);
-    const endpoint = `${model}${config.url.gemini.embedContent}`;
-    try {
-      const response = await this.client.post(endpoint, { ...params, model: `models/${model}` });
-      return response.embedding;
-    } catch (error) {
-      throw connHelper.wrapError(error);
-    }
+  /** Ask about images, audio, video or documents and return text. Options as generateText. */
+  async mediaToText(prompt, media, options = {}) {
+    return this.generateText(prompt, { ...options, media, model: options.model || this._defaultModel('vision') });
   }
 
+  /** Transcribe or describe audio (bytes with mimeType, a path, or a gs:// / https URI). */
+  async audioToText(audio, prompt = 'Transcribe this audio.', options = {}) {
+    return this.mediaToText(prompt, [this.mediaPart(audio, options.mimeType || null)], options);
+  }
+
+  /** Summarize or ask about a video (bytes, a path, a gs:// URI or a YouTube URL). videoMetadata clips it. */
+  async videoToText(video, prompt = 'Summarize this video.', options = {}) {
+    const part = this.mediaPart(video, options.mimeType || null, { videoMetadata: options.videoMetadata || null });
+    return this.mediaToText(prompt, [part], options);
+  }
+
+  // ------------------------------------------------------------------
+  // Image generation (Gemini image models, Imagen)
+  // ------------------------------------------------------------------
+
+  /**
+   * Generate images with a Gemini image model; pass images to edit or combine them. configParams is merged into
+   * generationConfig, e.g. { imageConfig: { aspectRatio: '16:9' } }. Read the result with extractImages.
+   */
+  async generateImage(prompt, configParams = null, modelOverride = null, { images = null } = {}) {
+    const model = modelOverride || this._defaultModel('image');
+    const imageList = images === null || images === undefined ? [] : Array.isArray(images) ? images : [images];
+    const body = this._prepareBody({
+      contents: [{ role: 'user', parts: [{ text: prompt }, ...imageList.map((image) => this.mediaPart(image))] }],
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'], ...(configParams || {}) },
+    });
+    return this._post(await this._modelUrl(model, 'generateContent'), body, 'Gemini Image Generation error');
+  }
+
+  /** Edit one or more images with a text instruction. */
+  async editImage(prompt, images, configParams = null, modelOverride = null) {
+    return this.generateImage(prompt, configParams, modelOverride, { images: Array.isArray(images) ? images : [images] });
+  }
+
+  // Image object for Imagen / Veo requests: bytes, a path, a gs:// URI, base64 text or an object.
+  _imagenImage(image, mimeType = null, defaultMime = null) {
+    if (image && typeof image === 'object' && !isBinary(image)) return image;
+    let result;
+    let type = mimeType;
+    if (isBinary(image)) {
+      const data = toBuffer(image);
+      result = { bytesBase64Encoded: data.toString('base64') };
+      type = type || GeminiAIWrapper._sniffImageMime(data);
+    } else if (typeof image === 'string' && image.startsWith('gs://')) {
+      result = { gcsUri: image };
+      type = type || knownMimeType(image);
+    } else if (typeof image === 'string' && /^https?:\/\//i.test(image)) {
+      throw new Error('Imagen and Veo take image bytes, a local path or a gs:// URI, not an http(s) URL.');
+    } else if (typeof image === 'string' && IS_NODE && require('fs').existsSync && require('fs').existsSync(image)) {
+      const data = require('fs').readFileSync(image);
+      result = { bytesBase64Encoded: data.toString('base64') };
+      type = type || knownMimeType(image) || GeminiAIWrapper._sniffImageMime(data);
+    } else if (typeof image === 'string' && /^[A-Za-z0-9+/=\s]+$/.test(image)) {
+      result = { bytesBase64Encoded: image };
+    } else {
+      throw new Error('image must be bytes, a path, a gs:// URI, base64 text or an object');
+    }
+    type = type || defaultMime;
+    if (type) result.mimeType = type;
+    return result;
+  }
+
+  static _sniffImageMime(data) {
+    if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return 'image/jpeg';
+    if (data.slice(0, 8).toString('latin1') === '\x89PNG\r\n\x1a\n') return 'image/png';
+    if (data.slice(0, 4).toString('latin1') === 'RIFF' && data.slice(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+    return null;
+  }
+
+  _imagenModel(model) {
+    if (model) return model;
+    throw new Error('Google retired the Imagen models on 2026-06-30 (they return 404). Use generateImage / editImage with a '
+      + 'Gemini image model, or pass { model } for an Imagen model your project can still call.');
+  }
+
+  /** Imagen :predict (retired by Google; needs an explicit model). */
+  async imagenGenerateImages(prompt, { numberOfImages = 1, model = null, aspectRatio = null, negativePrompt = null, parameters = null } = {}) {
+    const body = {
+      instances: [{ prompt }],
+      parameters: { sampleCount: numberOfImages, ...(aspectRatio && { aspectRatio }), ...(negativePrompt && { negativePrompt }), ...(parameters || {}) },
+    };
+    return this._post(await this._modelUrl(this._imagenModel(model), 'predict', this._locationFor('imagen')), body, 'Imagen error');
+  }
+
+  // ------------------------------------------------------------------
+  // Video generation (Veo)
+  // ------------------------------------------------------------------
+
+  /**
+   * Start a Veo video generation and return the long-running operation (poll it with getVideoOperation or
+   * waitForVideoCompletion). On Vertex AI it needs a project. configParams are Veo parameters, e.g.
+   * { durationSeconds: 4, aspectRatio: '16:9', resolution: '720p', generateAudio: false, storageUri: 'gs://...' }.
+   */
+  async generateVideo(prompt, configParams = null, projectId = null, { model = null, image = null, lastFrame = null, location = null } = {}) {
+    const instance = { prompt };
+    if (image !== null && image !== undefined) instance.image = this._imagenImage(image, null, 'image/png');
+    if (lastFrame !== null && lastFrame !== undefined) instance.lastFrame = this._imagenImage(lastFrame, null, 'image/png');
+    const body = { instances: [instance], parameters: { aspectRatio: '16:9', ...(configParams || {}) } };
+    let url;
+    if (this.vertex || projectId) {
+      const project = projectId || this.projectId || (!this.API_KEY ? await this._requireProject('Veo video generation') : null);
+      if (!project) {
+        throw new Error('Video generation on Vertex AI needs a project (Veo does not run in express mode). Pass projectId.');
+      }
+      const videoLocation = this._locationFor('video', location) || 'us-central1';
+      const videoModel = model || (this.vertex ? this._defaultModel('video') : config.url.gemini.vertex.models.video);
+      url = this._vertexProjectUrl(project, videoLocation, `${GeminiAIWrapper._vertexModelPath(videoModel)}:predictLongRunning`);
+    } else {
+      url = await this._modelUrl(model || this._defaultModel('video'), 'predictLongRunning');
+    }
+    return this._post(url, body, 'Veo Video Generation error');
+  }
+
+  /** Poll a Veo operation (a name or the operation object). */
+  async getVideoOperation(operation) {
+    const name = operation && typeof operation === 'object' ? operation.name : operation;
+    if (!name) throw new Error('operation name is required');
+    if (name.startsWith('projects/')) {
+      const resource = name.slice(0, name.lastIndexOf('/operations/'));
+      return this._post(`${this._nameUrl(resource)}:fetchPredictOperation`, { operationName: name }, 'Video status check error');
+    }
+    if (this.vertex) throw new Error("Vertex AI operation names start with 'projects/'.");
+    return this._get(`${this.baseUrl || this._devApiBase}/${name}`, 'Video status check error');
+  }
+
+  /** Poll until the operation is done and return it. Throws after maxWaitMs. */
+  async waitForVideoCompletion(operation, { maxWaitMs = 600000, pollMs = 10000 } = {}) {
+    const started = Date.now();
+    while (Date.now() - started < maxWaitMs) {
+      const status = await this.getVideoOperation(operation);
+      if (status && status.done) {
+        if (status.error) throw new GoogleAIError(`Veo Video Generation error: ${JSON.stringify(status.error)}`, status.error.code || null, status.error);
+        return status;
+      }
+      await sleep(pollMs);
+    }
+    throw new Error(`Video generation did not complete within ${Math.round(maxWaitMs / 1000)} seconds`);
+  }
+
+  /**
+   * Download a generated file from an https URI (e.g. a Developer API Veo video) and return its bytes (Buffer).
+   * The credentials are sent only to Google API hosts; redirects to other hosts get none.
+   */
+  async downloadMedia(uri) {
+    if (!/^https:\/\//i.test(uri)) throw new Error('downloadMedia takes an https:// URI');
+    const fetch = require('cross-fetch');
+    let url = uri.includes('alt=') ? uri : `${uri}${uri.includes('?') ? '&' : '?'}alt=media`;
+    for (let hop = 0; hop < 5; hop++) {
+      const host = new URL(url).hostname.toLowerCase();
+      const trusted = GOOGLE_API_HOST.test(host) || (this.baseUrl && new URL(this.baseUrl).hostname.toLowerCase() === host);
+      const headers = trusted ? await this._credentialHeaders() : {};
+      const response = await fetch(url, { headers, redirect: 'manual' });
+      if ([301, 302, 303, 307, 308].includes(response.status) && response.headers.get('location')) {
+        url = new URL(response.headers.get('location'), url).toString();
+        continue;
+      }
+      if (!response.ok) {
+        const error = new Error(`HTTP error ${response.status}: ${await response.text().catch(() => '')}`);
+        error.status = response.status;
+        throw this._apiError('Download error', error);
+      }
+      return Buffer.from(await response.arrayBuffer());
+    }
+    throw new GoogleAIError('Download error: too many redirects');
+  }
+
+  // ------------------------------------------------------------------
+  // Music (Lyria) and speech (Gemini TTS)
+  // ------------------------------------------------------------------
+
+  /**
+   * Generate music. Lyria 2 (lyria-002, Vertex AI) uses :predict; Lyria 3 models (lyria-3.5, Developer API) use
+   * generateContent. Read the audio with extractAudio and audioToWav.
+   */
+  async generateMusic(prompt, { model = null, negativePrompt = null, seed = null, sampleCount = null, generationConfig = null, location = null } = {}) {
+    const target = model || this._defaultModel('music');
+    if (!target.includes('/') && /^lyria-0\d\d/.test(target)) {
+      if (!this.vertex) {
+        throw new GoogleAIError(`${target} runs on Vertex AI. Create the wrapper with { vertex: true }, or use a Lyria 3 model on the Developer API.`);
+      }
+      const instance = { prompt, ...(negativePrompt && { negative_prompt: negativePrompt }), ...(seed !== null && { seed }) };
+      const body = { instances: [instance], ...(sampleCount && { parameters: { sample_count: sampleCount } }) };
+      return this._post(await this._modelUrl(target, 'predict', this._locationFor('music', location)), body, 'Lyria music error');
+    }
+    const text = negativePrompt ? `${prompt}\nAvoid: ${negativePrompt}` : prompt;
+    const body = this._prepareBody({
+      contents: [{ role: 'user', parts: [{ text }] }],
+      generationConfig: { responseModalities: ['AUDIO', 'TEXT'], ...(seed !== null && { seed }), ...(generationConfig || {}) },
+    });
+    return this._post(await this._modelUrl(target, 'generateContent', location), body, 'Lyria music error');
+  }
+
+  /**
+   * Speech with a Gemini TTS model (default voice Kore). Returns the response: extractAudio(response) then
+   * audioToWav(item) gives a playable WAV. Style the voice in the text ("Say cheerfully: ...").
+   */
+  async generateGeminiSpeech(text, voiceConfig = null, modelOverride = null, { voice = null, languageCode = null } = {}) {
+    const body = this._prepareBody({
+      contents: [{ role: 'user', parts: [{ text }] }],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: voice || 'Kore' }, ...camelize(voiceConfig || {}) },
+          ...(languageCode && { languageCode }),
+        },
+      },
+    });
+    return this._post(await this._modelUrl(modelOverride || this._defaultModel('tts'), 'generateContent'), body, 'Gemini TTS error');
+  }
+
+  /** Multi-speaker speech: speakerConfigs [{ speaker, voiceConfig: { prebuiltVoiceConfig: { voiceName } } }]. */
+  async generateMultiSpeakerSpeech(text, speakerConfigs, modelOverride = null) {
+    const body = this._prepareBody({
+      contents: [{ role: 'user', parts: [{ text }] }],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: { multiSpeakerVoiceConfig: { speakerVoiceConfigs: camelize(speakerConfigs) } },
+      },
+    });
+    return this._post(await this._modelUrl(modelOverride || this._defaultModel('tts'), 'generateContent'), body, 'Gemini Multi-Speaker TTS error');
+  }
+
+  /** Text to a WAV Buffer in one call (Gemini TTS). */
+  async textToSpeech(text, { voice = 'Kore', model = null, languageCode = null } = {}) {
+    const response = await this.generateGeminiSpeech(text, null, model, { voice, languageCode });
+    const [audio] = GeminiAIWrapper.extractAudio(response);
+    if (!audio) throw new GoogleAIError(`Gemini TTS error: the response has no audio (finishReason ${GeminiAIWrapper.extractFinishReason(response)})`);
+    return GeminiAIWrapper.audioToWav(audio);
+  }
+
+  // ------------------------------------------------------------------
+  // Embeddings
+  // ------------------------------------------------------------------
+
+  static _contentText(content) {
+    if (typeof content === 'string') return content;
+    return ((content && content.parts) || []).filter((part) => part && part.text).map((part) => part.text).join('\n');
+  }
+
+  // Vertex AI embeddings: gemini-embedding-001 and text-embedding-* use :predict (gemini-embedding-001 takes one
+  // input per request, the others up to 250); newer Gemini embedding models use :embedContent.
+  async _vertexEmbed(modelId, texts, { taskType = null, title = null, outputDimensionality = null } = {}) {
+    const vectors = [];
+    if (modelId.includes('gemini') && modelId !== 'gemini-embedding-001') {
+      for (const text of texts) {
+        const embedConfig = { ...(taskType && { taskType }), ...(title && { title }), ...(outputDimensionality && { outputDimensionality }) };
+        const body = { content: { role: 'user', parts: [{ text }] }, ...(Object.keys(embedConfig).length && { embedContentConfig: embedConfig }) };
+        const data = await this._post(await this._modelUrl(modelId, 'embedContent'), body, 'Gemini API error');
+        vectors.push((data.embedding && data.embedding.values) || []);
+      }
+      return vectors;
+    }
+    const maxCount = modelId.startsWith('gemini-embedding') ? 1 : 250;
+    for (let start = 0; start < texts.length; start += maxCount) {
+      const instances = texts.slice(start, start + maxCount).map((text) => ({ content: text, ...(taskType && { task_type: taskType }), ...(title && { title }) }));
+      const body = { instances, ...(outputDimensionality && { parameters: { outputDimensionality } }) };
+      const data = await this._post(await this._modelUrl(modelId, 'predict'), body, 'Gemini API error');
+      for (const prediction of data.predictions || []) vectors.push((prediction.embeddings && prediction.embeddings.values) || []);
+    }
+    return vectors;
+  }
+
+  /**
+   * One embedding: params { model?, content: { parts: [{ text }] }, taskType?, outputDimensionality? }.
+   * Returns the embedding object ({ values }) on both backends.
+   */
+  async getEmbeddings(params) {
+    const modelId = GeminiAIWrapper.getModelId(params.model || this._defaultModel('embed')).split('/').pop();
+    if (this.vertex) {
+      const [values] = await this._vertexEmbed(modelId, [GeminiAIWrapper._contentText(params.content)], {
+        taskType: params.taskType || params.task_type, title: params.title, outputDimensionality: params.outputDimensionality || params.output_dimensionality,
+      });
+      return { values: values || [] };
+    }
+    const response = await this._post(await this._modelUrl(modelId, 'embedContent'), { ...camelize(params), model: `models/${modelId}` }, 'Gemini API error');
+    return response.embedding;
+  }
+
+  /** Batch embeddings: params { requests: [{ model?, content }] }. Returns [{ values }]. */
   async getBatchEmbeddings(params) {
     const requests = params.requests || [];
     const requestedModel = requests.length > 0 ? requests[0].model : null;
-    const model = GeminiAIWrapper.getModelId(requestedModel || config.url.gemini.models.embed);
-    const endpoint = `${model}${config.url.gemini.batchEmbedContents}`;
+    const modelId = GeminiAIWrapper.getModelId(requestedModel || this._defaultModel('embed')).split('/').pop();
+    if (this.vertex) {
+      const vectors = await this._vertexEmbed(modelId, requests.map((request) => GeminiAIWrapper._contentText(request.content)));
+      return vectors.map((values) => ({ values }));
+    }
+    const response = await this._post(await this._modelUrl(modelId, 'batchEmbedContents'), {
+      ...params,
+      requests: requests.map((request) => ({ ...camelize(request), model: `models/${modelId}` })),
+    }, 'Gemini API error');
+    return response.embeddings;
+  }
+
+  /**
+   * Embed texts and return the vectors (number[][]).
+   * @param {object} options - { taskType: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY' | 'SEMANTIC_SIMILARITY' | ..., title, outputDimensionality }.
+   */
+  async embedTexts(texts, model = null, { taskType = null, title = null, outputDimensionality = null } = {}) {
+    const list = Array.isArray(texts) ? texts : [texts];
+    const modelId = GeminiAIWrapper.getModelId(model || this._defaultModel('embed')).split('/').pop();
+    if (this.vertex) return this._vertexEmbed(modelId, list, { taskType, title, outputDimensionality });
+    const vectors = [];
+    // batchEmbedContents takes at most 100 requests
+    for (let start = 0; start < list.length; start += 100) {
+      const requests = list.slice(start, start + 100).map((text) => ({
+        model: `models/${modelId}`,
+        content: { parts: [{ text: String(text) }] },
+        ...(taskType && { taskType }),
+        ...(title && { title }),
+        ...(outputDimensionality && { outputDimensionality }),
+      }));
+      const data = await this._post(await this._modelUrl(modelId, 'batchEmbedContents'), { requests }, 'Gemini API error');
+      for (const item of data.embeddings || []) vectors.push(item.values || []);
+    }
+    return vectors;
+  }
+
+  // ------------------------------------------------------------------
+  // Files API (Gemini Developer API only)
+  // ------------------------------------------------------------------
+
+  _developerApiOnly(feature) {
+    if (this.vertex) {
+      throw new GoogleAIError(`${feature} is only available on the Gemini Developer API. On Vertex AI send files inline (mediaPart) or as gs:// URIs.`);
+    }
+  }
+
+  _fileUrl(name) {
+    const file = String(name).startsWith('files/') ? name : `files/${name}`;
+    return `${this.baseUrl || this._devApiBase}/${file}`;
+  }
+
+  /**
+   * Upload a file (a path, or bytes with { mimeType }) with the resumable Files API and return the file
+   * ({ name, uri, mimeType, state, ... }). Videos are PROCESSING at first: use waitForFileActive before asking about them.
+   */
+  async uploadFile(source, { displayName = null, mimeType = null } = {}) {
+    this._developerApiOnly('The Files API');
+    let data;
+    let type = mimeType;
+    let name = displayName;
+    if (typeof source === 'string') {
+      const fs = require('fs');
+      if (!IS_NODE || !fs.existsSync(source)) throw new Error(`File not found: ${source}`);
+      data = fs.readFileSync(source);
+      type = type || knownMimeType(source) || 'application/octet-stream';
+      name = name || require('path').basename(source);
+    } else {
+      data = toBuffer(source);
+      if (!type) throw new Error('mimeType is required when uploading bytes');
+    }
+    const fetch = require('cross-fetch');
+    const credentials = await this._credentialHeaders();
+    const start = await fetch(this._devUploadBase, {
+      method: 'POST',
+      headers: {
+        ...credentials,
+        'Content-Type': 'application/json',
+        'X-Goog-Upload-Protocol': 'resumable',
+        'X-Goog-Upload-Command': 'start',
+        'X-Goog-Upload-Header-Content-Length': String(data.length),
+        'X-Goog-Upload-Header-Content-Type': type,
+      },
+      body: JSON.stringify({ file: { display_name: name || 'upload' } }),
+    });
+    if (!start.ok) {
+      const error = Object.assign(new Error(`HTTP error ${start.status}: ${await start.text().catch(() => '')}`), { status: start.status });
+      throw this._apiError('File upload error', error);
+    }
+    const uploadUrl = start.headers.get('x-goog-upload-url');
+    if (!uploadUrl) throw new GoogleAIError('File upload error: the upload URL is missing from the response headers');
+    const upload = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Length': String(data.length), 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' },
+      body: data,
+    });
+    const text = await upload.text();
+    if (!upload.ok) throw this._apiError('File upload error', Object.assign(new Error(`HTTP error ${upload.status}: ${text}`), { status: upload.status }));
+    const result = JSON.parse(text);
+    return result.file || result;
+  }
+
+  async getFile(name) {
+    this._developerApiOnly('The Files API');
+    return this._get(this._fileUrl(name), 'Get file error');
+  }
+
+  async listFiles({ pageSize = null, pageToken = null } = {}) {
+    this._developerApiOnly('The Files API');
+    return this._get(`${this.baseUrl || this._devApiBase}/files${GeminiAIWrapper._query({ pageSize, pageToken })}`, 'List files error');
+  }
+
+  async deleteFile(name) {
+    this._developerApiOnly('The Files API');
+    return this._delete(this._fileUrl(name), 'Delete file error');
+  }
+
+  /** Wait until an uploaded file leaves PROCESSING; returns the file, throws if it FAILED or the wait times out. */
+  async waitForFileActive(name, { maxWaitMs = 300000, pollMs = 3000 } = {}) {
+    const started = Date.now();
+    while (Date.now() - started < maxWaitMs) {
+      const file = await this.getFile(typeof name === 'object' ? name.name : name);
+      if (file.state === 'ACTIVE' || !file.state) return file;
+      if (file.state === 'FAILED') throw new GoogleAIError(`File processing failed: ${JSON.stringify(file.error || {})}`);
+      await sleep(pollMs);
+    }
+    throw new Error(`The file was not ready within ${Math.round(maxWaitMs / 1000)} seconds`);
+  }
+
+  // ------------------------------------------------------------------
+  // Models, context caching and Agent Engine
+  // ------------------------------------------------------------------
+
+  /** List models. On Vertex AI this lists Google publisher models and needs OAuth; use modelCatalog() offline. */
+  async listModels({ pageSize = null, pageToken = null } = {}) {
+    const query = GeminiAIWrapper._query({ pageSize, pageToken });
+    const url = this.vertex
+      ? `${this.baseUrl || `${this._vertexHost(null)}/${this.apiVersion}`}/publishers/google/models${query}`
+      : `${this.baseUrl || this._devApiBase}/models${query}`;
+    return this._get(url, 'List models error');
+  }
+
+  /** Known Vertex AI model ids by capability (from config). */
+  static modelCatalog() {
+    return JSON.parse(JSON.stringify(config.url.gemini.vertex.catalog));
+  }
+
+  async _cacheUrl(name = null, location = null) {
+    if (this.vertex) {
+      if (name && name.startsWith('projects/')) return this._nameUrl(name);
+      const project = await this._requireProject('Context caching');
+      const path = name ? `cachedContents/${name.split('/').pop()}` : 'cachedContents';
+      return this._vertexProjectUrl(project, location || this.location || 'global', path);
+    }
+    const root = this.baseUrl || this._devApiBase;
+    if (name) return `${root}/${name.startsWith('cachedContents/') ? name : `cachedContents/${name}`}`;
+    return `${root}/cachedContents`;
+  }
+
+  /**
+   * Cache a large prompt prefix (documents, video, a long system instruction) and reuse it with
+   * generateContent({ cachedContent: cache.name, contents }). Google enforces a minimum size; the generate call
+   * must use the same model. Vertex AI needs a project and OAuth.
+   */
+  async createCachedContent(model, contents, { systemInstruction = null, ttl = '3600s', displayName = null, tools = null, toolConfig = null, location = null } = {}) {
+    const body = this._prepareBody({ contents });
+    if (this.vertex) {
+      const project = await this._requireProject('Context caching');
+      const modelPath = GeminiAIWrapper._vertexModelPath(model);
+      body.model = modelPath.startsWith('projects/') ? modelPath : `projects/${project}/locations/${location || this.location || 'global'}/${modelPath}`;
+    } else {
+      body.model = this._modelPath(model);
+    }
+    if (systemInstruction) body.systemInstruction = typeof systemInstruction === 'string' ? { parts: [{ text: systemInstruction }] } : systemInstruction;
+    if (ttl) body.ttl = ttl;
+    if (displayName) body.displayName = displayName;
+    if (tools) body.tools = tools;
+    if (toolConfig) body.toolConfig = toolConfig;
+    return this._post(await this._cacheUrl(null, location), body, 'Context cache error');
+  }
+
+  async getCachedContent(name) {
+    return this._get(await this._cacheUrl(name), 'Context cache error');
+  }
+
+  async listCachedContents({ pageSize = null, pageToken = null, location = null } = {}) {
+    return this._get(`${await this._cacheUrl(null, location)}${GeminiAIWrapper._query({ pageSize, pageToken })}`, 'Context cache error');
+  }
+
+  async deleteCachedContent(name) {
+    return this._delete(await this._cacheUrl(name), 'Context cache error');
+  }
+
+  async _agentEngineName(name, location = null) {
+    if (name.startsWith('projects/')) return name;
+    const project = await this._requireProject('Agent Engine');
+    return `projects/${project}/locations/${this._locationFor('agent_engine', location) || 'us-central1'}/reasoningEngines/${name}`;
+  }
+
+  /** Agents deployed to Vertex AI Agent Engine in the project. */
+  async listAgentEngines({ location = null, pageSize = null, pageToken = null, filter = null } = {}) {
+    const project = await this._requireProject('Agent Engine');
+    const url = this._vertexProjectUrl(project, this._locationFor('agent_engine', location) || 'us-central1', 'reasoningEngines');
+    return this._get(`${url}${GeminiAIWrapper._query({ pageSize, pageToken, filter })}`, 'Agent Engine error');
+  }
+
+  async getAgentEngine(name, { location = null } = {}) {
+    return this._get(this._nameUrl(await this._agentEngineName(name, location)), 'Agent Engine error');
+  }
+
+  /** Call a deployed agent's query method: returns { output }. Input keys depend on the agent (ADK: message, user_id). */
+  async queryAgentEngine(name, input = {}, { classMethod = null, location = null } = {}) {
+    const url = `${this._nameUrl(await this._agentEngineName(name, location))}:query`;
+    return this._post(url, { input: input || {}, ...(classMethod && { classMethod }) }, 'Agent Engine error');
+  }
+
+  /** Call a deployed agent's streaming method and yield each event (object, or text when not JSON). */
+  async* streamQueryAgentEngine(name, input = {}, { classMethod = 'stream_query', location = null } = {}) {
+    const url = `${this._nameUrl(await this._agentEngineName(name, location))}:streamQuery?alt=sse`;
+    const stream = await this._post(url, { input: input || {}, ...(classMethod && { classMethod }) }, 'Agent Engine error', { responseType: 'stream' });
+    let buffer = '';
+    const parse = (line) => {
+      const text = line.startsWith('data:') ? line.slice(5).trim() : line.trim();
+      if (!text) return undefined;
+      try {
+        return JSON.parse(text);
+      } catch (error) {
+        return text;
+      }
+    };
+    for await (const chunk of readStreamChunks(stream)) {
+      buffer += chunk;
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop();
+      for (const line of lines) {
+        const event = parse(line);
+        if (event !== undefined) yield event;
+      }
+    }
+    const last = parse(buffer);
+    if (last !== undefined) yield last;
+  }
+
+  // ------------------------------------------------------------------
+  // Grounding tools
+  // ------------------------------------------------------------------
+
+  /** Google Search grounding tool: tools: [GeminiAIWrapper.googleSearchTool()]. */
+  static googleSearchTool() {
+    return { googleSearch: {} };
+  }
+
+  /** Vertex AI RAG Engine grounding tool for one or more corpora (names or ids with projectId). */
+  ragTool(corpora, { topK = 5, vectorDistanceThreshold = null, location = null } = {}) {
+    const list = Array.isArray(corpora) ? corpora : [corpora];
+    const ragResources = list.map((corpus) => ({
+      ragCorpus: String(corpus).startsWith('projects/') ? corpus
+        : `projects/${this.projectId}/locations/${location || this._locationFor('rag') || 'us-central1'}/ragCorpora/${corpus}`,
+    }));
+    return {
+      retrieval: {
+        vertexRagStore: {
+          ragResources,
+          ragRetrievalConfig: { topK, ...(vectorDistanceThreshold !== null && { filter: { vectorDistanceThreshold } }) },
+        },
+      },
+    };
+  }
+
+  /** Vertex AI Search grounding tool for a data store (full resource name). */
+  static vertexAISearchTool(datastore) {
+    return { retrieval: { vertexAiSearch: { datastore } } };
+  }
+
+  // ------------------------------------------------------------------
+  // Live API (bidirectional streaming over a websocket)
+  // ------------------------------------------------------------------
+
+  async _liveEndpoint(model = null, location = null) {
+    const target = model || this._defaultModel('live');
+    if (this.vertex) {
+      const project = await this._requireProject('The Live API');
+      const liveLocation = this._locationFor('live', location) || 'us-central1';
+      const host = this._vertexHost(liveLocation).replace(/^https:\/\//, 'wss://');
+      const url = `${host}/ws/google.cloud.aiplatform.${this.apiVersion}.LlmBidiService/BidiGenerateContent`;
+      const modelPath = GeminiAIWrapper._vertexModelPath(target);
+      const modelName = modelPath.startsWith('projects/') ? modelPath : `projects/${project}/locations/${liveLocation}/${modelPath}`;
+      return { url, modelName, headers: await this._credentialHeaders() };
+    }
+    const host = /^https:\/\/[^/]+/.exec(this._devApiBase)[0].replace(/^https:\/\//, 'wss://');
+    const url = `${host}/ws/google.ai.generativelanguage.${this.apiVersion}.GenerativeService.BidiGenerateContent`;
+    // the Developer API documents the key as a query parameter for the websocket
+    if (this.API_KEY) return { url: `${url}?key=${encodeURIComponent(this.API_KEY)}`, modelName: this._modelPath(target), headers: {} };
+    return { url, modelName: this._modelPath(target), headers: await this._credentialHeaders() };
+  }
+
+  /**
+   * Open a Live API session (voice or text, with tools) and return a GoogleAILiveSession after setup completes.
+   * config is the setup message without `model`, e.g. { generationConfig: { responseModalities: ['AUDIO'] },
+   * systemInstruction, outputAudioTranscription: {} }. Needs a WebSocket: Node 22+ has one built in; on older
+   * Node pass { WebSocket: require('ws') } to the wrapper. Vertex AI needs projectId (Live models run in us-central1).
+   */
+  async liveConnect({ model = null, config: setupConfig = null, location = null } = {}) {
+    const { url, modelName, headers } = await this._liveEndpoint(model, location);
+    const setup = { model: modelName, ...camelize(setupConfig || {}) };
+    setup.generationConfig = { responseModalities: ['AUDIO'], ...(setup.generationConfig || {}) };
+    const WebSocketClass = this.WebSocket || (typeof globalThis !== 'undefined' ? globalThis.WebSocket : null);
+    if (!WebSocketClass) {
+      throw new GoogleAIError('The Live API needs a WebSocket: use Node 22+ or pass { WebSocket: require("ws") } to the wrapper.');
+    }
+    let socket;
     try {
-      const response = await this.client.post(endpoint, {
-        ...params,
-        requests: requests.map((request) => ({ ...request, model: `models/${model}` }))
-      });
-      return response.embeddings;
+      const isBrowser = typeof window !== 'undefined' && WebSocketClass === window.WebSocket;
+      if (isBrowser) {
+        // browsers cannot set headers; the Developer API URL already carries the key
+        if (this.vertex) throw new Error('In the browser the Live API works with a Developer API key only.');
+        socket = new WebSocketClass(url);
+      } else {
+        socket = Object.keys(headers).length ? new WebSocketClass(url, { headers }) : new WebSocketClass(url);
+      }
     } catch (error) {
-      throw connHelper.wrapError(error);
+      throw new GoogleAIError(this._redact(`Live API connection error: ${error.message}`));
+    }
+    const session = new GoogleAILiveSession(socket);
+    try {
+      await session._opened();
+      session.send({ setup });
+      const first = await session._next();
+      if (!first || first.setupComplete === undefined) {
+        throw new GoogleAIError(this._redact(`Live API setup failed: ${JSON.stringify(first)}`));
+      }
+      session.setupResponse = first;
+    } catch (error) {
+      session.close();
+      throw error instanceof GoogleAIError ? error : new GoogleAIError(this._redact(`Live API setup error: ${error.message}`));
+    }
+    return session;
+  }
+
+  /** One text turn over the Live API: { text, transcription, audio (Buffer, 24 kHz PCM), toolCalls, usage }. */
+  async liveGenerate(text, { model = null, config: setupConfig = null, location = null } = {}) {
+    const settings = camelize(setupConfig || {});
+    const modalities = (settings.generationConfig && settings.generationConfig.responseModalities) || ['AUDIO'];
+    if (modalities.includes('AUDIO') && settings.outputAudioTranscription === undefined) settings.outputAudioTranscription = {};
+    const session = await this.liveConnect({ model, config: settings, location });
+    try {
+      session.sendText(text);
+      return await session.receiveTurn();
+    } finally {
+      session.close();
+    }
+  }
+}
+
+/**
+ * A multi-turn Gemini chat. The history keeps the model turns as returned, including thought signatures, which
+ * Gemini 3 needs for multi-turn tool use and image editing. history is plain JSON: store it to resume later.
+ */
+class GoogleAIChatSession {
+  constructor(wrapper, { model = null, systemInstruction = null, generationConfig = null, tools = null, toolConfig = null, safetySettings = null, cachedContent = null, history = null } = {}) {
+    this.wrapper = wrapper;
+    this.model = model || wrapper._defaultModel('chat');
+    this.systemInstruction = systemInstruction;
+    this.generationConfig = generationConfig;
+    this.tools = tools;
+    this.toolConfig = toolConfig;
+    this.safetySettings = safetySettings;
+    this.cachedContent = cachedContent;
+    this.history = (history || []).map((content) => wrapper._content(content));
+    this.lastResponse = null;
+  }
+
+  _body(userContent) {
+    return this.wrapper._buildRequest(null, {
+      systemInstruction: this.systemInstruction,
+      generationConfig: this.generationConfig,
+      tools: this.tools,
+      toolConfig: this.toolConfig,
+      safetySettings: this.safetySettings,
+      cachedContent: this.cachedContent,
+      history: [...this.history, userContent],
+    });
+  }
+
+  _userContent(message, media, parts) {
+    return { role: 'user', parts: parts || this.wrapper._toParts(message, media) };
+  }
+
+  /** Send a user turn and return the full response; the turn and the reply join the history. */
+  async send(message = null, media = null, { parts = null } = {}) {
+    const userContent = this._userContent(message, media, parts);
+    const response = await this.wrapper.generateContent(this._body(userContent), false, this.model);
+    this.lastResponse = response;
+    const candidate = response.candidates && response.candidates[0];
+    const modelContent = candidate && candidate.content;
+    // a blocked or empty reply leaves the history unchanged, so it cannot block the next turn
+    if (modelContent && Array.isArray(modelContent.parts) && modelContent.parts.length) {
+      this.history.push(userContent, { role: 'model', ...modelContent });
+    }
+    return response;
+  }
+
+  /** Send a user turn and return only the reply text. */
+  async sendText(message = null, media = null) {
+    return GeminiAIWrapper.extractText(await this.send(message, media));
+  }
+
+  /** Return one tool result after the model asked for a function call. For several calls use send(null, null, { parts }). */
+  async sendFunctionResponse(name, response, callId = null) {
+    const functionResponse = { name, response, ...(callId && { id: callId }) };
+    return this.send(null, null, { parts: [{ functionResponse }] });
+  }
+
+  /** Yield reply text chunks; the turn joins the history when the stream ends. lastResponse keeps the last chunk. */
+  async* stream(message = null, media = null) {
+    const userContent = this._userContent(message, media, null);
+    const parts = [];
+    let last = null;
+    for await (const chunk of this.wrapper.streamGenerateContent(this._body(userContent), false, this.model)) {
+      last = chunk;
+      for (const part of GeminiAIWrapper._parts(chunk)) parts.push(part);
+      const text = GeminiAIWrapper.extractText(chunk);
+      if (text) yield text;
+    }
+    this.lastResponse = last;
+    if (parts.length) this.history.push(userContent, { role: 'model', parts: GoogleAIChatSession._mergeTextParts(parts) });
+  }
+
+  static _mergeTextParts(parts) {
+    const merged = [];
+    for (const part of parts) {
+      const plain = Object.keys(part).length === 1 && typeof part.text === 'string';
+      const previous = merged[merged.length - 1];
+      if (plain && previous && Object.keys(previous).length === 1 && typeof previous.text === 'string') {
+        merged[merged.length - 1] = { text: previous.text + part.text };
+      } else {
+        merged.push({ ...part });
+      }
+    }
+    return merged;
+  }
+
+  reset() {
+    this.history = [];
+    this.lastResponse = null;
+  }
+}
+
+/** An open Live API session (from wrapper.liveConnect). Close it when done. */
+class GoogleAILiveSession {
+  constructor(socket) {
+    this.socket = socket;
+    this.setupResponse = null;
+    this._queue = [];
+    this._waiters = [];
+    this._closed = false;
+    this._error = null;
+    const onMessage = async (event) => {
+      try {
+        let raw = event && event.data !== undefined ? event.data : event;
+        if (raw && typeof raw !== 'string') {
+          raw = typeof raw.text === 'function' ? await raw.text() : toBuffer(raw).toString('utf8');
+        }
+        this._push(JSON.parse(raw));
+      } catch (error) {
+        this._fail(error);
+      }
+    };
+    const onClose = () => {
+      this._closed = true;
+      this._flush();
+    };
+    const onError = (event) => this._fail(new Error((event && event.message) || 'Live API websocket error'));
+    if (typeof socket.addEventListener === 'function') {
+      socket.addEventListener('message', onMessage);
+      socket.addEventListener('close', onClose);
+      socket.addEventListener('error', onError);
+    } else {
+      socket.on('message', (data) => onMessage({ data }));
+      socket.on('close', onClose);
+      socket.on('error', onError);
+    }
+  }
+
+  _opened() {
+    const OPEN = 1;
+    if (this.socket.readyState === OPEN) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const done = () => resolve();
+      const failed = (event) => reject(new Error((event && event.message) || 'could not open the websocket'));
+      if (typeof this.socket.addEventListener === 'function') {
+        this.socket.addEventListener('open', done, { once: true });
+        this.socket.addEventListener('error', failed, { once: true });
+      } else {
+        this.socket.once('open', done);
+        this.socket.once('error', failed);
+      }
+    });
+  }
+
+  _push(message) {
+    const waiter = this._waiters.shift();
+    if (waiter) waiter.resolve(message);
+    else this._queue.push(message);
+  }
+
+  _fail(error) {
+    this._error = error;
+    this._flush();
+  }
+
+  _flush() {
+    while (this._waiters.length) {
+      const waiter = this._waiters.shift();
+      if (this._error) waiter.reject(this._error);
+      else waiter.resolve(null);
+    }
+  }
+
+  // The next server message, or null when the socket closed.
+  _next() {
+    if (this._queue.length) return Promise.resolve(this._queue.shift());
+    if (this._error) return Promise.reject(this._error);
+    if (this._closed) return Promise.resolve(null);
+    return new Promise((resolve, reject) => this._waiters.push({ resolve, reject }));
+  }
+
+  /** Send a raw client message. */
+  send(message) {
+    this.socket.send(JSON.stringify(message));
+  }
+
+  sendText(text, turnComplete = true) {
+    this.send({ clientContent: { turns: [{ role: 'user', parts: [{ text }] }], turnComplete } });
+  }
+
+  /** Stream a chunk of microphone audio (16-bit PCM, 16 kHz by default). */
+  sendAudio(data, mimeType = 'audio/pcm;rate=16000') {
+    const encoded = typeof data === 'string' ? data : toBuffer(data).toString('base64');
+    this.send({ realtimeInput: { audio: { data: encoded, mimeType } } });
+  }
+
+  sendAudioStreamEnd() {
+    this.send({ realtimeInput: { audioStreamEnd: true } });
+  }
+
+  /** functionResponses: [{ id, name, response }]. */
+  sendToolResponse(functionResponses) {
+    this.send({ toolResponse: { functionResponses } });
+  }
+
+  /** Every server message, until the socket closes. */
+  async* receive() {
+    while (true) {
+      const message = await this._next();
+      if (message === null) return;
+      yield message;
+    }
+  }
+
+  /** Collect messages until the model finishes its turn or asks for a tool call. */
+  async receiveTurn() {
+    const result = { text: '', transcription: '', inputTranscription: '', audio: Buffer.alloc(0), audioMimeType: null, toolCalls: [], usage: null, messages: 0 };
+    const audioChunks = [];
+    let received = false;
+    for await (const message of this.receive()) {
+      result.messages += 1;
+      if (message.usageMetadata) result.usage = message.usageMetadata;
+      if (message.toolCall) {
+        result.toolCalls.push(...(message.toolCall.functionCalls || []));
+        // the turn that asked for the tool still sends its own turnComplete later
+        this._skipCompletion = true;
+        break;
+      }
+      const content = message.serverContent || {};
+      if (this._skipCompletion && !received && !content.modelTurn && !content.outputTranscription) {
+        if (content.turnComplete) this._skipCompletion = false;
+        continue;
+      }
+      received = true;
+      this._skipCompletion = false;
+      for (const part of (content.modelTurn && content.modelTurn.parts) || []) {
+        if (part.text && !part.thought) result.text += part.text;
+        if (part.inlineData && part.inlineData.data) {
+          audioChunks.push(Buffer.from(part.inlineData.data, 'base64'));
+          result.audioMimeType = part.inlineData.mimeType;
+        }
+      }
+      if (content.outputTranscription && content.outputTranscription.text) result.transcription += content.outputTranscription.text;
+      if (content.inputTranscription && content.inputTranscription.text) result.inputTranscription += content.inputTranscription.text;
+      if (content.turnComplete) break;
+    }
+    result.audio = Buffer.concat(audioChunks);
+    return result;
+  }
+
+  close() {
+    try {
+      this.socket.close();
+    } catch (error) {
+      // already closed
     }
   }
 }
 
 module.exports = GeminiAIWrapper;
+module.exports.GeminiAIWrapper = GeminiAIWrapper;
+module.exports.GoogleAIError = GoogleAIError;
+module.exports.GoogleAIChatSession = GoogleAIChatSession;
+module.exports.GoogleAILiveSession = GoogleAILiveSession;
 
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"fs":23}],51:[function(require,module,exports){
+}).call(this)}).call(this,require('_process'),require("buffer").Buffer)
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53,"../utils/GoogleAuth":23,"../utils/StreamParser":63,"_process":30,"buffer":25,"cross-fetch":26,"fs":24,"path":29}],70:[function(require,module,exports){
+(function (Buffer){(function (){
 /*
 Apache License
 */
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
+const GeminiAIWrapper = require('./GeminiAIWrapper');
+const { GoogleAIError, GoogleAIChatSession, GoogleAILiveSession } = GeminiAIWrapper;
 
-class GoogleAIWrapper {
-  constructor(apiKey) {
+/**
+ * One wrapper for Google AI.
+ *
+ * - Google Cloud APIs with a Cloud API key: Text-to-Speech (generateSpeech), Speech-to-Text, Vision,
+ *   Natural Language and Translation.
+ * - Gemini on the Gemini Developer API or on Vertex AI / the Gemini Enterprise Agent Platform: every method of
+ *   GeminiAIWrapper (text, chat, streaming, tools, grounding, media understanding, image / video / music / speech
+ *   generation, embeddings, Files API, caching, Agent Engine, Live API).
+ *
+ *   new GoogleAIWrapper(CLOUD_API_KEY).generateSpeech({ text, languageCode, name, ssmlGender })   // Cloud TTS
+ *   new GoogleAIWrapper(GEMINI_API_KEY).generateText('Hello')                                    // Developer API
+ *   new GoogleAIWrapper(VERTEX_API_KEY, { vertex: true }).generateText('Hello')                  // Vertex express
+ *
+ * `client` stays the Cloud Text-to-Speech client; Gemini calls use `genaiClient`.
+ */
+class GoogleAIWrapper extends GeminiAIWrapper {
+  constructor(apiKey, options = {}) {
+    super(apiKey, options);
     this.API_SPEECH_URL = config.url.google.base.replace(
       '{1}',
       config.url.google.speech.prefix
     );
-    this.API_KEY = apiKey;
+    this.API_KEY = this.API_KEY || apiKey;
 
     this.client = new FetchClient({
       baseURL: this.API_SPEECH_URL,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'X-Goog-Api-Key': this.API_KEY
-      }
+        ...(this.API_KEY && { 'X-Goog-Api-Key': this.API_KEY })
+      },
+      timeout: options.timeout,
+      retries: options.retries,
+      retryDelay: options.retryDelay
     });
   }
 
+  // ------------------------------------------------------------------
+  // Google Cloud Text-to-Speech
+  // ------------------------------------------------------------------
+
+  /** Cloud Text-to-Speech: params { text, languageCode, name, ssmlGender }. Returns { audioContent (base64 MP3) }. */
   async generateSpeech(params) {
-    const endpoint =
-      config.url.google.speech.prefix +
-      config.url.google.speech.synthesize.postfix;
     const url = this.API_SPEECH_URL + config.url.google.speech.synthesize.postfix;
 
     const json = this.getSynthesizeInput(params);
@@ -11217,11 +16824,144 @@ class GoogleAIWrapper {
 
     return JSON.stringify(modelInput);
   }
+
+  /** Cloud Text-to-Speech from SSML. voiceParams { languageCode, name, ssmlGender }. Returns { audioContent }. */
+  async generateSpeechWithSSML(ssml, voiceParams, audioConfig = { audioEncoding: 'MP3' }) {
+    const url = this.API_SPEECH_URL + config.url.google.speech.synthesize.postfix;
+    return this._cloudPost(url, { input: { ssml }, voice: voiceParams, audioConfig });
+  }
+
+  // ------------------------------------------------------------------
+  // Speech-to-Text, Vision, Natural Language and Translation (Cloud API key)
+  // ------------------------------------------------------------------
+
+  _cloudUrl(service, postfix) {
+    return config.url.google.base.replace('{1}', config.url.google[service].prefix) + postfix;
+  }
+
+  async _cloudPost(url, body) {
+    try {
+      return await this.client.post(url, body);
+    } catch (error) {
+      throw connHelper.wrapError(error);
+    }
+  }
+
+  async _cloudGet(url) {
+    try {
+      return await this.client.get(url);
+    } catch (error) {
+      throw connHelper.wrapError(error);
+    }
+  }
+
+  static _base64(content) {
+    if (typeof content === 'string') return content;
+    return Buffer.from(content).toString('base64');
+  }
+
+  /**
+   * Cloud Speech-to-Text (short audio, up to one minute).
+   * @param {Buffer|string} audio - bytes or base64.
+   * @param {object} recognitionConfig - default { languageCode: 'en-US', enableAutomaticPunctuation: true }.
+   */
+  async transcribeAudio(audio, recognitionConfig = null) {
+    return this._cloudPost(this._cloudUrl('speechtotext', config.url.google.speechtotext.recognize.postfix), {
+      config: recognitionConfig || { languageCode: 'en-US', enableAutomaticPunctuation: true },
+      audio: { content: GoogleAIWrapper._base64(audio) },
+    });
+  }
+
+  /** Cloud Speech-to-Text for long audio in Cloud Storage (gs://); returns the long-running operation. */
+  async transcribeAudioLongRunning(audioUri, recognitionConfig = null) {
+    return this._cloudPost(this._cloudUrl('speechtotext', config.url.google.speechtotext.longrunning.postfix), {
+      config: recognitionConfig || { languageCode: 'en-US', enableAutomaticPunctuation: true, enableWordTimeOffsets: true },
+      audio: { uri: audioUri },
+    });
+  }
+
+  /**
+   * Cloud Vision annotate for one image (bytes, base64 or a gs:// / https URI).
+   * @param {Array} features - default labels, text, faces and landmarks.
+   */
+  async analyzeImage(image, features = null) {
+    const source = typeof image === 'string' && /^(gs|https?):\/\//i.test(image)
+      ? { source: { imageUri: image } }
+      : { content: GoogleAIWrapper._base64(image) };
+    return this._cloudPost(this._cloudUrl('vision', config.url.google.vision.annotate.postfix), {
+      requests: [{
+        image: source,
+        features: features || [
+          { type: 'LABEL_DETECTION', maxResults: 10 },
+          { type: 'TEXT_DETECTION' },
+          { type: 'FACE_DETECTION' },
+          { type: 'LANDMARK_DETECTION' },
+        ],
+      }],
+    });
+  }
+
+  /** OCR with layout (DOCUMENT_TEXT_DETECTION): { text, pages }. */
+  async extractDocumentText(image) {
+    const result = await this.analyzeImage(image, [{ type: 'DOCUMENT_TEXT_DETECTION' }]);
+    const response = (result.responses && result.responses[0]) || {};
+    const annotation = response.fullTextAnnotation || {};
+    return { text: annotation.text || '', pages: annotation.pages || [] };
+  }
+
+  /** Cloud Natural Language: sentiment, entities, syntax and categories of a text (annotateText). */
+  async analyzeText(text, features = null) {
+    return this._cloudPost(this._cloudUrl('language', config.url.google.language.annotate.postfix), {
+      document: { type: 'PLAIN_TEXT', content: text },
+      features: features || { extractSyntax: false, extractEntities: true, extractDocumentSentiment: true, classifyText: false },
+      encodingType: 'UTF8',
+    });
+  }
+
+  /** Cloud Natural Language document sentiment. */
+  async analyzeSentiment(text) {
+    return this._cloudPost(this._cloudUrl('language', config.url.google.language.sentiment.postfix), {
+      document: { type: 'PLAIN_TEXT', content: text },
+      encodingType: 'UTF8',
+    });
+  }
+
+  /** Cloud Natural Language content categories. */
+  async classifyText(text) {
+    return this._cloudPost(this._cloudUrl('language', config.url.google.language.classify.postfix), {
+      document: { type: 'PLAIN_TEXT', content: text },
+    });
+  }
+
+  /** Cloud Translation (Basic): returns { data: { translations: [{ translatedText, detectedSourceLanguage }] } }. */
+  async translateText(text, targetLanguage, sourceLanguage = null, format = 'text') {
+    return this._cloudPost(config.url.google.translation.base, {
+      q: text,
+      target: targetLanguage,
+      format,
+      ...(sourceLanguage && { source: sourceLanguage }),
+    });
+  }
+
+  /** Cloud Translation (Basic) language detection. */
+  async detectLanguage(text) {
+    return this._cloudPost(`${config.url.google.translation.base}/detect`, { q: text });
+  }
+
+  /** Languages supported by Cloud Translation, with names in targetLanguage. */
+  async getSupportedLanguages(targetLanguage = 'en') {
+    return this._cloudGet(`${config.url.google.translation.base}/languages?target=${encodeURIComponent(targetLanguage)}`);
+  }
 }
 
 module.exports = GoogleAIWrapper;
+module.exports.GoogleAIWrapper = GoogleAIWrapper;
+module.exports.GoogleAIError = GoogleAIError;
+module.exports.GoogleAIChatSession = GoogleAIChatSession;
+module.exports.GoogleAILiveSession = GoogleAILiveSession;
 
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],52:[function(require,module,exports){
+}).call(this)}).call(this,require("buffer").Buffer)
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53,"./GeminiAIWrapper":69,"buffer":25}],71:[function(require,module,exports){
 (function (Buffer){(function (){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
@@ -11274,7 +17014,7 @@ class HuggingWrapper {
 module.exports = HuggingWrapper;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"buffer":24}],53:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53,"buffer":25}],72:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const FormData = require('form-data');
@@ -11324,7 +17064,7 @@ class IntellicloudWrapper {
 
 module.exports = IntellicloudWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"form-data":26}],54:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53,"form-data":27}],73:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -11367,7 +17107,7 @@ class MistralAIWrapper {
 
 module.exports = MistralAIWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],55:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53}],74:[function(require,module,exports){
 const config = require('../config.json');
 const connHelper = require('../utils/ConnHelper');
 const FetchClient = require('../utils/FetchClient');
@@ -11446,7 +17186,7 @@ class NvidiaWrapper {
 
 module.exports = NvidiaWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],56:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53}],75:[function(require,module,exports){
 /*
 Apache License
 
@@ -11561,7 +17301,7 @@ class OpenAICompatibleWrapper {
 
 module.exports = OpenAICompatibleWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],57:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53}],76:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const ProxyHelper = require('../utils/ProxyHelper');
@@ -11746,7 +17486,7 @@ class OpenAIWrapper {
 
 module.exports = OpenAIWrapper;
 
-},{"../utils/ConnHelper":34,"../utils/FetchClient":35,"../utils/ProxyHelper":44}],58:[function(require,module,exports){
+},{"../utils/ConnHelper":52,"../utils/FetchClient":53,"../utils/ProxyHelper":62}],77:[function(require,module,exports){
 /*Apache License
 Copyright 2023 Github.com/Barqawiz/IntelliNode*/
 const config = require('../config.json');
@@ -11789,7 +17529,7 @@ class ReplicateWrapper {
 
 module.exports = ReplicateWrapper;
 
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35}],59:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53}],78:[function(require,module,exports){
 // wrappers/StabilityAIWrapper.js
 
 const FormData = require('form-data');
@@ -12214,7 +17954,7 @@ class StabilityAIWrapper {
 }
 
 module.exports = StabilityAIWrapper;
-},{"../config.json":1,"../utils/ConnHelper":34,"../utils/FetchClient":35,"form-data":26,"fs":23}],60:[function(require,module,exports){
+},{"../config.json":1,"../utils/ConnHelper":52,"../utils/FetchClient":53,"form-data":27,"fs":24}],79:[function(require,module,exports){
 const FetchClient = require('../utils/FetchClient');
 const connHelper = require('../utils/ConnHelper');
 
@@ -12259,5 +17999,5 @@ class VLLMWrapper {
 }
 
 module.exports = VLLMWrapper;
-},{"../utils/ConnHelper":34,"../utils/FetchClient":35}]},{},[12])(12)
+},{"../utils/ConnHelper":52,"../utils/FetchClient":53}]},{},[13])(13)
 });

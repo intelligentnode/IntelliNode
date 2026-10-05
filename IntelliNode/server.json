@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.intelligentnode/intellinode",
-  "description": "Cross-provider LLM tools for coding assistants: ask, consensus, review, fix, codegen and images.",
+  "description": "Cross-provider LLM tools for coding assistants: ask, consensus, web search, review, fix, codegen, images and speech.",
   "repository": {
     "url": "https://github.com/intelligentnode/IntelliNode",
     "source": "github"
   },
-  "version": "3.0.1",
+  "version": "3.1.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "intellinode",
-      "version": "3.0.1",
+      "version": "3.1.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
@@ -40,6 +40,24 @@
           "name": "GEMINI_API_KEY",
           "description": "Google Gemini API key",
           "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "VERTEX_API_KEY",
+          "description": "Google Cloud Agent Platform key for Gemini on Vertex AI (express mode)",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "VERTEX_PROJECT_ID",
+          "description": "Optional Google Cloud project for Vertex AI project mode",
+          "isSecret": false,
+          "isRequired": false
+        },
+        {
+          "name": "VERTEX_LOCATION",
+          "description": "Optional Vertex AI location (default global)",
+          "isSecret": false,
           "isRequired": false
         },
         {

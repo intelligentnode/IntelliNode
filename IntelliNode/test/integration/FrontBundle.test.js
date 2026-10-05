@@ -91,6 +91,25 @@ async function testCohereChat() {
   assert.match(responses[0], /rome/i);
 }
 
+// Gemini on Vertex AI express mode (VERTEX_API_KEY) streams over SSE through the web ReadableStream path.
+async function testVertexChatStreamAndAssistant() {
+  if (!process.env.VERTEX_API_KEY) throw new Error('VERTEX_API_KEY is not set');
+  assert.strictEqual(IntelliNode.GoogleAuth, undefined, 'OAuth from key files is Node only');
+  const bot = new IntelliNode.Chatbot(process.env.VERTEX_API_KEY, 'vertex');
+  const input = new IntelliNode.GeminiInput('You are concise.', { systemInstruction: true, generationConfig: { thinkingConfig: { thinkingLevel: 'low' } } });
+  input.addUserMessage('Count from 1 to 5, comma separated.');
+  const streamed = await collect(bot.stream(input));
+  assert.match(streamed, /1,\s*2,\s*3/);
+  const assistant = new IntelliNode.Assistant({
+    provider: 'vertex', apiKey: process.env.VERTEX_API_KEY,
+    knowledge: new IntelliNode.MemoryVectorStore({ embedder: { provider: 'vertex', apiKey: process.env.VERTEX_API_KEY } }),
+  });
+  await assistant.addDocuments([{ id: 'facts', text: 'The IntelliNode mascot is a blue owl named Nodey.' }]);
+  const reply = await assistant.chat('What is the name of the IntelliNode mascot?');
+  assert.match(reply.text, /nodey/i);
+  assert.strictEqual(reply.references[0].id, 'facts#0');
+}
+
 async function testStreamWithoutAsyncIteratorSupport() {
   safariBodies = true;
   try {
@@ -109,6 +128,7 @@ async function testStreamWithoutAsyncIteratorSupport() {
   await run('OpenAI chat and stream', testOpenAIChatAndStream);
   await run('Anthropic chat and stream', testAnthropicChatAndStreamWithBrowserHeader);
   await run('Cohere chat', testCohereChat);
+  await run('Vertex AI chat, stream and Assistant', testVertexChatStreamAndAssistant);
   await run('stream without ReadableStream async iterator (Safari)', testStreamWithoutAsyncIteratorSupport);
 
   const failed = results.filter((result) => !result.ok);

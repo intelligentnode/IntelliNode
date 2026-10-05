@@ -1,0 +1,24 @@
+{
+  "name": "intellinode",
+  "displayName": "IntelliNode",
+  "version": "1.0.0",
+  "description": "Build Gemini- and ChatGPT-style apps, assistants with memory, RAG over vector databases and multi-provider AI features in JavaScript with the IntelliNode library, plus an MCP server with cross-provider tools.",
+  "author": {
+    "name": "IntelliNode",
+    "url": "https://www.intellinode.ai"
+  },
+  "homepage": "https://www.intellinode.ai",
+  "repository": "https://github.com/intelligentnode/IntelliNode",
+  "license": "Apache-2.0",
+  "keywords": [
+    "intellinode",
+    "javascript",
+    "nodejs",
+    "gemini",
+    "vertex-ai",
+    "rag",
+    "vector-database",
+    "assistant",
+    "mcp"
+  ]
+}
