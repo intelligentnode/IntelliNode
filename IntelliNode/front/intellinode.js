@@ -9065,8 +9065,8 @@ process.umask = function() { return 0; };
 },{}],31:[function(require,module,exports){
 module.exports={
   "name": "intellinode",
-  "version": "3.1.0",
-  "description": "Unified AI toolkit: one API for OpenAI, Anthropic, Gemini, Vertex AI, Mistral, Cohere, NVIDIA and OpenAI-compatible services, with an Assistant for chat apps, vector stores, a tool loop, structured output, generators for web developers, an MCP server and an agent skill.",
+  "version": "3.1.1",
+  "description": "JavaScript AI SDK for OpenAI, Claude, Gemini and Vertex AI: chatbots, AI agents, RAG with vector databases, tool calling, MCP, image and speech.",
   "main": "index.js",
   "types": "index.d.ts",
   "bin": {
@@ -9102,16 +9102,14 @@ module.exports={
     "groq",
     "openai-compatible",
     "tool-calling",
-    "structured-output",
     "model-context-protocol",
     "coding-agent",
     "agent",
     "vertex-ai",
     "google-cloud",
-    "rag",
+    "RAG",
     "vector-database",
-    "assistant",
-    "firestore",
+    "codex",
     "agent-skills"
   ],
   "author": "IntelliNode",
