@@ -12,12 +12,12 @@ export type JsonSchema = Record<string, any>;
 
 /** Chat providers accepted by Chatbot and Gen. */
 export type ChatProvider =
-  | 'openai' | 'replicate' | 'sagemaker' | 'cohere' | 'mistral' | 'gemini' | 'anthropic' | 'nvidia' | 'vllm'
+  | 'openai' | 'replicate' | 'sagemaker' | 'cohere' | 'mistral' | 'gemini' | 'vertex' | 'anthropic' | 'nvidia' | 'vllm'
   | 'openai_compatible' | 'openrouter' | 'groq' | 'deepseek' | 'xai' | 'together' | 'ollama' | 'lmstudio';
 
 export type CompatiblePreset = 'openrouter' | 'groq' | 'deepseek' | 'xai' | 'together' | 'ollama' | 'lmstudio';
 
-export type EmbedProvider = 'openai' | 'cohere' | 'replicate' | 'gemini' | 'nvidia' | 'vllm'
+export type EmbedProvider = 'openai' | 'cohere' | 'replicate' | 'gemini' | 'vertex' | 'nvidia' | 'vllm'
   | 'openai_compatible' | 'openrouter' | 'together' | 'ollama' | 'lmstudio';
 
 /** A function tool in chat-completions format. */
@@ -155,12 +155,33 @@ export class VLLMInput extends ChatGPTInput {
   constructor(systemMessage: string | ChatGPTMessage, options?: ChatModelOptions & { top_p?: number });
 }
 
+/** An image, audio, video or PDF for a Gemini turn: a Gemini part, inline data, or a URI. */
+export type GeminiMedia = Record<string, any> | { data: string | Uint8Array; mimeType: string } | { uri: string; mimeType: string };
+
+export interface GeminiInputOptions extends ChatModelOptions {
+  /** true sends the system message as a Gemini system instruction; a string sets the instruction directly */
+  systemInstruction?: boolean | string;
+  /** extra generationConfig entries, e.g. { thinkingConfig: { thinkingLevel: 'low' } } */
+  generationConfig?: Record<string, any>;
+  safetySettings?: any[];
+  /** a context cache name from GeminiAIWrapper.createCachedContent */
+  cachedContent?: string;
+}
+
 export class GeminiInput extends ChatModelInput {
-  constructor(systemMessage?: string | null, options?: ChatModelOptions);
+  constructor(systemMessage?: string | null, options?: GeminiInputOptions);
   messages: Array<{ role: 'user' | 'model'; parts: any[] }>;
   model: string;
   maxOutputTokens?: number;
   temperature?: number;
+  systemInstruction: string | null;
+  /** true while the model is the Developer API default; the vertex provider then uses its own default */
+  defaultModel: boolean;
+  generationConfig: Record<string, any> | null;
+  safetySettings: any[] | null;
+  cachedContent: string | null;
+  /** Add a user turn, optionally with images, audio, video or PDFs. */
+  addUserMessage(text: string, media?: GeminiMedia | GeminiMedia[] | null): void;
   addModelMessage(text: string): void;
 }
 
@@ -195,11 +216,27 @@ export class LLamaSageInput extends ChatModelInput {
 
 export const SupportedChatModels: {
   OPENAI: 'openai'; REPLICATE: 'replicate'; SAGEMAKER: 'sagemaker'; COHERE: 'cohere'; MISTRAL: 'mistral';
-  GEMINI: 'gemini'; ANTHROPIC: 'anthropic'; NVIDIA: 'nvidia'; VLLM: 'vllm'; OPENAI_COMPATIBLE: 'openai_compatible';
+  GEMINI: 'gemini'; VERTEX: 'vertex'; ANTHROPIC: 'anthropic'; NVIDIA: 'nvidia'; VLLM: 'vllm'; OPENAI_COMPATIBLE: 'openai_compatible';
   OPENROUTER: 'openrouter'; GROQ: 'groq'; DEEPSEEK: 'deepseek'; XAI: 'xai'; TOGETHER: 'together'; OLLAMA: 'ollama'; LMSTUDIO: 'lmstudio';
 };
 
-export interface ChatbotOptions extends RequestOptions {
+/** Gemini Developer API / Vertex AI settings (Chatbot, Gen, controllers, Embedder, Assistant). */
+export interface GoogleOptions {
+  /** use Vertex AI (also implied by projectId, credentials or accessToken) */
+  vertex?: boolean;
+  projectId?: string;
+  /** Vertex AI location: 'global' (default with a project), a region, or 'us' / 'eu' */
+  location?: string;
+  /** an OAuth access token, or a function that returns one */
+  accessToken?: string | (() => string | Promise<string>);
+  /** a service account or authorized_user JSON object, or its file path (Node) */
+  credentials?: Record<string, any> | string;
+  apiVersion?: string;
+  quotaProjectId?: string;
+  baseUrl?: string;
+}
+
+export interface ChatbotOptions extends RequestOptions, GoogleOptions {
   /** IntelliNode one key for semantic search over your documents */
   oneKey?: string;
   intelliBase?: string;
@@ -241,6 +278,8 @@ export interface RunToolsResult {
 export class Chatbot {
   constructor(keyValue: string | null | undefined, provider?: ChatProvider, customProxyHelper?: any, options?: ChatbotOptions);
   provider: string;
+  /** The raw provider response of the last chat or stream (usage, grounding sources, finish reason). */
+  lastResponse: any;
   getSupportedModels(): string[];
   /** Apply timeout, retries or an AbortSignal to every request of this chatbot. */
   setRequestOptions(options: RequestOptions): this;
@@ -253,7 +292,7 @@ export class Chatbot {
   /** Model ids served by an OpenAI-compatible provider. */
   listModels(): Promise<string[]>;
   /** The chat input class of a provider, created with a system message. */
-  static createInput(provider: ChatProvider, systemMessage: string, options?: ChatModelOptions & ChatGPTOptions): ChatModelInput;
+  static createInput(provider: ChatProvider, systemMessage: string, options?: ChatModelOptions & ChatGPTOptions & GeminiInputOptions): ChatModelInput;
   getSemanticSearchContext(modelInput: any): Promise<Record<string, any>>;
 }
 
@@ -419,11 +458,11 @@ export class CodingAgent {
 // ---------------------------------------------------------------------
 
 export const SupportedLangModels: { OPENAI: 'openai'; COHERE: 'cohere' };
-export const SupportedImageModels: { OPENAI: 'openai'; STABILITY: 'stability' };
-export const SupportedSpeechModels: { GOOGLE: 'google'; OPENAI: 'openAi' };
+export const SupportedImageModels: { OPENAI: 'openai'; STABILITY: 'stability'; GEMINI: 'gemini'; VERTEX: 'vertex' };
+export const SupportedSpeechModels: { GOOGLE: 'google'; OPENAI: 'openAi'; GEMINI: 'gemini'; VERTEX: 'vertex' };
 export const SupportedFineTuneModels: { OPENAI: 'openAi' };
 export const SupportedEmbedModels: {
-  OPENAI: 'openai'; COHERE: 'cohere'; REPLICATE: 'replicate'; GEMINI: 'gemini'; NVIDIA: 'nvidia'; VLLM: 'vllm';
+  OPENAI: 'openai'; COHERE: 'cohere'; REPLICATE: 'replicate'; GEMINI: 'gemini'; VERTEX: 'vertex'; NVIDIA: 'nvidia'; VLLM: 'vllm';
   OPENAI_COMPATIBLE: 'openai_compatible'; OPENROUTER: 'openrouter'; TOGETHER: 'together'; OLLAMA: 'ollama'; LMSTUDIO: 'lmstudio';
 };
 
@@ -449,19 +488,27 @@ export class ImageModelInput {
   prompt: string;
   getOpenAIInputs(): any;
   getStabilityInputs(): any;
+  getGeminiInputs(): any;
+  /** The closest aspect ratio Gemini supports for a width and height, e.g. '16:9'. */
+  static aspectRatio(width: number, height: number): string;
 }
 
 export class RemoteImageModel {
-  constructor(keyValue: string, provider?: 'openai' | 'stability');
+  constructor(keyValue: string | null, provider?: 'openai' | 'stability' | 'gemini' | 'vertex', options?: GoogleOptions);
+  /** URLs or base64 images (Gemini and Stability return base64). */
   generateImages(imageInput: ImageModelInput | Record<string, any>): Promise<string[]>;
 }
 
 export class Text2SpeechInput {
   constructor(options: { text: string; language?: string; gender?: string; voice?: string; model?: string; stream?: boolean });
+  getGoogleInput(): any;
+  getOpenAIInput(): any;
+  getGeminiInput(): { text: string; voice: string; model: string | null };
 }
 
+/** google returns base64 MP3, gemini / vertex base64 WAV, openAi the audio stream or bytes. */
 export class RemoteSpeechModel {
-  constructor(keyValue: string, provider?: 'google' | 'openAi');
+  constructor(keyValue: string | null, provider?: 'google' | 'openAi' | 'gemini' | 'vertex', options?: GoogleOptions);
   getSupportedModels(): string[];
   generateSpeech(input: Text2SpeechInput | Record<string, any>): Promise<any>;
 }
@@ -509,7 +556,7 @@ export class FunctionModelInput {
 // ---------------------------------------------------------------------
 
 export class SemanticSearch {
-  constructor(keyValue: string, provider?: 'openai' | 'cohere', customProxyHelper?: any);
+  constructor(keyValue: string | null, provider?: EmbedProvider, customProxyHelper?: any);
   getTopMatches(pivotItem: string, searchArray: string[], numberOfMatches: number, modelName?: string | null): Promise<Array<{ index: number; similarity: number }>>;
   getTopVectorMatches(pivotEmbedding: number[], searchEmbeddings: number[][], numberOfMatches: number): Array<{ index: number; similarity: number }>;
   getTopMatchesFromEmbeddings(pivotEmbedding: number[], searchEmbeddings: number[][], numberOfMatches: number): Array<{ index: number; similarity: number }>;
@@ -648,17 +695,481 @@ export class OpenAICompatibleWrapper {
   listModels(): Promise<string[]>;
 }
 export class AnthropicWrapper { constructor(apiKey: string); client: FetchClient; generateText(params: any): Promise<any>; streamText(params: any): Promise<any>; [method: string]: any; }
-export class GeminiAIWrapper { constructor(apiKey: string); client: FetchClient; generateContent(params: any, vision?: boolean, model?: string | null): Promise<any>; getEmbeddings(params: any): Promise<any>; [method: string]: any; }
 export class MistralAIWrapper { constructor(apiKey: string); client: FetchClient; generateText(params: any): Promise<any>; getEmbeddings(params: any): Promise<any>; [method: string]: any; }
 export class CohereAIWrapper { constructor(apiKey: string); client: FetchClient; generateText(params: any): Promise<any>; generateChatText(params: any): Promise<any>; getEmbeddings(params: any): Promise<any>; [method: string]: any; }
 export class NvidiaWrapper { constructor(apiKey: string, options?: { baseUrl?: string }); client: FetchClient; generateText(params: any): Promise<any>; generateTextStream(params: any): Promise<any>; generateRetrieval(params: any): Promise<any>; [method: string]: any; }
 export class VLLMWrapper { constructor(baseUrl: string); client: FetchClient; generateText(params: any): Promise<any>; generateChatText(params: any): Promise<any>; getEmbeddings(texts: string[]): Promise<any>; [method: string]: any; }
-export class GoogleAIWrapper { constructor(apiKey: string); [method: string]: any; }
 export class StabilityAIWrapper { constructor(apiKey: string); [method: string]: any; }
 export class HuggingWrapper { constructor(apiKey: string); generateText(modelId: string, data: any): Promise<any>; generateImage(modelId: string, data: any): Promise<any>; processImage(modelId: string, data: any): Promise<any>; [method: string]: any; }
 export class ReplicateWrapper { constructor(apiKey: string); predict(modelTag: string, inputData: any): Promise<any>; getPredictionStatus(predictionId: string): Promise<any>; [method: string]: any; }
 export class AWSEndpointWrapper { constructor(apiUrl: string, apiKey?: string | null); predict(inputData: any): Promise<any>; [method: string]: any; }
 export class IntellicloudWrapper { constructor(apiKey: string, apiBase?: string | null); semanticSearch(queryText: string, k?: number, filters?: any): Promise<any>; [method: string]: any; }
+
+// ---------------------------------------------------------------------
+// Google: Gemini Developer API, Vertex AI and Google Cloud APIs
+// ---------------------------------------------------------------------
+
+export interface GoogleWrapperOptions extends GoogleOptions, RequestOptions {
+  /** a WebSocket class for the Live API on Node < 22, e.g. require('ws') */
+  WebSocket?: any;
+}
+
+export interface GenerateTextOptions {
+  model?: string;
+  systemInstruction?: string | Record<string, any>;
+  /** paths (Node), { data, mimeType }, gs:// / https / YouTube URIs, or Gemini parts */
+  media?: any[];
+  generationConfig?: Record<string, any>;
+  tools?: any[];
+  toolConfig?: Record<string, any>;
+  safetySettings?: any[];
+  history?: any[];
+  cachedContent?: string;
+}
+
+export interface GeminiMediaItem { mimeType: string; data: string }
+export interface GeminiVideoItem { mimeType: string; data: string | null; uri: string | null }
+export interface GeminiCitation { title: string; uri: string | null; domain?: string; text?: string }
+
+/** Error of the Gemini / Vertex AI methods; keys and tokens are never in the message or details. */
+export class GoogleAIError extends Error {
+  constructor(message: string, status?: number | null, details?: any);
+  status: number | null;
+  statusCode: number | null;
+  details: any;
+  body?: string;
+}
+
+export class GoogleAIChatSession {
+  constructor(wrapper: GeminiAIWrapper, options?: Omit<GenerateTextOptions, 'media'>);
+  model: string;
+  /** JSON-serializable contents; store it to resume with startChat({ history }) */
+  history: any[];
+  lastResponse: any;
+  send(message?: string | any[] | null, media?: any[] | null, options?: { parts?: any[] }): Promise<any>;
+  sendText(message?: string | any[] | null, media?: any[] | null): Promise<string>;
+  sendFunctionResponse(name: string, response: Record<string, any>, callId?: string | null): Promise<any>;
+  stream(message?: string | any[] | null, media?: any[] | null): AsyncGenerator<string, void, unknown>;
+  reset(): void;
+}
+
+export interface LiveTurn {
+  text: string;
+  transcription: string;
+  inputTranscription: string;
+  /** 24 kHz 16-bit PCM; wrap with GeminiAIWrapper.pcmToWav */
+  audio: Uint8Array;
+  audioMimeType: string | null;
+  toolCalls: Array<{ id?: string; name: string; args?: any }>;
+  usage: any;
+  messages: number;
+}
+
+export class GoogleAILiveSession {
+  setupResponse: any;
+  send(message: Record<string, any>): void;
+  sendText(text: string, turnComplete?: boolean): void;
+  sendAudio(data: Uint8Array | string, mimeType?: string): void;
+  sendAudioStreamEnd(): void;
+  sendToolResponse(functionResponses: Array<{ id?: string; name: string; response: any }>): void;
+  receive(): AsyncGenerator<any, void, unknown>;
+  receiveTurn(): Promise<LiveTurn>;
+  close(): void;
+}
+
+/**
+ * Gemini on the Gemini Developer API (AI Studio key) or Vertex AI (Agent Platform key, ADC or an access token):
+ * text, chat, streaming, tools, grounding, media understanding, image / video / music / speech generation,
+ * embeddings, Files API, context caching, Agent Engine and the Live API.
+ */
+export class GeminiAIWrapper {
+  constructor(apiKey?: string | null, options?: GoogleWrapperOptions);
+  static fromOptions<T extends typeof GeminiAIWrapper>(this: T, apiKey?: string | null, options?: GoogleWrapperOptions): InstanceType<T>;
+  API_KEY: string | null;
+  client: FetchClient;
+  genaiClient: FetchClient;
+  vertex: boolean;
+  projectId: string | null;
+  location: string | null;
+  apiVersion: string;
+  models: Record<string, string>;
+  setRequestOptions(options: RequestOptions): this;
+  static getModelId(model: string): string;
+
+  generateContent(params: Record<string, any> | string, vision?: boolean, modelOverride?: string | null): Promise<any>;
+  streamGenerateContent(params: Record<string, any> | string, vision?: boolean, modelOverride?: string | null): AsyncGenerator<any, void, unknown>;
+  generateText(prompt: string | any[], options?: GenerateTextOptions): Promise<string>;
+  streamText(prompt: string | any[], options?: GenerateTextOptions): AsyncGenerator<string, void, unknown>;
+  startChat(options?: Omit<GenerateTextOptions, 'media'>): GoogleAIChatSession;
+  generateContentWithSystemInstructions(contentParts: any[], systemInstruction?: string | null, modelOverride?: string | null): Promise<any>;
+  generateStructuredContent(contentParts: any[] | string, responseSchema: JsonSchema, options?: { systemInstruction?: string; model?: string; generationConfig?: any; tools?: any[]; toolConfig?: any }): Promise<any>;
+  countTokens(params: Record<string, any> | string, model?: string | null): Promise<{ totalTokens: number; [key: string]: any }>;
+  computeTokens(params: Record<string, any> | string, model?: string | null): Promise<any>;
+
+  mediaPart(source: any, mimeType?: string | null, options?: { videoMetadata?: Record<string, any> | null }): Record<string, any>;
+  imageToText(userInput: string, filePath: string, extension: string, modelOverride?: string | null): Promise<any>;
+  mediaToText(prompt: string, media: any[], options?: GenerateTextOptions): Promise<string>;
+  audioToText(audio: any, prompt?: string, options?: GenerateTextOptions & { mimeType?: string }): Promise<string>;
+  videoToText(video: any, prompt?: string, options?: GenerateTextOptions & { mimeType?: string; videoMetadata?: Record<string, any> }): Promise<string>;
+
+  generateImage(prompt: string, configParams?: Record<string, any> | null, modelOverride?: string | null, options?: { images?: any[] | any }): Promise<any>;
+  editImage(prompt: string, images: any[] | any, configParams?: Record<string, any> | null, modelOverride?: string | null): Promise<any>;
+  imagenGenerateImages(prompt: string, options: { model: string; numberOfImages?: number; aspectRatio?: string; negativePrompt?: string; parameters?: any }): Promise<any>;
+  generateVideo(prompt: string, configParams?: Record<string, any> | null, projectId?: string | null, options?: { model?: string; image?: any; lastFrame?: any; location?: string }): Promise<any>;
+  getVideoOperation(operation: string | { name: string }): Promise<any>;
+  waitForVideoCompletion(operation: string | { name: string }, options?: { maxWaitMs?: number; pollMs?: number }): Promise<any>;
+  downloadMedia(uri: string): Promise<Uint8Array>;
+  generateMusic(prompt: string, options?: { model?: string; negativePrompt?: string; seed?: number; sampleCount?: number; generationConfig?: any; location?: string }): Promise<any>;
+  generateGeminiSpeech(text: string, voiceConfig?: Record<string, any> | null, modelOverride?: string | null, options?: { voice?: string; languageCode?: string }): Promise<any>;
+  generateMultiSpeakerSpeech(text: string, speakerConfigs: any[], modelOverride?: string | null): Promise<any>;
+  /** Gemini TTS to a WAV Buffer in one call. */
+  textToSpeech(text: string, options?: { voice?: string; model?: string; languageCode?: string }): Promise<Uint8Array>;
+
+  getEmbeddings(params: Record<string, any>): Promise<{ values: number[] }>;
+  getBatchEmbeddings(params: { requests: any[] }): Promise<Array<{ values: number[] }>>;
+  embedTexts(texts: string[] | string, model?: string | null, options?: { taskType?: string | null; title?: string | null; outputDimensionality?: number | null }): Promise<number[][]>;
+
+  uploadFile(source: string | Uint8Array, options?: { displayName?: string; mimeType?: string }): Promise<{ name: string; uri: string; mimeType: string; state?: string; [key: string]: any }>;
+  getFile(name: string): Promise<any>;
+  listFiles(options?: { pageSize?: number; pageToken?: string }): Promise<any>;
+  deleteFile(name: string): Promise<any>;
+  waitForFileActive(name: string | { name: string }, options?: { maxWaitMs?: number; pollMs?: number }): Promise<any>;
+  listModels(options?: { pageSize?: number; pageToken?: string }): Promise<any>;
+  static modelCatalog(): Record<string, string[]>;
+  createCachedContent(model: string, contents: any[], options?: { systemInstruction?: string | any; ttl?: string; displayName?: string; tools?: any[]; toolConfig?: any; location?: string }): Promise<any>;
+  getCachedContent(name: string): Promise<any>;
+  listCachedContents(options?: { pageSize?: number; pageToken?: string; location?: string }): Promise<any>;
+  deleteCachedContent(name: string): Promise<any>;
+  listAgentEngines(options?: { location?: string; pageSize?: number; pageToken?: string; filter?: string }): Promise<any>;
+  getAgentEngine(name: string, options?: { location?: string }): Promise<any>;
+  queryAgentEngine(name: string, input?: Record<string, any>, options?: { classMethod?: string; location?: string }): Promise<any>;
+  streamQueryAgentEngine(name: string, input?: Record<string, any>, options?: { classMethod?: string; location?: string }): AsyncGenerator<any, void, unknown>;
+  static googleSearchTool(): { googleSearch: {} };
+  static vertexAISearchTool(datastore: string): Record<string, any>;
+  ragTool(corpora: string | string[], options?: { topK?: number; vectorDistanceThreshold?: number; location?: string }): Record<string, any>;
+  liveConnect(options?: { model?: string; config?: Record<string, any>; location?: string }): Promise<GoogleAILiveSession>;
+  liveGenerate(text: string, options?: { model?: string; config?: Record<string, any>; location?: string }): Promise<LiveTurn>;
+
+  static extractText(response: any, includeThoughts?: boolean): string;
+  static extractFinishReason(response: any): string | null;
+  static extractFunctionCalls(response: any): Array<{ name: string; args?: any; id?: string }>;
+  static extractGrounding(response: any): Record<string, any>;
+  static extractCitations(response: any): GeminiCitation[];
+  static extractUsage(response: any): Record<string, any> | null;
+  static extractImages(response: any): GeminiMediaItem[];
+  static extractAudio(response: any): GeminiMediaItem[];
+  static extractVideos(operation: any): GeminiVideoItem[];
+  static pcmToWav(pcm: Uint8Array | string, sampleRate?: number, channels?: number, sampleWidth?: number): Uint8Array;
+  static audioToWav(audio: { mimeType?: string; data: string | Uint8Array }): Uint8Array;
+  [method: string]: any;
+}
+
+/** GeminiAIWrapper plus the Google Cloud APIs (Text-to-Speech, Speech-to-Text, Vision, Natural Language, Translation). */
+export class GoogleAIWrapper extends GeminiAIWrapper {
+  constructor(apiKey?: string | null, options?: GoogleWrapperOptions);
+  API_SPEECH_URL: string;
+  /** Cloud Text-to-Speech: returns { audioContent } (base64 MP3). */
+  generateSpeech(params: { text: string; languageCode: string; name: string; ssmlGender: string }): Promise<{ audioContent: string }>;
+  getSynthesizeInput(params: any): string;
+  generateSpeechWithSSML(ssml: string, voiceParams: Record<string, any>, audioConfig?: Record<string, any>): Promise<any>;
+  transcribeAudio(audio: Uint8Array | string, recognitionConfig?: Record<string, any> | null): Promise<any>;
+  transcribeAudioLongRunning(audioUri: string, recognitionConfig?: Record<string, any> | null): Promise<any>;
+  analyzeImage(image: Uint8Array | string, features?: any[] | null): Promise<any>;
+  extractDocumentText(image: Uint8Array | string): Promise<{ text: string; pages: any[] }>;
+  analyzeText(text: string, features?: Record<string, boolean> | null): Promise<any>;
+  analyzeSentiment(text: string): Promise<any>;
+  classifyText(text: string): Promise<any>;
+  translateText(text: string | string[], targetLanguage: string, sourceLanguage?: string | null, format?: 'text' | 'html'): Promise<any>;
+  detectLanguage(text: string | string[]): Promise<any>;
+  getSupportedLanguages(targetLanguage?: string): Promise<any>;
+}
+
+/** Google OAuth tokens from an access token, a service account / authorized_user file or ADC (Node only). */
+export class GoogleAuth {
+  constructor(options?: { accessToken?: string | (() => string | Promise<string>); credentials?: Record<string, any> | string; scopes?: string | string[]; quotaProjectId?: string; timeout?: number });
+  static CLOUD_SCOPE: string;
+  getAccessToken(): Promise<string>;
+  getHeaders(): Promise<Record<string, string>>;
+  getProjectId(): Promise<string | null>;
+}
+
+export class TextSplitter {
+  static split(text: string, options?: { chunkSize?: number; chunkOverlap?: number }): string[];
+  static toDocuments(text: string, metadata?: Record<string, any>, options?: { chunkSize?: number; chunkOverlap?: number; idPrefix?: string }): VectorDocument[];
+}
+
+// ---------------------------------------------------------------------
+// Vector stores and chat history
+// ---------------------------------------------------------------------
+
+export interface VectorRecord { id: string; vector: number[]; text?: string | null; metadata?: Record<string, any> }
+export interface VectorDocument { id?: string; text: string; metadata?: Record<string, any>; vector?: number[] }
+export interface VectorQuery {
+  vector?: number[];
+  /** embedded with the store's embedder (VertexRAGStore sends the text itself) */
+  text?: string;
+  topK?: number;
+  /** metadata equality; an array value means one of */
+  filter?: Record<string, any> | null;
+  /** the store's own filter syntax; wins over filter */
+  nativeFilter?: any;
+}
+export interface VectorMatch { id: string; score: number | null; text: string | null; metadata: Record<string, any> }
+
+export type EmbedFunction = (texts: string[], options: { kind: 'document' | 'query' }) => Promise<number[][]> | number[][];
+export interface EmbedderSettings {
+  provider?: EmbedProvider | 'google';
+  apiKey?: string | null;
+  model?: string | null;
+  dimensions?: number | null;
+  batchSize?: number | null;
+  options?: GoogleOptions & { baseUrl?: string; headers?: Record<string, string>; customProxyHelper?: any };
+}
+
+export class Embedder {
+  constructor(settings?: EmbedderSettings);
+  provider: string;
+  embed(texts: string[] | string, options?: { kind?: 'document' | 'query' }): Promise<number[][]>;
+}
+
+export interface VectorStoreOptions {
+  embedder?: Embedder | EmbedFunction | EmbedderSettings | { embed: EmbedFunction };
+}
+
+export class VectorStore {
+  constructor(options?: VectorStoreOptions);
+  embedder: { embed: EmbedFunction } | null;
+  embed(texts: string[] | string, kind?: 'document' | 'query'): Promise<number[][]>;
+  /** Embed (when needed) and store documents; returns their ids. */
+  addDocuments(documents: Array<VectorDocument | string>): Promise<string[]>;
+  search(text: string, topK?: number, filter?: Record<string, any> | null): Promise<VectorMatch[]>;
+  upsert(records: VectorRecord[]): Promise<string[]>;
+  query(params: VectorQuery): Promise<VectorMatch[]>;
+  delete(ids: string[]): Promise<void>;
+}
+
+export class MemoryVectorStore extends VectorStore {
+  constructor(options?: VectorStoreOptions & { path?: string });
+  get(ids: string[]): Promise<VectorRecord[]>;
+  clear(filter?: Record<string, any> | null): Promise<void>;
+  count(): Promise<number>;
+}
+
+export interface GoogleCloudStoreOptions extends VectorStoreOptions, RequestOptions {
+  projectId?: string;
+  accessToken?: string | (() => string | Promise<string>);
+  credentials?: Record<string, any> | string;
+  quotaProjectId?: string;
+}
+
+export class FirestoreVectorStore extends VectorStore {
+  constructor(options: GoogleCloudStoreOptions & { database?: string; collection?: string; vectorField?: string; distanceMeasure?: 'COSINE' | 'EUCLIDEAN' | 'DOT_PRODUCT' });
+  client: FetchClient;
+  /** The gcloud command that creates the vector index. */
+  indexCommand(dimension: number): string;
+}
+
+export class VertexRAGStore extends VectorStore {
+  constructor(options: GoogleCloudStoreOptions & { location?: string; corpus?: string; vectorDistanceThreshold?: number });
+  static createCorpus(options: GoogleCloudStoreOptions & { displayName: string; description?: string; embeddingModel?: string; location?: string }): Promise<any>;
+  corpusName(): Promise<string>;
+  listCorpora(options?: { pageSize?: number; pageToken?: string }): Promise<any>;
+  getCorpus(): Promise<any>;
+  deleteCorpus(options?: { force?: boolean }): Promise<any>;
+  uploadFile(source: string | Uint8Array, options?: { displayName?: string; description?: string; mimeType?: string; chunkSize?: number; chunkOverlap?: number }): Promise<any>;
+  importFiles(uris: string | string[], options?: { chunkSize?: number; chunkOverlap?: number; maxEmbeddingRequestsPerMin?: number; wait?: boolean }): Promise<any>;
+  listFiles(options?: { pageSize?: number; pageToken?: string }): Promise<any>;
+  /** A Gemini grounding tool for this corpus. */
+  tool(options?: { topK?: number; vectorDistanceThreshold?: number }): Promise<Record<string, any>>;
+}
+
+export class VertexVectorSearchStore extends VectorStore {
+  constructor(options: GoogleCloudStoreOptions & { collection: string; location?: string; vectorField?: string; distanceMetric?: 'COSINE_DISTANCE' | 'DOT_PRODUCT' });
+  createCollection(options: { dimensions: number; displayName?: string; description?: string }): Promise<any>;
+}
+
+export class VertexVectorSearchIndexStore extends VectorStore {
+  constructor(options: GoogleCloudStoreOptions & {
+    index: string; indexEndpoint: string; deployedIndexId: string; publicEndpointDomain: string; location?: string;
+    distanceMeasure?: 'DOT_PRODUCT_DISTANCE' | 'COSINE_DISTANCE' | 'SQUARED_L2_DISTANCE'; restrictKeys?: string[];
+  });
+}
+
+export interface PineconeVectorStoreOptions extends VectorStoreOptions {
+  apiKey: string; indexHost: string; namespace?: string; apiVersion?: string;
+  metric?: 'cosine' | 'dotproduct' | 'euclidean'; textKey?: string; batchSize?: number;
+}
+export class PineconeVectorStore extends VectorStore {
+  constructor(options: PineconeVectorStoreOptions);
+  client: FetchClient; namespace: string | null;
+}
+
+export interface QdrantVectorStoreOptions extends VectorStoreOptions {
+  url?: string; apiKey?: string; collection: string; distance?: 'Cosine' | 'Dot' | 'Euclid' | 'Manhattan';
+  createCollection?: boolean; dimension?: number; vectorName?: string; textKey?: string; batchSize?: number;
+}
+export class QdrantVectorStore extends VectorStore {
+  constructor(options: QdrantVectorStoreOptions);
+  client: FetchClient; collection: string;
+  ensureCollection(dimension?: number): Promise<boolean>;
+}
+
+export interface ChromaVectorStoreOptions extends VectorStoreOptions {
+  url?: string; collection: string; tenant?: string; database?: string; apiKey?: string;
+  space?: 'cosine' | 'l2' | 'ip'; batchSize?: number;
+}
+export class ChromaVectorStore extends VectorStore {
+  constructor(options: ChromaVectorStoreOptions);
+  client: FetchClient; collection: string; collectionId: string | null;
+  getCollection(): Promise<string>;
+}
+
+export interface WeaviateVectorStoreOptions extends VectorStoreOptions {
+  url?: string; apiKey?: string; className: string; textKey?: string; vectorName?: string | null;
+  distance?: 'cosine' | 'dot' | 'l2-squared' | 'hamming' | 'manhattan'; createClass?: boolean;
+  headers?: Record<string, string>; batchSize?: number;
+}
+export class WeaviateVectorStore extends VectorStore {
+  constructor(options: WeaviateVectorStoreOptions);
+  client: FetchClient; className: string;
+}
+
+export interface MilvusVectorStoreOptions extends VectorStoreOptions {
+  url?: string; token?: string; collection: string; dbName?: string; dimension?: number;
+  metricType?: 'COSINE' | 'IP' | 'L2'; createCollection?: boolean; maxTextLength?: number;
+  consistencyLevel?: 'Strong' | 'Session' | 'Bounded' | 'Eventually'; batchSize?: number;
+}
+export class MilvusVectorStore extends VectorStore {
+  constructor(options: MilvusVectorStoreOptions);
+  client: FetchClient; collection: string;
+  ensureCollection(dimension?: number): Promise<boolean>;
+}
+
+export interface ElasticsearchVectorStoreOptions extends VectorStoreOptions {
+  url?: string; apiKey?: string; username?: string; password?: string; index: string; dimension?: number;
+  similarity?: 'cosine' | 'dot_product' | 'l2_norm' | 'max_inner_product'; createIndex?: boolean;
+  vectorField?: string; refresh?: 'wait_for' | 'true' | false; numCandidates?: number; batchSize?: number;
+}
+export class ElasticsearchVectorStore extends VectorStore {
+  constructor(options: ElasticsearchVectorStoreOptions);
+  client: FetchClient; index: string;
+  ensureIndex(dimension?: number): Promise<boolean>;
+}
+
+/** PostgreSQL + pgvector (also AlloyDB, Cloud SQL, Supabase, Neon) through your own pg Pool or Client. */
+export interface PgVectorStoreOptions extends VectorStoreOptions {
+  client: { query(sql: string, params?: any[]): Promise<{ rows: any[] }> };
+  table?: string; dimension?: number; createTable?: boolean; createIndex?: boolean; batchSize?: number;
+}
+export class PgVectorStore extends VectorStore {
+  constructor(options: PgVectorStoreOptions);
+  client: PgVectorStoreOptions['client']; table: string;
+  ensureTable(dimension?: number): Promise<void>;
+}
+
+/** MongoDB Atlas Vector Search through your own driver Collection. */
+export interface MongoDBAtlasVectorStoreOptions extends VectorStoreOptions {
+  collection: any; indexName?: string; path?: string; textKey?: string;
+  similarity?: 'cosine' | 'dotProduct' | 'euclidean'; numCandidatesMultiplier?: number; batchSize?: number;
+}
+export class MongoDBAtlasVectorStore extends VectorStore {
+  constructor(options: MongoDBAtlasVectorStoreOptions);
+  collection: any;
+  createIndex(settings: { dimension: number; filterFields?: string[] }): Promise<any>;
+}
+
+export interface ChatHistoryMessage { id: string; role: 'user' | 'assistant'; content: string; createdAt: string; metadata?: Record<string, any> }
+export interface Conversation { id: string; title: string | null; userId: string | null; createdAt: string | null; updatedAt: string | null; metadata: Record<string, any>; messageCount?: number }
+
+/** Where an Assistant keeps conversations; extend it for your own database. */
+export class ChatHistory {
+  getMessages(conversationId: string, options?: { limit?: number | null }): Promise<ChatHistoryMessage[]>;
+  addMessages(conversationId: string, messages: Array<Partial<ChatHistoryMessage> & { role: 'user' | 'assistant'; content: string }>): Promise<ChatHistoryMessage[]>;
+  getConversation(conversationId: string): Promise<Conversation | null>;
+  saveConversation(conversation: Partial<Conversation> & { id: string }): Promise<Conversation>;
+  listConversations(options?: { userId?: string | null; limit?: number }): Promise<Conversation[]>;
+  deleteConversation(conversationId: string): Promise<void>;
+  deleteLastMessages(conversationId: string, count?: number): Promise<void>;
+}
+export class MemoryChatHistory extends ChatHistory { constructor(); }
+export class FileChatHistory extends ChatHistory { constructor(options?: { dir?: string }); dir: string; }
+export class FirestoreChatHistory extends ChatHistory {
+  constructor(options?: { projectId?: string; database?: string; collection?: string; accessToken?: string | (() => string | Promise<string>); credentials?: Record<string, any> | string });
+}
+
+// ---------------------------------------------------------------------
+// Assistant
+// ---------------------------------------------------------------------
+
+export type Attachment = string | { data: string | Uint8Array; mimeType: string; name?: string } | { uri: string; mimeType: string; name?: string };
+
+export interface AssistantSettings {
+  provider?: ChatProvider;
+  apiKey?: string | null;
+  model?: string | null;
+  options?: ChatbotOptions & { customProxyHelper?: any };
+  systemMessage?: string;
+  history?: ChatHistory;
+  /** documents to ground answers on (numbered references) */
+  knowledge?: VectorStore | null;
+  /** long-term memory: every exchange is stored and recalled in later conversations */
+  memory?: VectorStore | null;
+  maxHistory?: number;
+  topK?: number;
+  memoryTopK?: number;
+  minScore?: number | null;
+  /** Google Search grounding (gemini and vertex providers) */
+  googleSearch?: boolean;
+  tools?: ToolSet | null;
+  maxToolSteps?: number;
+  maxTokens?: number | null;
+  temperature?: number | null;
+  inputOptions?: Record<string, any>;
+  autoTitle?: boolean;
+}
+
+/** A retrieved chunk; cited is true when the answer cites it as [index]. */
+export interface AssistantReference { index: number; id: string; text: string; score: number | null; metadata: Record<string, any>; cited?: boolean }
+export interface AssistantReply {
+  conversationId: string;
+  messageId: string;
+  text: string;
+  references: AssistantReference[];
+  citations: GeminiCitation[];
+  memories: Array<{ id: string; text: string; score: number | null; conversationId?: string }>;
+  usage: { inputTokens: number | null; outputTokens: number | null; totalTokens: number | null } | null;
+  /** the model that answered (the provider's own record when it returns one) */
+  model: string | null;
+  toolSteps: RunToolsResult['steps'];
+}
+export interface AssistantTurnOptions {
+  conversationId?: string; userId?: string; attachments?: Attachment[]; filter?: Record<string, any>; systemMessage?: string;
+  /** Google Search grounding for this turn (gemini and vertex) */
+  googleSearch?: boolean;
+}
+export type AssistantEvent =
+  | { type: 'start'; conversationId: string; references: AssistantReference[]; memories: AssistantReply['memories'] }
+  | { type: 'text'; text: string }
+  | ({ type: 'done' } & AssistantReply);
+
+/** A Gemini / ChatGPT-style assistant: conversations, RAG references, long-term memory, attachments, tools, streaming. */
+export class Assistant {
+  constructor(settings?: AssistantSettings);
+  chatbot: Chatbot;
+  history: ChatHistory;
+  knowledge: VectorStore | null;
+  memory: VectorStore | null;
+  chat(message: string, options?: AssistantTurnOptions): Promise<AssistantReply>;
+  stream(message: string, options?: AssistantTurnOptions): AsyncGenerator<AssistantEvent, void, unknown>;
+  regenerate(conversationId: string, options?: AssistantTurnOptions): Promise<AssistantReply>;
+  addDocuments(documents: Array<string | VectorDocument>, options?: { chunkSize?: number; chunkOverlap?: number }): Promise<string[]>;
+  addFiles(paths: string | string[], options?: { chunkSize?: number; chunkOverlap?: number }): Promise<string[]>;
+  listConversations(options?: { userId?: string | null; limit?: number }): Promise<Conversation[]>;
+  getMessages(conversationId: string, options?: { limit?: number | null }): Promise<ChatHistoryMessage[]>;
+  deleteConversation(conversationId: string): Promise<void>;
+  renameConversation(conversationId: string, title: string): Promise<Conversation>;
+  generateTitle(conversationId: string): Promise<string | null>;
+}
 
 // ---------------------------------------------------------------------
 // Model Context Protocol

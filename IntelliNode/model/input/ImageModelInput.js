@@ -74,6 +74,30 @@ class ImageModelInput {
     return normalized;
   }
 
+  // Gemini image models take an aspect ratio, not pixel sizes.
+  getGeminiInputs() {
+    const ratio = this.width && this.height ? ImageModelInput.aspectRatio(this.width, this.height) : null;
+    return {
+      prompt: this.prompt,
+      numberOfImages: this.numberOfImages || 1,
+      model: this.model || null,
+      ...(ratio && { config: { imageConfig: { aspectRatio: ratio } } }),
+    };
+  }
+
+  // The closest aspect ratio Gemini supports for a width and height.
+  static aspectRatio(width, height) {
+    const supported = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
+    const target = width / height;
+    let best = supported[0];
+    for (const ratio of supported) {
+      const [w, h] = ratio.split(':').map(Number);
+      const [bw, bh] = best.split(':').map(Number);
+      if (Math.abs(w / h - target) < Math.abs(bw / bh - target)) best = ratio;
+    }
+    return best;
+  }
+
   getStabilityInputs() {
     const inputs = {
       text_prompts: [{ text: this.prompt }],
@@ -98,6 +122,9 @@ class ImageModelInput {
       this.height = 1024;
       this.width = 1024;
       this.engine = 'stable-diffusion-xl-1024-v1-0';
+    } else if (provider === "gemini" || provider === "vertex") {
+      this.numberOfImages = 1;
+      this.model = this.model || (provider === "vertex" ? config.url.gemini.vertex.models.image : config.url.gemini.models.image);
     } else {
       throw new Error("Invalid provider name");
     }

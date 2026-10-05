@@ -42,7 +42,7 @@ class LLMEvaluation extends ModelEvaluation {
         input = new LLamaReplicateInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.SAGEMAKER == provider.toLowerCase()) {
         input = new LLamaSageInput("provide direct answer", { maxTokens: maxTokens });
-      } else if (SupportedChatModels.GEMINI == provider.toLowerCase()) {
+      } else if (SupportedChatModels.GEMINI == provider.toLowerCase() || SupportedChatModels.VERTEX == provider.toLowerCase()) {
         input = new GeminiInput("provide direct answer", { model: modelName, maxTokens: maxTokens });
       } else if (SupportedChatModels.COHERE == provider.toLowerCase()) {
         input = new CohereInput("provide direct answer", { model: modelName, maxTokens: maxTokens });

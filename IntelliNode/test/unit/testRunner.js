@@ -14,6 +14,10 @@ const testToolLoop = require('./ToolLoop.test');
 const testFetchClient = require('./FetchClient.test');
 const testCodingAgent = require('./CodingAgent.test');
 const testMCP = require('./MCP.test');
+const testGoogleGenAI = require('./GoogleGenAI.test');
+const testVectorStores = require('./VectorStores.test');
+const testAssistantStores = require('./AssistantStores.test');
+const testSkill = require('./Skill.test');
 const IntelliNode = require('../../index');
 
 (async () => {
@@ -68,6 +72,18 @@ const IntelliNode = require('../../index');
 
   console.log('Running MCP unit tests...');
   await testMCP();
+
+  console.log('Running Google Gemini / Vertex AI tests...');
+  await testGoogleGenAI();
+
+  console.log('Running vector store tests...');
+  await testVectorStores();
+
+  console.log('Running Assistant and store tests...');
+  await testAssistantStores();
+
+  console.log('Running agent skill tests...');
+  await testSkill();
 
   console.log('All unit tests passed.');
 })().catch((error) => {

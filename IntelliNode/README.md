@@ -18,7 +18,11 @@
 Integrate your data with the latest language models and deep learning frameworks using intellinode **javascript**. The library provides intuitive functions for sending input to models like GPT-5.5, Claude, Gemini, WaveNet and Stable diffusion, and receiving generated text, speech, or images. With just a few lines of code, you can easily access the power of cutting-edge AI models to enhance your projects.
 
 # Latest Updates
-- Add streaming for Anthropic, GPT-5+, and Mistral, plus tool calling for OpenAI, Anthropic and Mistral.
+- Gemini and Vertex AI: one `GoogleAIWrapper` for the Gemini Developer API and Vertex AI (express mode with an Agent Platform key, projects, ADC), with chat sessions, streaming, Google Search grounding, image generation and editing, Veo video, Lyria music, Gemini speech, the Live API, the Files API and caching. New `vertex` provider for `Chatbot` and `Gen`. ☁️
+- Assistant: build Gemini- or ChatGPT-style apps with saved conversations (memory, files or Firestore), answers grounded on your documents with sources, long-term memory, attachments and streaming. 💬
+- Vector stores behind one interface: Firestore, Vertex AI RAG Engine and Vector Search, Pinecone, Qdrant, Chroma, Weaviate, Milvus, Elasticsearch, pgvector (AlloyDB, Cloud SQL, Supabase) and MongoDB Atlas. 🗂️
+- Agent skill for Claude Code and Codex (`npx intellinode skill install`), and new MCP tools: web search with sources, Gemini images and speech. 🤖
+- Add streaming for Anthropic, GPT-5+, Gemini and Mistral, plus tool calling for OpenAI, Anthropic and Mistral.
 - Gen: 25+ new one-call functions for developers (components, forms, API endpoints, SQL, mock data, regex, tests, code review, SEO meta, UI translation and more) that work the same with every provider. 🧰
 - OpenAI-compatible services (OpenRouter, Groq, DeepSeek, xAI, Together, local Ollama, LM Studio) join OpenAI, Anthropic, Gemini, Mistral, Cohere and NVIDIA, with TypeScript types, timeouts, retries and cancellation. 🔌
 - IntelliNode MCP server: `npx intellinode mcp` gives Claude Code, Cursor and VS Code cross-provider tools. 🧩
@@ -28,7 +32,6 @@ Integrate your data with the latest language models and deep learning frameworks
 - Add support for self-hosted vLLM models.
 - Integrated Nvidia-hosted models (DeepSeek and Llama3 🦙).
 - Add Anthropic Claude Fable 5.1 chat.
-- Add Google Gemini chat and vision.
 
 Join the [discord server](https://discord.gg/VYgCh2p3Ww) for the latest updates and community support.
 
@@ -65,7 +68,7 @@ const bot = new Chatbot(openaiKey);
 const responses = await bot.chat(input);
 ```
 
-4. stream the response (OpenAI, Anthropic, Mistral, Cohere, NVIDIA and vLLM):
+4. stream the response (OpenAI, Anthropic, Gemini, Vertex AI, Mistral, Cohere, NVIDIA and vLLM):
 ```js
 for await (const chunk of bot.stream(input)) {
   process.stdout.write(chunk);
@@ -112,21 +115,64 @@ const claudeBot = new Chatbot(anthropicKey, SupportedChatModels.ANTHROPIC);
 const responses = await claudeBot.chat(input);
 ```
 
-### Google Gemini Chatbot
-IntelliNode enable effortless swapping between AI models.
+### Google Gemini and Vertex AI Chatbot
 1. imports:
 ```js
-const { Chatbot, GeminiInput, SupportedChatModels } = require('intellinode');
+const { Chatbot, GeminiInput } = require('intellinode');
 ```
-2. call:
+2. call the Gemini Developer API (key from aistudio.google.com):
 ```js
-const input = new GeminiInput();
+const input = new GeminiInput('You are a helpful assistant.', { systemInstruction: true });
 input.addUserMessage('Who painted the Mona Lisa?');
 
-// get the api key from makersuite.google.com/app/apikey
-const geminiBot = new Chatbot(geminiApiKey, SupportedChatModels.GEMINI);
+const geminiBot = new Chatbot(geminiApiKey, 'gemini');
 const responses = await geminiBot.chat(input);
 ```
+3. or Vertex AI: an Agent Platform key runs in express mode; add `projectId` for project mode, or omit the key to use Application Default Credentials:
+```js
+const vertexBot = new Chatbot(vertexApiKey, 'vertex');                  // { projectId, location } are optional
+input.addUserMessage('Describe this image.', [{ data: base64Png, mimeType: 'image/png' }]);
+for await (const chunk of vertexBot.stream(input)) process.stdout.write(chunk);
+```
+`GeminiInput` also takes `generationConfig` (for example `{ thinkingConfig: { thinkingLevel: 'low' } }`), `tools: [{ googleSearch: {} }]`, `safetySettings` and `cachedContent`.
+
+### Assistant (Gemini- and ChatGPT-style apps)
+A chat assistant with saved conversations, answers from your documents with numbered sources, long-term memory across conversations, attachments, tools and streaming, on any provider:
+```js
+const { Assistant, FileChatHistory, MemoryVectorStore } = require('intellinode');
+
+const embedder = { provider: 'vertex', apiKey: vertexApiKey, dimensions: 768 };
+const assistant = new Assistant({
+  provider: 'vertex', apiKey: vertexApiKey,
+  history: new FileChatHistory({ dir: './data/conversations' }),   // or MemoryChatHistory, FirestoreChatHistory
+  knowledge: new MemoryVectorStore({ embedder, path: './data/knowledge.json' }),
+  memory: new MemoryVectorStore({ embedder, path: './data/memory.json' }),
+  googleSearch: false,                                                // true grounds answers on Google Search
+});
+await assistant.addDocuments([{ id: 'handbook.md', text: handbookText }]);
+
+const reply = await assistant.chat('When does the on-call rotation change?', { userId: 'u1' });
+// { conversationId, text, references: [{ index, id, text, score }], citations, memories, usage }
+
+for await (const event of assistant.stream('And who approves vacations?', { conversationId: reply.conversationId, userId: 'u1' })) {
+  if (event.type === 'text') process.stdout.write(event.text);   // 'start', 'text' chunks, then 'done'
+}
+```
+A complete local app (server and web page) is in [skills/intellinode/assets/chat-app](https://github.com/intelligentnode/IntelliNode/tree/main/IntelliNode/skills/intellinode/assets/chat-app).
+
+### Vector stores and chat history
+Every store has the same `addDocuments`, `search`, `query`, `upsert` and `delete`, and embeds with any provider:
+```js
+const { QdrantVectorStore, FirestoreVectorStore, PgVectorStore } = require('intellinode');
+const store = new QdrantVectorStore({ url: 'http://localhost:6333', collection: 'docs', embedder: { provider: 'openai', apiKey: openaiKey } });
+await store.addDocuments([{ id: 'a', text: 'IntelliNode supports Gemini.', metadata: { lang: 'en' } }]);
+const hits = await store.search('Which models are supported?', 3, { lang: 'en' });   // [{ id, score, text, metadata }]
+```
+| Google Cloud | Other |
+| --- | --- |
+| `FirestoreVectorStore`, `VertexRAGStore` (RAG Engine), `VertexVectorSearchStore` (Vector Search 2.0), `VertexVectorSearchIndexStore`, `PgVectorStore` on AlloyDB or Cloud SQL | `MemoryVectorStore`, `PineconeVectorStore`, `QdrantVectorStore`, `ChromaVectorStore`, `WeaviateVectorStore`, `MilvusVectorStore`, `ElasticsearchVectorStore`, `PgVectorStore`, `MongoDBAtlasVectorStore` |
+
+Conversations: `MemoryChatHistory`, `FileChatHistory` and `FirestoreChatHistory`. The Google Cloud stores use OAuth (`gcloud auth application-default login`, a service account or `accessToken`) because those APIs do not take API keys.
 
 The documentation on how to switch between ChatGPT, Mistral, Anthropic, and LLama can be found in the [IntelliNode Wiki](https://www.intellinode.ai/docs/npm/chatbot/get-started).
 
@@ -212,6 +258,25 @@ objects. Pass `options.model` to pick a model, `options.maxTokens` or `options.t
 `options.timeout`, `options.retries` or `options.signal` to control the request.
 
 ## Models Access
+### Gemini and Vertex AI
+`GoogleAIWrapper` reaches every Gemini feature on the Developer API and on Vertex AI:
+```js
+const { GoogleAIWrapper } = require('intellinode');
+const google = new GoogleAIWrapper(vertexApiKey, { vertex: true });     // or new GoogleAIWrapper(geminiApiKey)
+
+const chat = google.startChat({ systemInstruction: 'Be brief.' });     // keeps history and thought signatures
+await chat.sendText('My name is Sam.');
+
+const grounded = await google.generateContent({ contents: 'Latest Node.js LTS?', tools: [{ googleSearch: {} }] });
+GoogleAIWrapper.extractCitations(grounded);                            // [{ title, uri }]
+
+const [image] = GoogleAIWrapper.extractImages(await google.generateImage('A watercolor fox'));
+const wav = await google.textToSpeech('Welcome to IntelliNode', { voice: 'Puck' });
+const vectors = await google.embedTexts(['first', 'second'], null, { taskType: 'RETRIEVAL_DOCUMENT' });
+await google.mediaToText('Summarize this report.', ['report.pdf']);
+```
+Project mode (`{ vertex: true, projectId }`) adds Veo video (`generateVideo`), Lyria music (`generateMusic`), the Live API (`liveConnect`, `liveGenerate`) and Agent Engine. The Developer API adds the Files API and context caching. `GoogleAIWrapper` keeps the Google Cloud Text-to-Speech, Speech-to-Text, Vision, Natural Language and Translation calls.
+
 ### Image models
 
 1. imports:
@@ -230,7 +295,7 @@ const images = await imgModel.generateImages(new ImageModelInput({
 }));
 ```
 
-3. change to call Stable Diffusion:
+3. change to call Stable Diffusion or Gemini (`'gemini'`, or `'vertex'` with an Agent Platform key):
 ```js
 provider=SupportedImageModels.STABILITY;
 // ... same code
@@ -249,6 +314,7 @@ const audioContent = await speechModel.generateSpeech(new Text2SpeechInput({
   language: 'en-gb'
 }));
 ```
+3. or Gemini speech (base64 WAV): `new RemoteSpeechModel(geminiKey, 'gemini')`, or `'vertex'` with an Agent Platform key.
 ### Hugging Face Inference
 1. imports:
 ```js
@@ -283,9 +349,10 @@ ProxyHelper.getInstance().setAzureOpenai(resourceName);
 Check the code to access the chatbot through a proxy: [proxy chatbot](https://github.com/Barqawiz/IntelliNode/blob/main/samples/command_sample/test_chatbot_proxy.js).
 
 ### Model Context Protocol (MCP)
-Use every provider from Claude Code, Cursor or VS Code: the `intellinode` command starts an MCP server with cross-provider tools (ask a model, consensus, code review, fixes, tests, components, SQL, OpenAPI, mock data, images):
+Use every provider from Claude Code, Codex, Cursor or VS Code: the `intellinode` command starts an MCP server with cross-provider tools (ask a model, consensus, web search with sources, code review, fixes, tests, components, SQL, OpenAPI, mock data, images, speech):
 ```bash
 claude mcp add intellinode -e OPENAI_API_KEY=sk-... -e ANTHROPIC_API_KEY=sk-ant-... -- npx -y intellinode mcp
+codex mcp add intellinode --env GEMINI_API_KEY=... -- npx -y intellinode mcp
 ```
 Or give your chatbot the tools of any MCP server (stdio or HTTP):
 ```js
@@ -294,6 +361,14 @@ const { text } = await new Chatbot(openaiKey).runTools(input, files);   // MCP t
 ```
 The setup for Cursor and VS Code, the tool list, the HTTP mode and building your own `MCPServer` are in [MCP_IMPLEMENTATION.md](MCP_IMPLEMENTATION.md).
 TypeScript users get full typings from the bundled `index.d.ts`.
+
+### Agent skill for Claude Code and Codex
+The package ships an agent skill that teaches Claude Code and Codex how to build apps with IntelliNode (assistants, RAG, vector stores, Gemini and Vertex AI, MCP), with a ready chat app template:
+```bash
+npx intellinode skill install            # ~/.claude/skills and ~/.agents/skills
+npx intellinode skill install --project  # .claude/skills and .agents/skills in this repository
+```
+Or install the plugin, which also adds the MCP server: `claude plugin marketplace add intelligentnode/IntelliNode`, then `claude plugin install intellinode@intellinode-js` (Codex: `codex plugin marketplace add intelligentnode/IntelliNode`).
 
 ### Coding Agent
 Point the agent at a repository and give it a task: it reads, edits, searches and runs commands (all confined to the workspace) and keeps iterating until the test command passes, on any chat provider:
@@ -319,7 +394,7 @@ console.log(result.success, result.summary);   // result.iterations, result.test
 - **The controller layer** offers a unified input to any AI model by handling the differences. So you can switch between models like Openai and Cohere without changing the code.
 - **The function layer** provides abstract functionality that extends based on the app's use cases. For example, an easy-to-use chatbot or marketing content generation utilities.
 
-Intellicode compatible with third party libraries integration like langchain and vector DBs.
+IntelliNode includes vector store adapters (Google Cloud, Pinecone, Qdrant, Chroma, Weaviate, Milvus, Elasticsearch, pgvector, MongoDB Atlas) and works next to libraries like langchain.
 
 # License
 Apache License

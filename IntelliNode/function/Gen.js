@@ -37,6 +37,7 @@ const CHAT_INPUTS = {
   [SupportedChatModels.OPENAI]: ChatGPTInput,
   [SupportedChatModels.ANTHROPIC]: AnthropicInput,
   [SupportedChatModels.GEMINI]: GeminiInput,
+  [SupportedChatModels.VERTEX]: GeminiInput,
   [SupportedChatModels.MISTRAL]: MistralInput,
   [SupportedChatModels.COHERE]: CohereInput,
   [SupportedChatModels.NVIDIA]: NvidiaInput,
@@ -61,7 +62,9 @@ const INLINE_REASONING_PROVIDERS = new Set([
 ]);
 
 // Chatbot options that Gen passes straight through from options.
-const CHATBOT_OPTION_KEYS = ['baseUrl', 'headers', 'timeout', 'retries', 'retryDelay', 'signal'];
+const CHATBOT_OPTION_KEYS = ['baseUrl', 'headers', 'timeout', 'retries', 'retryDelay', 'signal',
+  // Gemini on Vertex AI
+  'vertex', 'projectId', 'location', 'accessToken', 'credentials', 'apiVersion', 'quotaProjectId'];
 
 function chatbotOptionsFrom(options) {
   const chatbotOptions = {};

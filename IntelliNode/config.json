@@ -54,6 +54,36 @@
         "synthesize": {
           "postfix": "text:synthesize"
         }
+      },
+      "speechtotext": {
+        "prefix": "speech",
+        "recognize": {
+          "postfix": "speech:recognize"
+        },
+        "longrunning": {
+          "postfix": "speech:longrunningrecognize"
+        }
+      },
+      "vision": {
+        "prefix": "vision",
+        "annotate": {
+          "postfix": "images:annotate"
+        }
+      },
+      "language": {
+        "prefix": "language",
+        "annotate": {
+          "postfix": "documents:annotateText"
+        },
+        "sentiment": {
+          "postfix": "documents:analyzeSentiment"
+        },
+        "classify": {
+          "postfix": "documents:classifyText"
+        }
+      },
+      "translation": {
+        "base": "https://translation.googleapis.com/language/translate/v2"
       }
     },
     "stability": {
@@ -90,10 +120,90 @@
       "generateContent": ":generateContent",
       "embedContent": ":embedContent",
       "batchEmbedContents": ":batchEmbedContents",
+      "upload_base": "https://generativelanguage.googleapis.com/upload/v1beta/files",
       "models": {
         "chat": "gemini-3.6-flash",
         "vision": "gemini-3.6-flash",
-        "embed": "gemini-embedding-001"
+        "embed": "gemini-embedding-001",
+        "lite": "gemini-3.5-flash-lite",
+        "image": "gemini-3.1-flash-image",
+        "tts": "gemini-3.8-flash-tts",
+        "tts_pro": "gemini-2.5-pro-preview-tts",
+        "video": "veo-3.1-fast-generate-preview",
+        "music": "lyria-3.5",
+        "live": "gemini-3.8-live"
+      },
+      "vertex": {
+        "global_host": "https://aiplatform.googleapis.com",
+        "regional_host": "https://{location}-aiplatform.googleapis.com",
+        "multi_regional_host": "https://aiplatform.{location}.rep.googleapis.com",
+        "api_version": "v1beta1",
+        "default_location": "global",
+        "locations": {
+          "video": "us-central1",
+          "live": "us-central1",
+          "music": "us-central1",
+          "imagen": "us-central1",
+          "agent_engine": "us-central1",
+          "rag": "us-central1"
+        },
+        "models": {
+          "chat": "gemini-3.8-flash",
+          "vision": "gemini-3.8-flash",
+          "embed": "gemini-embedding-001",
+          "lite": "gemini-3.5-flash-lite",
+          "image": "gemini-3.1-flash-image",
+          "tts": "gemini-2.5-flash-tts",
+          "tts_pro": "gemini-2.5-pro-tts",
+          "video": "veo-3.1-fast-generate-001",
+          "music": "lyria-002",
+          "live": "gemini-3.8-live"
+        },
+        "catalog": {
+          "text": [
+            "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-3.1-pro-preview",
+            "gemini-3-flash-preview",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite"
+          ],
+          "image": [
+            "gemini-3.1-flash-image",
+            "gemini-3.1-flash-lite-image",
+            "gemini-3-pro-image",
+            "gemini-2.5-flash-image"
+          ],
+          "video": [
+            "veo-3.1-generate-001",
+            "veo-3.1-fast-generate-001",
+            "veo-3.1-lite-generate-001"
+          ],
+          "tts": [
+            "gemini-2.5-flash-tts",
+            "gemini-2.5-pro-tts",
+            "gemini-3.8-flash-tts",
+            "gemini-3.8-flash-lite-tts",
+            "gemini-2.5-flash-lite-preview-tts"
+          ],
+          "music": [
+            "lyria-002"
+          ],
+          "live": [
+            "gemini-3.8-live",
+            "gemini-live-2.5-flash-native-audio"
+          ],
+          "embedding": [
+            "gemini-embedding-001",
+            "text-embedding-005",
+            "text-multilingual-embedding-002"
+          ]
+        }
       }
     },
     "anthropic": {

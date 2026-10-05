@@ -1,0 +1,20 @@
+{
+  "name": "intellinode-js",
+  "interface": {
+    "displayName": "IntelliNode"
+  },
+  "plugins": [
+    {
+      "name": "intellinode",
+      "source": {
+        "source": "local",
+        "path": "./plugins/intellinode"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

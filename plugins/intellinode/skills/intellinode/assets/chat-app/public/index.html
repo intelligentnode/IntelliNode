@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IntelliNode Chat</title>
+<style>
+  :root {
+    --bg: #f7f7f8; --panel: #ffffff; --side: #eef0f3; --text: #1f2328; --muted: #6a737d; --border: #d9dde3;
+    --accent: #1a73e8; --accent-text: #ffffff; --user: #e8f0fe; --code: #f1f3f5; --danger: #c5221f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #131416; --panel: #1b1c1f; --side: #17181b; --text: #e6e7e9; --muted: #9aa0a6; --border: #2e3035;
+      --accent: #8ab4f8; --accent-text: #0b1d36; --user: #233046; --code: #24262b; --danger: #f28b82; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
+  aside { width: 260px; background: var(--side); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 12px; gap: 8px; }
+  aside h1 { font-size: 15px; margin: 4px 6px 8px; }
+  button { font: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 10px; padding: 8px 12px; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  #conversations { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .conversation { display: flex; align-items: center; border-radius: 8px; padding: 7px 8px; cursor: pointer; color: var(--text); }
+  .conversation:hover, .conversation.active { background: var(--panel); }
+  .conversation span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conversation button { visibility: hidden; border: none; background: none; color: var(--muted); padding: 0 4px; }
+  .conversation:hover button { visibility: visible; }
+  .status { color: var(--muted); font-size: 12px; margin: 0 6px; }
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #messages { flex: 1; overflow-y: auto; padding: 24px max(16px, calc(50% - 380px)); display: flex; flex-direction: column; gap: 18px; }
+  .message { max-width: 100%; }
+  .message.user { align-self: flex-end; background: var(--user); padding: 10px 14px; border-radius: 16px; max-width: 80%; white-space: pre-wrap; }
+  .message.assistant .body p { margin: 0 0 10px; }
+  .message pre { background: var(--code); padding: 10px 12px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+  .message code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: 13px; }
+  .message pre code { padding: 0; background: none; }
+  .message img.generated { max-width: 420px; width: 100%; border-radius: 12px; border: 1px solid var(--border); }
+  .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip { font-size: 12px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; color: var(--muted); text-decoration: none; background: var(--panel); }
+  .error { color: var(--danger); }
+  .empty { margin: auto; text-align: center; color: var(--muted); }
+  .empty h2 { color: var(--text); font-weight: 500; }
+  form { padding: 12px max(16px, calc(50% - 380px)) 20px; }
+  .composer { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 8px; }
+  textarea { width: 100%; border: none; outline: none; resize: none; background: transparent; color: var(--text); font: inherit; padding: 6px 8px; max-height: 200px; }
+  .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .row .spacer { flex: 1; }
+  .toggle.on { background: var(--user); border-color: var(--accent); }
+  .attachment { font-size: 12px; }
+  .hidden { display: none !important; }
+  @media (max-width: 720px) { aside { display: none; } }
+</style>
+</head>
+<body>
+<aside>
+  <h1>IntelliNode Chat</h1>
+  <button class="primary" id="new-chat" type="button">+ New chat</button>
+  <div id="conversations"></div>
+  <div class="status" id="status"></div>
+</aside>
+<main>
+  <div id="messages"><div class="empty"><h2>How can I help?</h2><p>Ask anything, attach a file, add documents to the knowledge base, or type <code>/image</code> and a prompt.</p></div></div>
+  <form id="form">
+    <div class="composer">
+      <div class="row" id="attachments"></div>
+      <textarea id="input" rows="1" placeholder="Message" autofocus></textarea>
+      <div class="row">
+        <button type="button" id="attach" title="Attach images, PDFs or audio">Attach</button>
+        <button type="button" id="search" class="toggle hidden" title="Ground the answer on Google Search">Search the web</button>
+        <button type="button" id="add-doc" class="hidden" title="Add a text or Markdown file to the knowledge base">Add document</button>
+        <span class="spacer"></span>
+        <button class="primary" type="submit" id="send">Send</button>
+      </div>
+    </div>
+    <input type="file" id="file" multiple accept="image/*,application/pdf,audio/*,video/*" class="hidden">
+    <input type="file" id="doc-file" accept=".txt,.md,.markdown,.csv,.json,.html" class="hidden">
+  </form>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const state = { conversationId: null, attachments: [], webSearch: false, busy: false };
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Small Markdown subset: code fences, inline code, bold, links, lists and paragraphs.
+function renderMarkdown(text) {
+  const blocks = String(text).split(/```/);
+  return blocks.map((block, index) => {
+    if (index % 2 === 1) return `<pre><code>${escapeHtml(block.replace(/^[\w-]*\n/, ''))}</code></pre>`;
+    return escapeHtml(block)
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .split(/\n{2,}/).map((paragraph) => {
+        if (/^\s*([-*]|\d+\.)\s/.test(paragraph)) {
+          return `<ul>${paragraph.split('\n').map((line) => `<li>${line.replace(/^\s*([-*]|\d+\.)\s/, '')}</li>`).join('')}</ul>`;
+        }
+        return paragraph.trim() ? `<p>${paragraph.replace(/\n/g, '<br>')}</p>` : '';
+      }).join('');
+  }).join('');
+}
+
+// Show the documents the answer cites ([n]) and the web sources.
+function sourcesHtml(references = [], citations = []) {
+  const chips = [
+    ...references.filter((ref) => ref.cited).map((ref) => `<span class="chip" title="${escapeHtml((ref.text || '').slice(0, 300))}">[${ref.index}] ${escapeHtml(ref.title || ref.source || ref.metadata?.title || ref.metadata?.source || ref.id)}</span>`),
+    ...citations.map((cite) => `<a class="chip" href="${escapeHtml(cite.uri || '#')}" target="_blank" rel="noopener">${escapeHtml(cite.title || cite.uri)}</a>`),
+  ];
+  return chips.length ? `<div class="sources">${chips.join('')}</div>` : '';
+}
+
+function addMessage(role, html) {
+  const empty = document.querySelector('.empty');
+  if (empty) empty.remove();
+  const element = document.createElement('div');
+  element.className = `message ${role}`;
+  element.innerHTML = html;
+  $('messages').appendChild(element);
+  $('messages').scrollTop = $('messages').scrollHeight;
+  return element;
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || response.statusText);
+  return data;
+}
+
+async function loadConversations() {
+  const list = await api('/api/conversations');
+  $('conversations').innerHTML = '';
+  for (const conversation of list) {
+    const item = document.createElement('div');
+    item.className = `conversation${conversation.id === state.conversationId ? ' active' : ''}`;
+    item.innerHTML = `<span>${escapeHtml(conversation.title || 'New chat')}</span><button type="button" title="Delete">✕</button>`;
+    item.querySelector('span').onclick = () => openConversation(conversation.id);
+    item.querySelector('button').onclick = async () => {
+      await api(`/api/conversation?id=${encodeURIComponent(conversation.id)}`, { method: 'DELETE' });
+      if (conversation.id === state.conversationId) newChat();
+      loadConversations();
+    };
+    $('conversations').appendChild(item);
+  }
+}
+
+async function openConversation(id) {
+  state.conversationId = id;
+  const { messages } = await api(`/api/conversation?id=${encodeURIComponent(id)}`);
+  $('messages').innerHTML = '';
+  for (const message of messages) {
+    if (message.role === 'user') {
+      const files = (message.metadata?.attachments || []).map((file) => `<div class="attachment">📎 ${escapeHtml(file.name || file.mimeType)}</div>`).join('');
+      addMessage('user', escapeHtml(message.content) + files);
+    } else {
+      addMessage('assistant', `<div class="body">${renderMarkdown(message.content)}</div>${sourcesHtml(message.metadata?.references, message.metadata?.citations)}`);
+    }
+  }
+  loadConversations();
+}
+
+function newChat() {
+  state.conversationId = null;
+  $('messages').innerHTML = '<div class="empty"><h2>How can I help?</h2><p>Ask anything, attach a file, or type <code>/image</code> and a prompt.</p></div>';
+  loadConversations();
+}
+
+async function generateImage(prompt) {
+  addMessage('user', escapeHtml(`/image ${prompt}`));
+  const element = addMessage('assistant', '<div class="body"><p>Drawing…</p></div>');
+  try {
+    const { image } = await api('/api/image', { method: 'POST', body: JSON.stringify({ prompt }) });
+    element.innerHTML = `<img class="generated" alt="${escapeHtml(prompt)}" src="${image}">`;
+  } catch (error) {
+    element.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+// Read the server-sent events of /api/chat.
+async function send(message) {
+  const attachments = state.attachments;
+  state.attachments = [];
+  renderAttachments();
+  const files = attachments.map((file) => `<div class="attachment">📎 ${escapeHtml(file.name)}</div>`).join('');
+  addMessage('user', escapeHtml(message) + files);
+  const element = addMessage('assistant', '<div class="body"><p>…</p></div>');
+  let text = '';
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conversationId: state.conversationId, message, attachments, webSearch: state.webSearch }),
+  });
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop();
+    for (const raw of events) {
+      if (!raw.startsWith('data: ')) continue;
+      const event = JSON.parse(raw.slice(6));
+      if (event.type === 'start') {
+        state.conversationId = event.conversationId;
+      } else if (event.type === 'text') {
+        text += event.text;
+        element.innerHTML = `<div class="body">${renderMarkdown(text)}</div>`;
+      } else if (event.type === 'done') {
+        element.innerHTML = `<div class="body">${renderMarkdown(event.text)}</div>${sourcesHtml(event.references, event.citations)}`;
+      } else if (event.type === 'error') {
+        element.innerHTML = `<p class="error">${escapeHtml(event.message)}</p>`;
+      }
+      $('messages').scrollTop = $('messages').scrollHeight;
+    }
+  }
+  loadConversations();
+}
+
+function renderAttachments() {
+  $('attachments').innerHTML = state.attachments.map((file, index) => `<span class="chip">📎 ${escapeHtml(file.name)} <a href="#" data-index="${index}">✕</a></span>`).join('');
+  $('attachments').querySelectorAll('a').forEach((link) => {
+    link.onclick = (event) => {
+      event.preventDefault();
+      state.attachments.splice(Number(link.dataset.index), 1);
+      renderAttachments();
+    };
+  });
+}
+
+function readFile(file, asText = false) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(asText ? reader.result : String(reader.result).split(',')[1]);
+    reader.onerror = reject;
+    if (asText) reader.readAsText(file); else reader.readAsDataURL(file);
+  });
+}
+
+$('form').onsubmit = async (event) => {
+  event.preventDefault();
+  const message = $('input').value.trim();
+  if (!message || state.busy) return;
+  $('input').value = '';
+  state.busy = true;
+  $('send').disabled = true;
+  try {
+    if (message.startsWith('/image ')) await generateImage(message.slice(7));
+    else await send(message);
+  } catch (error) {
+    addMessage('assistant', `<p class="error">${escapeHtml(error.message)}</p>`);
+  } finally {
+    state.busy = false;
+    $('send').disabled = false;
+  }
+};
+$('input').onkeydown = (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    $('form').requestSubmit();
+  }
+};
+$('new-chat').onclick = newChat;
+$('attach').onclick = () => $('file').click();
+$('file').onchange = async () => {
+  for (const file of $('file').files) {
+    state.attachments.push({ name: file.name, mimeType: file.type || 'application/octet-stream', data: await readFile(file) });
+  }
+  $('file').value = '';
+  renderAttachments();
+};
+$('search').onclick = () => {
+  state.webSearch = !state.webSearch;
+  $('search').classList.toggle('on', state.webSearch);
+};
+$('add-doc').onclick = () => $('doc-file').click();
+$('doc-file').onchange = async () => {
+  const file = $('doc-file').files[0];
+  if (!file) return;
+  $('status').textContent = `Adding ${file.name}…`;
+  try {
+    const { chunks } = await api('/api/documents', { method: 'POST', body: JSON.stringify({ name: file.name, text: await readFile(file, true) }) });
+    $('status').textContent = `Added ${file.name} (${chunks} chunks)`;
+  } catch (error) {
+    $('status').textContent = error.message;
+  }
+  $('doc-file').value = '';
+};
+
+api('/api/config').then((config) => {
+  $('status').textContent = `${config.provider} · history in ${config.history}`;
+  $('search').classList.toggle('hidden', !config.webSearch);
+  $('add-doc').classList.toggle('hidden', !config.knowledge);
+});
+loadConversations();
+</script>
+</body>
+</html>

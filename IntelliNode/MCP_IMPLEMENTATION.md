@@ -113,7 +113,7 @@ npx -y intellinode help
 ```
 
 Keys come from the environment or a `.env` file in the current directory: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
-`GEMINI_API_KEY`, `MISTRAL_API_KEY`, `COHERE_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`,
+`GEMINI_API_KEY`, `VERTEX_API_KEY` (with optional `VERTEX_PROJECT_ID` / `VERTEX_LOCATION`), `MISTRAL_API_KEY`, `COHERE_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`,
 `GROQ_API_KEY`, `XAI_API_KEY`, `TOGETHER_API_KEY`, and `STABILITY_API_KEY` for images. Groq, xAI and Together also need
 the model name in `GROQ_MODEL`, `XAI_MODEL` or `TOGETHER_MODEL` (OpenRouter and DeepSeek default to `openai/gpt-5.5` and
 `deepseek-chat`; `OPENROUTER_MODEL` / `DEEPSEEK_MODEL` override them). A local Ollama needs no key: set `OLLAMA_MODEL=qwen3`
@@ -192,7 +192,9 @@ For the HTTP transport start `npx -y intellinode mcp --http` and register `{ "ty
 | `generate_seo_meta` | `page`, `url?`, `siteName?`, `provider?` | meta fields + rendered HTML |
 | `generate_unit_tests` | `code`, `framework?`, `modulePath?`, `provider?` | test file |
 | `fix_code` | `code`, `problem?`, `language?`, `provider?` | `{ code, explanation, changes }` |
-| `generate_image` | `prompt`, `provider?` (`openai`/`stability`), `size?` | `image` content block (PNG, base64) |
+| `generate_image` | `prompt`, `provider?` (`openai`/`stability`/`gemini`/`vertex`), `size?` | `image` content block (PNG, base64) |
+| `search_web` | `question`, `model?` | answer with numbered sources; `structuredContent.sources` (Gemini with Google Search, needs `GEMINI_API_KEY` or `VERTEX_API_KEY`) |
+| `generate_speech` | `text`, `voice?` | `audio` content block (WAV, base64) from Gemini TTS |
 | `list_providers` | – | configured providers, default, models and the still unset variables per provider |
 
 A missing key returns `isError: true` with the variable to set, so the assistant can tell the user what to configure.

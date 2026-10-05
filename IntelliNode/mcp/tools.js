@@ -10,6 +10,7 @@ const { Gen } = require('../function/Gen');
 const { SupportedChatModels } = require('../function/Chatbot');
 const { RemoteImageModel, SupportedImageModels } = require('../controller/RemoteImageModel');
 const ImageModelInput = require('../model/input/ImageModelInput');
+const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const config = require('../config.json');
 
 /**
@@ -27,6 +28,8 @@ const PROVIDERS = [
   { id: SupportedChatModels.OPENAI, key: 'OPENAI_API_KEY', model: config.url.openai.models.chat },
   { id: SupportedChatModels.ANTHROPIC, key: 'ANTHROPIC_API_KEY', model: config.url.anthropic.models.chat },
   { id: SupportedChatModels.GEMINI, key: 'GEMINI_API_KEY', model: config.url.gemini.models.chat },
+  // Gemini on Vertex AI: an Agent Platform key (express mode), plus VERTEX_PROJECT_ID / VERTEX_LOCATION for project mode
+  { id: SupportedChatModels.VERTEX, key: 'VERTEX_API_KEY', model: config.url.gemini.vertex.models.chat },
   { id: SupportedChatModels.MISTRAL, key: 'MISTRAL_API_KEY', model: config.url.mistral.models.chat },
   { id: SupportedChatModels.COHERE, key: 'COHERE_API_KEY', model: config.url.cohere.models.chat },
   { id: SupportedChatModels.NVIDIA, key: 'NVIDIA_API_KEY', model: config.nvidia.models.chat },
@@ -40,6 +43,15 @@ const PROVIDERS = [
 
 function providerModel(provider, env) {
   return (provider.modelEnv && env[provider.modelEnv]) || provider.model || null;
+}
+
+// Vertex AI project settings from the environment (express mode when unset).
+function googleOptions(provider, env) {
+  if (provider.id !== SupportedChatModels.VERTEX) return {};
+  return {
+    ...(env.VERTEX_PROJECT_ID && { projectId: env.VERTEX_PROJECT_ID }),
+    ...(env.VERTEX_LOCATION && { location: env.VERTEX_LOCATION }),
+  };
 }
 
 function isConfigured(provider, env) {
@@ -66,7 +78,19 @@ function noProviderMessage() {
 const IMAGE_PROVIDERS = [
   { id: SupportedImageModels.OPENAI, key: 'OPENAI_API_KEY' },
   { id: SupportedImageModels.STABILITY, key: 'STABILITY_API_KEY' },
+  { id: SupportedImageModels.GEMINI, key: 'GEMINI_API_KEY' },
+  { id: SupportedImageModels.VERTEX, key: 'VERTEX_API_KEY' },
 ];
+
+// Gemini-only tools (web search, speech) use the Developer API key, else the Vertex AI key.
+function resolveGoogle(env) {
+  if (env.GEMINI_API_KEY) return { provider: 'gemini', wrapper: new GeminiAIWrapper(env.GEMINI_API_KEY) };
+  if (env.VERTEX_API_KEY) {
+    const vertex = PROVIDERS.find((provider) => provider.id === SupportedChatModels.VERTEX);
+    return { provider: 'vertex', wrapper: GeminiAIWrapper.fromOptions(env.VERTEX_API_KEY, { vertex: true, ...googleOptions(vertex, env) }) };
+  }
+  throw new Error(`This tool runs on Gemini. Set GEMINI_API_KEY or VERTEX_API_KEY ${KEY_HINT}.`);
+}
 
 const PROVIDER_IDS = PROVIDERS.map((provider) => provider.id);
 const KEY_HINT = 'in the environment, or in a .env file in the directory where the intellinode MCP server starts';
@@ -96,13 +120,13 @@ function resolveProvider(requested, env) {
     if (!isConfigured(provider, env)) {
       throw new Error(`${provider.id} is not configured. Set ${missingVariables(provider, env).join(' and ')} ${KEY_HINT}. ${describeConfigured(env)}`);
     }
-    return { provider: provider.id, apiKey: provider.key ? env[provider.key] : null, model: providerModel(provider, env) };
+    return { provider: provider.id, apiKey: provider.key ? env[provider.key] : null, model: providerModel(provider, env), options: googleOptions(provider, env) };
   }
   const [first] = configuredProviders(env);
   if (!first) {
     throw new Error(noProviderMessage());
   }
-  return { provider: first.id, apiKey: first.key ? env[first.key] : null, model: providerModel(first, env) };
+  return { provider: first.id, apiKey: first.key ? env[first.key] : null, model: providerModel(first, env), options: googleOptions(first, env) };
 }
 
 function resolveImageProvider(requested, env) {
@@ -119,7 +143,7 @@ function resolveImageProvider(requested, env) {
   }
   const [first] = configuredImageProviders(env);
   if (!first) {
-    throw new Error(`No image provider key is configured. Set OPENAI_API_KEY or STABILITY_API_KEY ${KEY_HINT}.`);
+    throw new Error(`No image provider key is configured. Set OPENAI_API_KEY, STABILITY_API_KEY, GEMINI_API_KEY or VERTEX_API_KEY ${KEY_HINT}.`);
   }
   return { provider: first.id, apiKey: env[first.key] };
 }
@@ -142,7 +166,7 @@ async function downloadBase64(url) {
 // ---------------------------------------------------------------------
 
 const CROSS_PROVIDER = 'Gives a coding assistant cross-provider access: the work runs on any configured provider '
-  + '(OpenAI, Anthropic, Gemini, Mistral, Cohere, NVIDIA, OpenRouter, DeepSeek, Groq, xAI, Together or a local Ollama model), '
+  + '(OpenAI, Anthropic, Gemini, Gemini on Vertex AI, Mistral, Cohere, NVIDIA, OpenRouter, DeepSeek, Groq, xAI, Together or a local Ollama model), '
   + 'so you can use a different model family than the one you run on.';
 
 const providerProperty = {
@@ -173,12 +197,16 @@ function genTool(env, { name, title, description, properties, required, run }) {
     description,
     inputSchema: schema({ ...properties, provider: providerProperty }, required),
     handler: async (args) => {
-      const { provider, apiKey, model } = resolveProvider(args.provider, env);
-      // compatible providers need their configured model; the built-in providers use the IntelliNode defaults
-      const defaults = model && presets[provider] ? { model } : {};
-      return run(args, apiKey, provider, defaults);
+      const resolved = resolveProvider(args.provider, env);
+      return run(args, resolved.apiKey, resolved.provider, providerDefaults(resolved));
     },
   };
+}
+
+// Gen options for a resolved provider: compatible providers and Vertex AI need their model; Vertex AI also its project.
+function providerDefaults({ provider, model, options }) {
+  const needsModel = presets[provider] || provider === SupportedChatModels.VERTEX;
+  return { ...(model && needsModel && { model }), ...(options || {}) };
 }
 
 function withoutRegExp(result) {
@@ -231,8 +259,9 @@ function createTools(env = process.env) {
         if (!requested.length) resolveProvider(undefined, env); // throws the "no key configured" message
         const answers = await Promise.all(requested.map(async (id) => {
           try {
-            const { provider, apiKey, model } = resolveProvider(id, env);
-            const answer = await Gen.generate_text(args.prompt, apiKey, provider, presets[provider] ? { model } : {});
+            const resolved = resolveProvider(id, env);
+            const { provider, apiKey, model } = resolved;
+            const answer = await Gen.generate_text(args.prompt, apiKey, provider, providerDefaults(resolved));
             return { provider, model, answer };
           } catch (error) {
             return { provider: String(id), error: error.message };
@@ -435,27 +464,83 @@ function createTools(env = process.env) {
     {
       name: 'generate_image',
       title: 'Generate image',
-      description: 'Generate a PNG image from a text prompt with OpenAI or Stability AI and return it as an image content block. '
-        + 'Gives a coding assistant image generation for placeholders, icons, hero images and mockups without leaving the session. '
-        + 'The provider defaults to the first configured of openai, stability.',
+      description: 'Generate an image from a text prompt with OpenAI, Stability AI or Gemini (Developer API or Vertex AI) and return '
+        + 'it as an image content block. Gives a coding assistant image generation for placeholders, icons, hero images and mockups '
+        + 'without leaving the session. The provider defaults to the first configured of openai, stability, gemini, vertex.',
       inputSchema: schema({
         prompt: string('Description of the image.'),
-        provider: string('openai or stability (defaults to the first configured).', { enum: IMAGE_PROVIDERS.map((p) => p.id) }),
-        size: string('WIDTHxHEIGHT, default 1024x1024.'),
+        provider: string('openai, stability, gemini or vertex (defaults to the first configured).', { enum: IMAGE_PROVIDERS.map((p) => p.id) }),
+        size: string('WIDTHxHEIGHT, default 1024x1024 (Gemini uses the closest aspect ratio).'),
       }, ['prompt']),
       handler: async (args) => {
         const { provider, apiKey } = resolveImageProvider(args.provider, env);
         const { width, height, imageSize } = parseSize(args.size);
-        const input = provider === SupportedImageModels.OPENAI
-          ? new ImageModelInput({ prompt: args.prompt, numberOfImages: 1, imageSize, responseFormat: 'b64_json' })
-          : new ImageModelInput({ prompt: args.prompt, numberOfImages: 1, width, height, engine: 'stable-diffusion-xl-1024-v1-0' });
-        const [image] = await new RemoteImageModel(apiKey, provider).generateImages(input);
+        let input;
+        if (provider === SupportedImageModels.OPENAI) {
+          input = new ImageModelInput({ prompt: args.prompt, numberOfImages: 1, imageSize, responseFormat: 'b64_json' });
+        } else if (provider === SupportedImageModels.STABILITY) {
+          input = new ImageModelInput({ prompt: args.prompt, numberOfImages: 1, width, height, engine: 'stable-diffusion-xl-1024-v1-0' });
+        } else {
+          input = new ImageModelInput({ prompt: args.prompt, numberOfImages: 1, width, height });
+        }
+        const vertex = PROVIDERS.find((candidate) => candidate.id === SupportedChatModels.VERTEX);
+        const imageOptions = provider === SupportedImageModels.VERTEX ? googleOptions(vertex, env) : {};
+        const [image] = await new RemoteImageModel(apiKey, provider, imageOptions).generateImages(input);
         if (!image) throw new Error(`${provider} returned no image`);
         const data = /^https?:\/\//i.test(image) ? await downloadBase64(image) : image;
         return {
           content: [
             { type: 'image', data, mimeType: 'image/png' },
             { type: 'text', text: `Generated a ${imageSize} PNG image with ${provider}.` },
+          ],
+        };
+      },
+    },
+
+    {
+      name: 'search_web',
+      title: 'Search the web',
+      description: 'Answer a question with Google Search grounding (Gemini) and return the answer with its source links. '
+        + 'Use it for current facts: library versions, release notes, API changes, error messages and documentation published '
+        + 'after your training data. Needs GEMINI_API_KEY or VERTEX_API_KEY.',
+      inputSchema: schema({
+        question: string('The question to answer from current web results.'),
+        model: string('Gemini model (defaults to the IntelliNode default).'),
+      }, ['question']),
+      handler: async (args) => {
+        const { provider, wrapper } = resolveGoogle(env);
+        const response = await wrapper.generateContent({
+          contents: [{ role: 'user', parts: [{ text: args.question }] }],
+          tools: [{ googleSearch: {} }],
+        }, false, args.model || null);
+        const answer = GeminiAIWrapper.extractText(response);
+        const sources = GeminiAIWrapper.extractCitations(response);
+        const queries = GeminiAIWrapper.extractGrounding(response).webSearchQueries || [];
+        const list = sources.map((source, index) => `[${index + 1}] ${source.title}: ${source.uri}`).join('\n');
+        return {
+          content: [{ type: 'text', text: list ? `${answer}\n\nSources:\n${list}` : answer }],
+          structuredContent: { answer, sources, queries, provider },
+        };
+      },
+    },
+
+    {
+      name: 'generate_speech',
+      title: 'Generate speech',
+      description: 'Turn text into natural speech with Gemini text-to-speech and return a WAV audio content block. Style the '
+        + 'delivery in the text ("Say cheerfully: ..."). Voices include Kore, Puck, Charon, Fenrir, Aoede, Leda, Orus and Zephyr. '
+        + 'Needs GEMINI_API_KEY or VERTEX_API_KEY.',
+      inputSchema: schema({
+        text: string('The text to speak.'),
+        voice: string('Gemini voice name, default Kore.'),
+      }, ['text']),
+      handler: async (args) => {
+        const { provider, wrapper } = resolveGoogle(env);
+        const wav = await wrapper.textToSpeech(args.text, { voice: args.voice || 'Kore' });
+        return {
+          content: [
+            { type: 'audio', data: wav.toString('base64'), mimeType: 'audio/wav' },
+            { type: 'text', text: `Generated ${Math.round(wav.length / 1024)} KB of WAV audio with ${provider} (voice ${args.voice || 'Kore'}).` },
           ],
         };
       },

@@ -8,11 +8,13 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
 const { RemoteEmbedModel, SupportedEmbedModels } = require('../controller/RemoteEmbedModel');
 const EmbedInput = require('../model/input/EmbedInput');
 const MatchHelpers = require('../utils/MatchHelpers');
+const { Embedder } = require('../store/Embedder');
 
 class SemanticSearch {
   constructor(keyValue, provider = SupportedEmbedModels.OPENAI, customProxyHelper = null) {
     this.keyValue = keyValue;
     this.provider = provider;
+    this.customProxyHelper = customProxyHelper;
 
     this.remoteEmbedModel = new RemoteEmbedModel(keyValue, provider, customProxyHelper);
   }
@@ -21,6 +23,13 @@ class SemanticSearch {
 
       if (numberOfMatches > searchArray.length) {
         throw new Error('numberOfMatches should not be greater than the searchArray');
+      }
+
+      if (this.provider !== SupportedEmbedModels.OPENAI && this.provider !== SupportedEmbedModels.COHERE) {
+        // gemini, vertex, nvidia, vllm and the OpenAI-compatible providers: one vector per text through the Embedder
+        const embedder = new Embedder({ provider: this.provider, apiKey: this.keyValue, model: modelName, options: this.customProxyHelper || {} });
+        const [pivotEmbedding, ...searchEmbeddings] = await embedder.embed([pivotItem, ...searchArray]);
+        return this.getTopMatchesFromEmbeddings(pivotEmbedding, searchEmbeddings, numberOfMatches);
       }
 
       const embedInput = new EmbedInput({

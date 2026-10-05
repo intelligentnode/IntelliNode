@@ -6,16 +6,26 @@ Copyright 2023 Github.com/Barqawiz/IntelliNode
    Licensed under the Apache License, Version 2.0 (the "License");
 */
 const GoogleAIWrapper = require('../wrappers/GoogleAIWrapper');
+const GeminiAIWrapper = require('../wrappers/GeminiAIWrapper');
 const OpenAIWrapper = require('../wrappers/OpenAIWrapper');
 const Text2SpeechInput = require('../model/input/Text2SpeechInput');
 
 const SupportedSpeechModels = {
   GOOGLE: 'google',
   OPENAI: 'openAi',
+  // Gemini TTS on the Gemini Developer API, or on Vertex AI with the vertex provider
+  GEMINI: 'gemini',
+  VERTEX: 'vertex',
 };
 
 class RemoteSpeechModel {
-  constructor(keyValue, provider) {
+  /**
+   * @param {string} keyValue - provider API key.
+   * @param {string} provider - google (Cloud TTS), openAi, gemini or vertex.
+   * @param {object} options - Gemini / Vertex AI settings: { projectId, location, accessToken, credentials }.
+   */
+  constructor(keyValue, provider, options = {}) {
+    this.options = options || {};
     if (!provider) {
       provider = SupportedSpeechModels.GOOGLE;
     }
@@ -37,6 +47,9 @@ class RemoteSpeechModel {
       this.googleWrapper = new GoogleAIWrapper(keyValue);
     } else if (keyType === SupportedSpeechModels.OPENAI) {
       this.openAIWrapper = new OpenAIWrapper(keyValue);
+    } else if (keyType === SupportedSpeechModels.GEMINI || keyType === SupportedSpeechModels.VERTEX) {
+      const options = keyType === SupportedSpeechModels.VERTEX ? { ...this.options, vertex: true } : this.options;
+      this.geminiWrapper = GeminiAIWrapper.fromOptions(keyValue, options);
     } else {
       throw new Error('Invalid provider name');
     }
@@ -73,6 +86,14 @@ class RemoteSpeechModel {
 
       const response = await this.openAIWrapper.textToSpeech(params);
       return response;
+    } else if (this.geminiWrapper) {
+      const params = input instanceof Text2SpeechInput ? input.getGeminiInput() : input;
+      if (!params || typeof params !== 'object') {
+        throw new Error('Invalid input: Must be an instance of Text2SpeechInput or a dictionary');
+      }
+      // base64 WAV, like the base64 MP3 of the google provider
+      const wav = await this.geminiWrapper.textToSpeech(params.text, { voice: params.voice, model: params.model, languageCode: params.languageCode });
+      return wav.toString('base64');
     }  else {
       throw new Error('The keyType is not supported');
     }

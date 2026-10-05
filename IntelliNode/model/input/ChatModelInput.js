@@ -480,6 +480,21 @@ function toGeminiTools(tools) {
   return [...(declarations.length ? [{ functionDeclarations: declarations }] : []), ...native];
 }
 
+// A media item as a Gemini part: a part object as is, { data, mimeType } inline, or { uri, mimeType } as file data.
+function toGeminiPart(item) {
+  if (!item || typeof item !== 'object') throw new Error('Gemini media must be a part or { data, mimeType } / { uri, mimeType }.');
+  if (item.inlineData || item.inline_data || item.fileData || item.file_data || item.text !== undefined) return item;
+  const mimeType = item.mimeType || item.mime_type;
+  if (item.uri || item.fileUri) {
+    return { fileData: { mimeType, fileUri: item.uri || item.fileUri } };
+  }
+  if (item.data !== undefined) {
+    const data = typeof item.data === 'string' ? item.data.replace(/^data:[^,]*,/, '') : Buffer.from(item.data).toString('base64');
+    return { inlineData: { mimeType, data } };
+  }
+  throw new Error('Gemini media must be a part or { data, mimeType } / { uri, mimeType }.');
+}
+
 function toGeminiToolConfig(choice) {
   if (choice === 'auto') return { functionCallingConfig: { mode: 'AUTO' } };
   if (choice === 'required' || choice === 'any') return { functionCallingConfig: { mode: 'ANY' } };
@@ -498,22 +513,43 @@ class GeminiInput extends ChatModelInput {
     this.messages = [];
     // the bare 'gemini' placeholder from older examples maps to the default model
     this.model = options.model && options.model !== 'gemini' ? options.model : config.url.gemini.models.chat;
+    // a model left at the Developer API default is replaced by the Vertex AI default on the vertex provider
+    this.defaultModel = this.model === config.url.gemini.models.chat && !(options.model && options.model !== 'gemini');
     this.maxOutputTokens = options.maxTokens
     this.temperature = options.temperature
     // tools in Gemini (functionDeclarations) or OpenAI function format
     this.tools = options.tools || null;
     this.toolChoice = options.toolChoice ?? null;
+    // Gemini only: generationConfig entries (thinkingConfig, responseModalities, ...), safety settings and a
+    // context cache name (GeminiAIWrapper.createCachedContent)
+    this.generationConfig = options.generationConfig || null;
+    this.safetySettings = options.safetySettings || null;
+    this.cachedContent = options.cachedContent || null;
+    // systemInstruction: true sends the system message as a Gemini system instruction; a string sets it directly.
+    // Without it the system message is the first user turn, as before.
+    this.systemInstruction = typeof options.systemInstruction === 'string' ? options.systemInstruction : null;
 
     if (systemMessage && typeof systemMessage === 'string') {
-      this.addUserMessage(systemMessage);
-      this.addModelMessage('I will response based on the provided instructions.');
+      if (options.systemInstruction === true) {
+        this.systemInstruction = systemMessage;
+      } else {
+        this.addUserMessage(systemMessage);
+        this.addModelMessage('I will response based on the provided instructions.');
+      }
     }
   }
 
-  addUserMessage(text) {
+  /**
+   * Add a user turn. media (optional) adds images, audio, video or PDFs: Gemini parts, { data, mimeType }
+   * with base64 or bytes, or { uri, mimeType } for gs://, https, YouTube and Files API URIs.
+   */
+  addUserMessage(text, media = null) {
+    const parts = [];
+    if (!media || (text !== null && text !== undefined && text !== '')) parts.push({ text });
+    for (const item of media ? (Array.isArray(media) ? media : [media]) : []) parts.push(toGeminiPart(item));
     this.messages.push({
       role: "user",
-      parts: [{ text }]
+      parts
     });
   }
 
@@ -553,14 +589,18 @@ class GeminiInput extends ChatModelInput {
     const toolConfig = this.toolChoice != null ? toGeminiToolConfig(this.toolChoice) : null;
     return {
       contents: this.messages,
+      ...(this.systemInstruction && { systemInstruction: { parts: [{ text: this.systemInstruction }] } }),
       generationConfig: {
         ...(this.temperature != null && { temperature: this.temperature }),
         ...(this.maxOutputTokens && { maxOutputTokens: this.maxOutputTokens }),
         ...(this.responseFormat === 'json' && { responseMimeType: 'application/json' }),
         ...(this.responseSchema && { responseSchema: toGeminiSchema(this.responseSchema) }),
+        ...(this.generationConfig || {}),
       },
       ...(this.tools && { tools: toGeminiTools(this.tools) }),
       ...(toolConfig && { toolConfig }),
+      ...(this.safetySettings && { safetySettings: this.safetySettings }),
+      ...(this.cachedContent && { cachedContent: this.cachedContent }),
     };
   }
 
